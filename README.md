@@ -78,3 +78,4 @@ This document provides an overview of the project's structure, outlining the pur
 - **LLM Integration:** Focus on `/llm/` directory.
 - **Testing:** Focus on `/tests/` directory and ensure all modules are covered.
 - **Evaluation and Performance Testing:** Use and potentially extend `next_word_prediction_test.py`.
+![](He_LLM.jpg)
