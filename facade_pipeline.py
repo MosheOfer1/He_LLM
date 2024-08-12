@@ -1,5 +1,3 @@
-import torch
-
 from llm.llm_integration import LLMIntegration
 from custom_transformers.transformer_1 import Transformer1
 from custom_transformers.transformer_2 import Transformer2
@@ -42,19 +40,19 @@ class Pipeline:
 
         # Step 3: Pass through the LLM
         if self.transformer_1:
-            data = self.llm.inject_hidden_states(data)  # Data is a Tensor, returns Tensor
+            data = self.llm.inject_input_embeddings(data)  # Data is a Tensor, returns Tensor
         else:
             data = self.llm.process_text_input(data)  # Data is text, returns Tensor
 
         if self.transformer_2:
-            # Step 4: Pass through Transformer 2 if enabled
+            # Step 4: Pass through Transformer 2 (if enabled)
             data = self.transformer_2.transform(data)  # Data remains as a Tensor
 
             # Step 5: Translate back to source language
             translated_text = self.translator.translate_hidden_to_source(data)
         else:
             # Step 5: Decode the data into text
-            decoded_text = self.llm.decode_hidden_states(data)
+            decoded_text = self.llm.decode_logits(data)
             translated_text = self.translator.translate_to_source(decoded_text)
 
         return translated_text

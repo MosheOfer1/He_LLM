@@ -1,5 +1,4 @@
 import unittest
-import torch
 from translation.helsinki_translator import HelsinkiTranslator
 
 
@@ -8,8 +7,8 @@ class TestHelsinkiTranslator(unittest.TestCase):
     def setUp(self):
         """Set up the HelsinkiTranslator instance for testing."""
         self.translator = HelsinkiTranslator()
-        self.sample_text_he = "הילד משחק בכדור"
-        self.sample_text_en = "The boy is playing with a ball"
+        self.sample_text_he = "הילד גדול."
+        self.sample_text_en = "The boy is big."
 
         # Encode the sample text to simulate hidden states
         self.tokens = self.translator.target_to_source_tokenizer(self.sample_text_he, return_tensors="pt",
@@ -21,7 +20,7 @@ class TestHelsinkiTranslator(unittest.TestCase):
         translated_text = self.translator.translate_to_target(self.sample_text_he)
         self.assertIsInstance(translated_text, str)
         self.assertNotEqual(translated_text, "")  # Ensure translation is not empty
-        # self.assertEqual(self.sample_text_en,translated_text)
+        self.assertEqual(self.sample_text_en,translated_text)
         print(translated_text)
 
     def test_translate_to_source(self):
@@ -29,7 +28,7 @@ class TestHelsinkiTranslator(unittest.TestCase):
         translated_text = self.translator.translate_to_source(self.sample_text_en)
         self.assertIsInstance(translated_text, str)
         self.assertNotEqual(translated_text, "")  # Ensure translation is not empty
-        # self.assertEqual(self.sample_text_he,translated_text)
+        self.assertEqual(self.sample_text_he,translated_text)
         print(translated_text)
 
     def test_translate_hidden_to_source_with_fitting_tensor(self):
