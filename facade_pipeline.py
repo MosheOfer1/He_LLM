@@ -31,7 +31,7 @@ class Pipeline:
         """
         # Step 1: Translate to target language
         if self.transformer_1:
-            data = self.translator.translate_hidden_to_target(text)
+            data = self.translator.translate_to_en_returns_tensor(text)
 
             # Step 2: Pass through Transformer 1 (if enabled)
             data = self.transformer_1.transform(data)

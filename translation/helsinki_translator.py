@@ -76,16 +76,7 @@ class HelsinkiTranslator(Translator):
         translated_text = self.target_to_source_tokenizer.decode(outputs[0], skip_special_tokens=True)
         return translated_text
 
-    def translate_hidden_to_target(self, hidden_states: torch.Tensor) -> str:
-        """
-        Translates hidden states directly into the target language (English).
-
-        This method allows for translating intermediate hidden states produced by
-        neural networks, bypassing the need to first decode the hidden states into text.
-
-        :param hidden_states: The hidden states tensor to be translated to English.
-        :return: The translated text in English.
-        """
-        outputs = self.source_to_target_model.generate(inputs_embeds=hidden_states)
-        translated_text = self.source_to_target_tokenizer.decode(outputs[0], skip_special_tokens=True)
-        return translated_text
+    def translate_to_en_returns_tensor(self, text: str) -> torch.Tensor:
+        tokens = self.source_to_target_tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+        translated_tokens = self.source_to_target_model.generate(**tokens)
+        return translated_tokens
