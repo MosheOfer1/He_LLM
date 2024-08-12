@@ -34,3 +34,11 @@ class LLMIntegration:
         outputs = self.model(**inputs)
         last_hidden_state = outputs.hidden_states[-1]
         return last_hidden_state
+
+    def decode_hidden_states(self, hidden_states: torch.Tensor) -> str:
+        """
+        Decodes the hidden states back into text.
+        """
+        tokens = hidden_states.argmax(dim=-1)
+        decoded_text = self.tokenizer.decode(tokens[0], skip_special_tokens=True)
+        return decoded_text

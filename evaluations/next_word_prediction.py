@@ -74,5 +74,5 @@ def run_tests(sentences):
 
 if __name__ == "__main__":
     # Load the dataset of Hebrew sentences
-    sentences = load_dataset('datasets/hebrew_sentences.csv')
+    sentences = load_dataset('../datasets/hebrew_sentences.csv')
     run_tests(sentences)

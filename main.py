@@ -1,26 +1,30 @@
 from input_handler.input_handler import InputHandler
 from facade_pipeline import Pipeline
+from llm.llm_integration import LLMIntegration
+from translation.helsinki_translator import HelsinkiTranslator
 
 
 def main():
-    # Step 1: Get user input
+    # Get user input
     input_handler = InputHandler()
     user_input = input_handler.get_input()
 
-    # Step 2: Configure custom_transformers based on user choice
-    # For this example, we're hardcoding the choices. In a real-world application,
-    # these could be obtained from user input or a config file.
-    use_transformer_1 = True  # Set to True if you want to apply Transformer 1
-    use_transformer_2 = True  # Set to True if you want to apply Transformer 2
+    # Initialize the translator and LLMIntegration
+    translator = HelsinkiTranslator()
+    llm_integration = LLMIntegration()
 
-    # Step 3: Create the facade with the selected custom_transformers
-    translator = Pipeline(use_transformer_1, use_transformer_2)
+    pipeline = Pipeline(
+        translator=translator,
+        llm=llm_integration,
+        use_transformer_1=True,
+        use_transformer_2=True
+    )
 
-    # Step 4: Process the input through the translation pipeline
-    translated_output = translator.process_text(user_input)
+    # Process the input through the pipeline
+    processed_output = pipeline.process_text(user_input)
 
-    # Step 5: Display the output to the user
-    input_handler.display_output(translated_output)
+    # Display the output to the user
+    input_handler.display_output(processed_output)
 
 
 if __name__ == "__main__":

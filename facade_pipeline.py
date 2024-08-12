@@ -1,22 +1,26 @@
+import torch
+
 from llm.llm_integration import LLMIntegration
 from custom_transformers.transformer_1 import Transformer1
 from custom_transformers.transformer_2 import Transformer2
-from translation.helsinki_translator import HelsinkiTranslator
+from translation.translator import Translator
 
 
 class Pipeline:
-    def __init__(self, use_transformer_1: bool = True, use_transformer_2: bool = True):
+    def __init__(self, translator: Translator, llm: LLMIntegration, use_transformer_1: bool = True, use_transformer_2: bool = True):
         """
-        Initialize the TranslationFacade with optional transformers.
+        Initialize the Pipeline with optional transformers and LLM integration.
 
+        :param translator: The translator component for handling language translation.
+        :param llm: The LLM integration component.
         :param use_transformer_1: Whether to use the first transformer in the pipeline.
         :param use_transformer_2: Whether to use the second transformer in the pipeline.
         """
-        # Initialize the HelsinkiTranslator to handle translation between Hebrew and English
-        self.translator = HelsinkiTranslator()
+        # Initialize the translator
+        self.translator = translator
 
-        # Initialize the LLMIntegration to interface with a Language Model (e.g., OPT)
-        self.llm = LLMIntegration()
+        # Initialize the LLMIntegration
+        self.llm = llm
 
         # Initialize the transformers based on user preference
         self.transformer_1 = Transformer1() if use_transformer_1 else None
@@ -24,28 +28,33 @@ class Pipeline:
 
     def process_text(self, text: str) -> str:
         """
-        Orchestrates the entire translation process, passing the hidden states between components.
-
-        :param text: The original Hebrew text input by the user.
-        :return: The final translated Hebrew text after processing through the pipeline.
+        Processes the text through the pipeline, transforming it into hidden states and back,
+        depending on the state of transformers.
         """
-        # Step 1: Translate Hebrew to English and retrieve hidden states
-        hidden_states = self.translator.he_to_en_hidden_states(text)
-
-        # Step 2: Apply the first transformer if it exists
+        # Step 1: Translate to target language
         if self.transformer_1:
-            hidden_states = self.transformer_1.transform(hidden_states)
-            # Inject hidden states into the LLM
-            hidden_states = self.llm.inject_hidden_states(hidden_states)
+            data = self.translator.translate_hidden_to_target(text)
+
+            # Step 2: Pass through Transformer 1 (if enabled)
+            data = self.transformer_1.transform(data)
         else:
-            # Pass the original text to the LLM if the first transformer is not used
-            hidden_states = self.llm.process_text_input(text)
+            data = self.translator.translate_to_target(text)
 
-        # Step 3: Apply the second transformer if it exists
+        # Step 3: Pass through the LLM
+        if self.transformer_1:
+            data = self.llm.inject_hidden_states(data)  # Data is a Tensor, returns Tensor
+        else:
+            data = self.llm.process_text_input(data)  # Data is text, returns Tensor
+
         if self.transformer_2:
-            hidden_states = self.transformer_2.transform(hidden_states)
+            # Step 4: Pass through Transformer 2 if enabled
+            data = self.transformer_2.transform(data)  # Data remains as a Tensor
 
-        # Step 4: Translate the hidden states back to Hebrew
-        translated_text = self.translator.en_to_he_hidden_states(hidden_states)
+            # Step 5: Translate back to source language
+            translated_text = self.translator.translate_hidden_to_source(data)
+        else:
+            # Step 5: Decode the data into text
+            decoded_text = self.llm.decode_hidden_states(data)
+            translated_text = self.translator.translate_to_source(decoded_text)
 
         return translated_text

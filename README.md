@@ -9,7 +9,6 @@ This document provides an overview of the project's structure, outlining the pur
 │
 ├── facade_pipeline.py                # Orchestrates the overall processing pipeline
 ├── main.py                           # A basic use Example
-├── next_word_prediction_test.py      # Script to evaluate next-word prediction accuracy
 ├── requirements.txt                  # Specifies project dependencies
 │
 ├── /custom_transformers/             # Contains custom transformers for processing hidden states
@@ -37,6 +36,9 @@ This document provides an overview of the project's structure, outlining the pur
 │   ├── test_transformers.py         
 │   ├── test_llm_integration.py      
 │   └── test_facade.py               # Unit test for the pipeline (facade_pipeline.py)
+│
+├── /evaluations/
+│   ├── next_word_prediction.py       # Script to evaluate next-word prediction accuracy
 │
 ├── /translation/                     # Handles translation logic
     ├── __init__.py
