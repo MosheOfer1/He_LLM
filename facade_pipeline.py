@@ -21,8 +21,8 @@ class Pipeline:
         self.llm = llm
 
         # Initialize the transformers based on user preference
-        self.transformer_1 = Transformer1() if use_transformer_1 else None
-        self.transformer_2 = Transformer2() if use_transformer_2 else None
+        self.transformer_1 = Transformer1(self.translator, self.llm) if use_transformer_1 else None
+        self.transformer_2 = Transformer2(self.translator, self.llm) if use_transformer_2 else None
 
     def process_text(self, text: str) -> str:
         """
@@ -31,7 +31,7 @@ class Pipeline:
         """
         # Step 1: Translate to target language
         if self.transformer_1:
-            data = self.translator.translate_to_en_returns_tensor(text)
+            data = self.translator.translate_to_en_returns_hidden_states(text)
 
             # Step 2: Pass through Transformer 1 (if enabled)
             data = self.transformer_1.transform(data)

@@ -14,7 +14,7 @@ class Translator(ABC):
         pass
 
     @abstractmethod
-    def translate_to_en_returns_tensor(self, text: str) -> torch.Tensor:
+    def translate_to_en_returns_hidden_states(self, text: str) -> torch.Tensor:
         """
         Translates the input text to the target language.
 

@@ -32,7 +32,8 @@ class HelsinkiTranslator(Translator):
         self.target_to_source_model_name = 'Helsinki-NLP/opus-mt-en-he'
 
         self.source_to_target_tokenizer = MarianTokenizer.from_pretrained(self.source_to_target_model_name)
-        self.source_to_target_model = MarianMTModel.from_pretrained(self.source_to_target_model_name)
+        self.source_to_target_model = MarianMTModel.from_pretrained(self.source_to_target_model_name,
+                                                                    output_hidden_states=True)
 
         self.target_to_source_tokenizer = MarianTokenizer.from_pretrained(self.target_to_source_model_name)
         self.target_to_source_model = MarianMTModel.from_pretrained(self.target_to_source_model_name,
@@ -76,7 +77,42 @@ class HelsinkiTranslator(Translator):
         translated_text = self.target_to_source_tokenizer.decode(outputs[0], skip_special_tokens=True)
         return translated_text
 
-    def translate_to_en_returns_tensor(self, text: str) -> torch.Tensor:
+    def translate_to_en_returns_hidden_states(self, text: str) -> torch.Tensor:
         tokens = self.source_to_target_tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-        translated_tokens = self.source_to_target_model.generate(**tokens)
-        return translated_tokens
+
+        # Get the start token id
+        decoder_start_token_id = self.source_to_target_model.config.decoder_start_token_id
+        # Initialize decoder_input_ids with the start token
+        decoder_input_ids = torch.tensor([[decoder_start_token_id]], device=tokens["input_ids"].device)
+
+        # Forward pass with tokens and decoder input ids
+        with torch.no_grad():
+            outputs = self.source_to_target_model(
+                **tokens,
+                decoder_input_ids=decoder_input_ids,
+                output_hidden_states=True,
+                return_dict=True,
+            )
+
+        # Extract hidden states from the last decoder layer
+        decoder_hidden_states = outputs.decoder_hidden_states[-1]
+        return decoder_hidden_states
+
+
+translator = HelsinkiTranslator()
+last_layer = translator.translate_to_en_returns_hidden_states("מה קורה אחי? איפה אתה?")
+# Get the number of layers in the encoder
+num_encoder_layers = translator.source_to_target_model.config.encoder_layers
+print(f"Number of encoder layers in source_to_target_model: {num_encoder_layers}")
+
+# Get the number of layers in the encoder
+num_encoder_layers = translator.target_to_source_model.config.encoder_layers
+print(f"Number of encoder layers in target_to_source_model: {num_encoder_layers}")
+
+# Get the number of layers in the decoder
+num_decoder_layers = translator.source_to_target_model.config.decoder_layers
+print(f"Number of decoder in source_to_target_model: {num_decoder_layers}")
+
+# Get the number of layers in the decoder
+num_decoder_layers = translator.target_to_source_model.config.decoder_layers
+print(f"Number of decoder in target_to_source_model: {num_decoder_layers}")
