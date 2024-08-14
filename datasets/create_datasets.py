@@ -7,7 +7,7 @@ def load_hebrew_sentences(csv_file_path):
     """
     Load Hebrew sentences from a CSV file.
 
-    :param csv_file_path: Path to the CSV file containing Hebrew sentences.
+    :param  csv_file_path: Path to the CSV file containing Hebrew sentences.
     :return: A list of Hebrew sentences.
     """
     sentences = []
