@@ -7,8 +7,7 @@ class CustomLayerWrapper(nn.Module):
     def __init__(self, layer, hidden_states):
         super().__init__()
         self.layer = layer
-        self.hs = hidden_states #transformer's result
-
+        self.hs = hidden_states  # transformer's result
 
     def forward(self, hidden_states, attention_mask=None, layer_head_mask=None,
                 past_key_value=None, output_attentions=None, use_cache=None):
@@ -27,8 +26,7 @@ class LLMIntegration:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = OPTForCausalLM.from_pretrained(model_name)
         self.model_name = model_name
-        
-        
+
         # Injectable
         original_layer = self.model.base_model.decoder.layers[1]
         wrapped_layer = CustomLayerWrapper(original_layer, None)
@@ -37,7 +35,8 @@ class LLMIntegration:
     """
     
     """
-    def inject_hs(self, layer_num, llm_first_hs: torch.Tensor): #-> torch.Tensor:
+
+    def inject_hs(self, layer_num, llm_first_hs: torch.Tensor):  # -> torch.Tensor:
         """
         Inject hidden states into the LLM and return the logits layer.
 
@@ -45,21 +44,16 @@ class LLMIntegration:
         :return: The logits layer from the LLM.
         """
         self.model.base_model.decoder.layers[layer_num].hs = llm_first_hs
-        
-    
-    def get_output(self, token_num = 15):
+
+    def get_output(self, token_num=15):
         # Generate the response based on hidden states
-        inputs = self.llm_tokenizer(" " * (token_num - 1), return_tensors="pt")
-        
+        inputs = self.tokenizer(" " * (token_num - 1), return_tensors="pt")
+
         # decoder_input_ids = torch.tensor([[self.llm_tokenizer.pad_token_id]])
 
-        
-        outputs = self.model(**inputs, 
-                           output_hidden_states=True
-                           )
-        
+        outputs = self.model(**inputs, output_hidden_states=True)
+
         return self.decode_logits(outputs.logits)
-        
 
     def process_text_input_to_logits(self, text: str) -> torch.Tensor:
         """
@@ -118,20 +112,16 @@ class LLMIntegration:
         generated_outputs = self.inject_input_embeddings(inputs_embeds)
 
         return generated_outputs
-    
+
     @staticmethod
     def text_to_first_hs(text, model_name):
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = OPTForCausalLM.from_pretrained(model_name)
-        
+
         inputs = tokenizer(text, return_tensors="pt")
         outputs = model(**inputs, output_hidden_states=True)
-        
+
         return outputs.hidden_states[0]
-        
-
-        
-
 
 # # Example usage:
 # llm = LLMIntegration()
