@@ -20,7 +20,9 @@ class HelsinkiTranslator(Translator):
         target_to_source_model (MarianMTModel): Pretrained MarianMT model for target to source translation.
     """
 
-    def __init__(self):
+    def __init__(self, 
+                 src_to_target_translator_model_name = 'Helsinki-NLP/opus-mt-tc-big-he-en',
+                 target_to_src_translator_model_name = 'Helsinki-NLP/opus-mt-en-he'):
         """
         Initializes the HelsinkiTranslator with pretrained MarianMT models and tokenizers
         for translating between Hebrew and English.
@@ -28,15 +30,15 @@ class HelsinkiTranslator(Translator):
         Models and tokenizers are loaded for both directions of translation:
         from Hebrew to English and from English to Hebrew.
         """
-        self.source_to_target_model_name = 'Helsinki-NLP/opus-mt-tc-big-he-en'
-        self.target_to_source_model_name = 'Helsinki-NLP/opus-mt-en-he'
 
-        self.source_to_target_tokenizer = MarianTokenizer.from_pretrained(self.source_to_target_model_name)
-        self.source_to_target_model = MarianMTModel.from_pretrained(self.source_to_target_model_name,
+        super(src_to_target_translator_model_name, target_to_src_translator_model_name)
+        
+        self.source_to_target_tokenizer = MarianTokenizer.from_pretrained(self.src_to_target_translator_model_name)
+        self.source_to_target_model = MarianMTModel.from_pretrained(self.src_to_target_translator_model_name,
                                                                     output_hidden_states=True)
 
-        self.target_to_source_tokenizer = MarianTokenizer.from_pretrained(self.target_to_source_model_name)
-        self.target_to_source_model = MarianMTModel.from_pretrained(self.target_to_source_model_name,
+        self.target_to_source_tokenizer = MarianTokenizer.from_pretrained(self.target_to_src_translator_model_name)
+        self.target_to_source_model = MarianMTModel.from_pretrained(self.target_to_src_translator_model_name,
                                                                     output_hidden_states=True)
 
     def translate_to_target(self, text: str) -> str:
