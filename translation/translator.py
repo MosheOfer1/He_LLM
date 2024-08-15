@@ -3,6 +3,12 @@ import torch
 
 
 class Translator(ABC):
+    
+    
+    def __init__(self, src_to_target_translator_model_name, target_to_src_translator_model_name):
+        self.src_to_target_translator_model_name = src_to_target_translator_model_name
+        self.target_to_src_translator_model_name = target_to_src_translator_model_name
+    
     @abstractmethod
     def translate_to_target(self, text: str) -> str:
         """
