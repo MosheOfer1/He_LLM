@@ -23,12 +23,12 @@ class TestLLMIntegration(unittest.TestCase):
         # Tokenize the sample text
         inputs = self.llm_integration.tokenizer(self.sample_text, return_tensors="pt")
 
-        # Pass the inputs through the model to get the hidden states
-        with torch.no_grad():  # Disable gradient calculation since this is a test
-            outputs = self.llm_integration.model(**inputs)
-            self.input_embeddings = self.llm_integration.model.model.decoder.embed_tokens(inputs['input_ids'])
+        # # Pass the inputs through the model to get the hidden states
+        # with torch.no_grad():  # Disable gradient calculation since this is a test
+        #     outputs = self.llm_integration.model(**inputs)
+        #     self.input_embeddings = self.llm_integration.model.model.decoder.embed_tokens(inputs['input_ids'])
 
-        self.logits = outputs.logits
+        # self.logits = outputs.logits
         
     def test_injection(self):
         
@@ -36,14 +36,13 @@ class TestLLMIntegration(unittest.TestCase):
         
         llm_first_hs = self.llm_integration.text_to_first_hs(en_text, self.llm_integration.model_name)
         
-        self.llm_integration.inject_hs(0, llm_first_hs)
+        self.llm_integration.inject_hs(1, llm_first_hs)
         
         llm_output = self.llm_integration.get_output()
         
         self.assertIsInstance(llm_output, str)
         self.assertGreater(len(llm_output), 0)  # Ensure the decoded text is not empty
         print(llm_output)
-
 
 
 if __name__ == '__main__':
