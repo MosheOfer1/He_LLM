@@ -28,15 +28,14 @@ class LLMIntegration:
         self.model_name = model_name
 
         # Injectable
-        original_layer = self.model.base_model.decoder.layers[1]
+        original_layer = self.model.base_model.decoder.layers[0]
         wrapped_layer = CustomLayerWrapper(original_layer, None)
-        self.model.base_model.decoder.layers[1] = wrapped_layer
+        self.model.base_model.decoder.layers[0] = wrapped_layer
 
     """
     
     """
-
-    def inject_hs(self, layer_num, llm_first_hs: torch.Tensor):  # -> torch.Tensor:
+    def inject_hs(self, layer_num, llm_first_hs: torch.Tensor):
         """
         Inject hidden states into the LLM and return the logits layer.
 
@@ -45,11 +44,9 @@ class LLMIntegration:
         """
         self.model.base_model.decoder.layers[layer_num].hs = llm_first_hs
 
-    def get_output(self, token_num=15):
+    def get_output(self, token_num=5):
         # Generate the response based on hidden states
         inputs = self.tokenizer(" " * (token_num - 1), return_tensors="pt")
-
-        # decoder_input_ids = torch.tensor([[self.llm_tokenizer.pad_token_id]])
 
         outputs = self.model(**inputs, output_hidden_states=True)
 
@@ -70,9 +67,16 @@ class LLMIntegration:
     def decode_logits(self, logits: torch.Tensor) -> str:
         """
         Decodes the logits back into text.
+
+        :param logits: The logits tensor output from the LLM.
+        :return: The decoded text.
         """
-        # Decode the predicted token IDs to text
-        generated_text = self.tokenizer.decode(logits[0], skip_special_tokens=True)
+        # Get the token IDs by taking the argmax over the vocabulary dimension (dim=-1)
+        token_ids = torch.argmax(logits, dim=-1)
+
+        # Decode the token IDs to text
+        generated_text = self.tokenizer.decode(token_ids[0], skip_special_tokens=True)
+
         return generated_text
 
     def inject_input_embeddings(self, inputs_embeds: torch.Tensor, max_length: int = 50) -> torch.Tensor:
@@ -123,9 +127,3 @@ class LLMIntegration:
 
         return outputs.hidden_states[0]
 
-# # Example usage:
-# llm = LLMIntegration()
-# input_text = "The capital city of France is"
-# logits = llm.process_text_input(input_text)
-# generated_text = llm.decode_logits(logits)
-# print(generated_text)
