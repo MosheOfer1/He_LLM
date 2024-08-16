@@ -73,16 +73,23 @@ class Translator(Injectable):
         """
         Decodes the logits back into text.
 
-        :param from_first:
+        :param from_first: Indicates whether to use the source-to-target or target-to-source tokenizer.
         :param logits: The logits tensor output from the LLM.
         :return: The decoded text.
         """
         # Get the token IDs by taking the argmax over the vocabulary dimension (dim=-1)
         token_ids = torch.argmax(logits, dim=-1)
 
-        # Decode the token IDs to text
-        generated_text = self.source_to_target_tokenizer.decode(token_ids[0], skip_special_tokens=True) if from_first \
-            else self.target_to_source_tokenizer.decode(token_ids[0], skip_special_tokens=True)
+        # If logits contain multiple sequences (batch size > 1), process each separately
+        if token_ids.dim() > 1:
+            # Concatenate token IDs along the sequence length dimension (dim=1)
+            token_ids = token_ids.squeeze()
+
+        # Use the appropriate tokenizer to decode the token IDs
+        tokenizer = self.source_to_target_tokenizer if from_first else self.target_to_source_tokenizer
+
+        # Decode the token IDs to a full sentence, skipping special tokens like <pad>, <eos>, etc.
+        generated_text = tokenizer.decode(token_ids, skip_special_tokens=True)
 
         return generated_text
 
