@@ -1,6 +1,5 @@
+from abc import abstractmethod
 import torch
-from transformers import MarianTokenizer, MarianMTModel
-
 from utilty.injectable import Injectable, CustomLayerWrapper
 
 
@@ -39,23 +38,14 @@ class Translator(Injectable):
     def get_output_by_using_dummy(self, token_num):
         """
         Receive the output from the Second translator
-        :param token_num:
+        :param token_num: The number of tokens to create the dummy
         :return: The outputs of the model after passing it through
         """
         # Generate a dummy input for letting the model output the desired result of the injected layer
         self.inputs = self.target_to_source_tokenizer("`" * (token_num - 2), return_tensors="pt")
 
-        # Generate decoder input ids using the start token
-        decoder_input_ids = torch.tensor([[self.target_to_source_tokenizer.pad_token_id]])
-
-        # Forward pass through the model, providing decoder input ids
-        self.outputs = self.target_to_source_model(**self.inputs,
-                                                   decoder_input_ids=decoder_input_ids,
-                                                   output_hidden_states=True)
-
         # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
-        full_sentence = self.generate_sentence_from_outputs(use_first_translator=False)
-        print(full_sentence)
+        self.generate_sentence_from_outputs(use_first_translator=False)
 
         return self.outputs
 
@@ -63,14 +53,10 @@ class Translator(Injectable):
         if from_first:
             # Regular insertion
             self.inputs = self.source_to_target_tokenizer(text, return_tensors="pt")
+            # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
+            self.generate_sentence_from_outputs(use_first_translator=True)
 
-            # Generate decoder input ids using the start token
-            decoder_input_ids = torch.tensor([[self.source_to_target_tokenizer.pad_token_id]])
-
-            self.outputs = self.source_to_target_model(**self.inputs,
-                                                       decoder_input_ids=decoder_input_ids,
-                                                       output_hidden_states=True)
-        else:  # From second translator which his first block in custom and need to be injected
+        else:  # From second translator which his first block is a custom block must be injected
             # Injection
             second_trans_first_hs = self.text_to_hidden_states(text, 0, self.target_to_src_translator_model_name)
             self.inject_hidden_states(second_trans_first_hs)
@@ -79,21 +65,15 @@ class Translator(Injectable):
             token_num = second_trans_first_hs.shape[1]
             self.outputs = self.get_output_by_using_dummy(token_num)
 
-        # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
-        self.generate_sentence_from_outputs(use_first_translator=from_first)
-
         return self.outputs
 
     def generate_sentence_from_outputs(self, use_first_translator=True):
         """
-        Generate a full sentence from the stored outputs in `self.outputs` without using the `generate` method.
+        Generate a full sentence without using the `generate` method.
 
         :param use_first_translator: Boolean flag indicating whether to use the first translator (True) or the second (False).
-        :param max_length: The maximum length of the sentence to generate.
         :return: The generated sentence as a string.
         """
-        if self.outputs is None:
-            raise ValueError("No outputs found. Please run the model to obtain outputs first.")
 
         # Choose the appropriate tokenizer and model based on the flag
         if use_first_translator:
@@ -148,33 +128,6 @@ class Translator(Injectable):
         return outputs
 
     @staticmethod
-    def text_to_hidden_states(text, layer_num, model_name, from_encoder=True):
-        """
-        Extracts hidden states from the specified layer in either the encoder or decoder.
-
-        :param text: The input text to be tokenized and passed through the model.
-        :param layer_num: The layer number from which to extract hidden states.
-        :param model_name: The name of the MarianMTModel to load.
-        :param from_encoder: If True, return hidden states from the encoder; otherwise, return from the decoder.
-        :return: The hidden states from the specified layer.
-        """
-        # Load the tokenizer and model
-        tokenizer = MarianTokenizer.from_pretrained(model_name)
-        model = MarianMTModel.from_pretrained(model_name, output_hidden_states=True)
-
-        # Tokenize the input text
-        inputs = tokenizer(text, return_tensors="pt")
-
-        # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs, model, tokenizer)
-
-        # Return the hidden states of the specified layer
-        if from_encoder:
-            return outputs.encoder_hidden_states[layer_num]
-        else:
-            return outputs.decoder_hidden_states[layer_num]
-
-    @staticmethod
     def decode_logits(tokenizer, logits: torch.Tensor) -> str:
         """
         Decodes the logits back into text.
@@ -196,4 +149,7 @@ class Translator(Injectable):
 
         return generated_text
 
-
+    @staticmethod
+    @abstractmethod
+    def text_to_hidden_states(text, layer_num, model_name, from_encoder=True):
+        pass
