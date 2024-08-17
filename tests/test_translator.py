@@ -10,7 +10,7 @@ class TestTranslator(unittest.TestCase):
         self.target_to_src_translator_model_name = 'Helsinki-NLP/opus-mt-en-he'
         self.translator = HelsinkiTranslator(self.src_to_target_translator_model_name,
                                              self.target_to_src_translator_model_name)
-        self.sample_text_he = "הילד גדול."
+        self.sample_text_he = "כמה פעמים עוד אפשר?"
         self.sample_text_en = "The boy is big."
 
     def test_injection_second_translator_model(self):
@@ -26,12 +26,12 @@ class TestTranslator(unittest.TestCase):
         translator_output = self.translator.get_output_by_using_dummy(translator_first_hs.shape[1])
 
         # Step 4: Decode the logits into text
-        translated_text = self.translator.decode_logits(from_first=False, logits=translator_output.logits)
+        translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_source_tokenizer, logits=translator_output.logits)
 
         # Step 5: Validate and print the output
         self.assertIsInstance(translated_text, str)
         self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
-        print(self.translator.generate_sentence_from_outputs(False))
+        print(translated_text)
 
     def test_get_output_from_first(self):
         """Test the get_output method when using the first translator."""
@@ -39,22 +39,20 @@ class TestTranslator(unittest.TestCase):
 
         self.assertIsNotNone(output.logits)  # Ensure logits are generated
 
-        translated_text = self.translator.decode_logits(from_first=True, logits=output.logits)
+        translated_text = self.translator.decode_logits(tokenizer=self.translator.source_to_target_tokenizer, logits=output.logits)
         self.assertIsInstance(translated_text, str)
         self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
         print("From first:", translated_text)
-        print(self.translator.generate_sentence_from_outputs(True))
 
     def test_get_output_from_second(self):
         """Test the get_output method when using the second translator."""
         output = self.translator.get_output(from_first=False, text=self.sample_text_en)
 
         self.assertIsNotNone(output.logits)  # Ensure logits are generated
-        translated_text = self.translator.decode_logits(from_first=False, logits=output.logits)
+        translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_source_tokenizer,  logits=output.logits)
         self.assertIsInstance(translated_text, str)
         self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
         print("From second:", translated_text)
-        print(self.translator.generate_sentence_from_outputs(False))
 
     def test_various_text_sizes(self):
         """Test the translator with different sizes of text."""
@@ -73,22 +71,20 @@ class TestTranslator(unittest.TestCase):
             with self.subTest(text=text):
                 output = self.translator.get_output(from_first=True, text=text)
                 self.assertIsNotNone(output.logits)
-                translated_text = self.translator.decode_logits(from_first=True, logits=output.logits)
+                translated_text = self.translator.decode_logits(tokenizer=self.translator.source_to_target_tokenizer, logits=output.logits)
                 self.assertIsInstance(translated_text, str)
                 self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
                 print(f"From first, size={len(text)}:", translated_text)
-                print(self.translator.generate_sentence_from_outputs(True))
 
         # Test with the second translator (English input)
         for text in [short_text_en, medium_text_en, long_text_en]:
             with self.subTest(text=text):
                 output = self.translator.get_output(from_first=False, text=text)
                 self.assertIsNotNone(output.logits)
-                translated_text = self.translator.decode_logits(from_first=False, logits=output.logits)
+                translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_source_tokenizer, logits=output.logits)
                 self.assertIsInstance(translated_text, str)
                 self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
                 print(f"From second, size={len(text)}:", translated_text)
-                print(self.translator.generate_sentence_from_outputs(False))
 
 
 if __name__ == '__main__':
