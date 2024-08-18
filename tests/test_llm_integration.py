@@ -23,9 +23,9 @@ class TestLLMIntegration(unittest.TestCase):
         
         llm_first_hs = self.llm_integration.text_to_first_hs(en_text, self.llm_integration.model_name)
         
-        self.llm_integration.inject_hs(0, llm_first_hs)
+        self.llm_integration.inject_hidden_states(0, llm_first_hs)
         
-        llm_output = self.llm_integration.get_output(llm_first_hs.shape[1])
+        llm_output = self.llm_integration.get_output_using_dummy(llm_first_hs.shape[1])
         
         self.assertIsInstance(llm_output, str)
         self.assertGreater(len(llm_output), 0)  # Ensure the decoded text is not empty

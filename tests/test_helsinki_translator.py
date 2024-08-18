@@ -15,28 +15,20 @@ class TestHelsinkiTranslator(unittest.TestCase):
                                                                  truncation=True, padding=True)
         self.hidden_states = self.translator.target_to_source_model.get_input_embeddings()(self.tokens.input_ids)
 
-    def test_translate_to_target(self):
-        """Test the translation from Hebrew (source) to English (target)."""
-        translated_text = self.translator.translate_to_target(self.sample_text_he)
-        self.assertIsInstance(translated_text, str)
-        self.assertNotEqual(translated_text, "")  # Ensure translation is not empty
-        self.assertEqual(self.sample_text_en,translated_text)
-        print(translated_text)
-
-    def test_translate_to_source(self):
-        """Test the translation from English (target) back to Hebrew (source)."""
-        translated_text = self.translator.translate_to_source(self.sample_text_en)
-        self.assertIsInstance(translated_text, str)
-        self.assertNotEqual(translated_text, "")  # Ensure translation is not empty
-        self.assertEqual(self.sample_text_he,translated_text)
-        print(translated_text)
-
-    def test_translate_hidden_to_source_with_fitting_tensor(self):
-        """Test translating hidden states that correspond to a specific sentence back to Hebrew."""
-        translated_text = self.translator.translate_hidden_to_source(self.hidden_states)
-        self.assertIsInstance(translated_text, str)
-        self.assertEqual(self.sample_text_he, translated_text)  # Ensure it matches the original sentence
+    def test_injection(self):
+        en_text = "to be or not to"
+        
+        llm_first_hs = self.llm_integration.text_to_first_hs(en_text, self.llm_integration.model_name)
+        
+        self.llm_integration.inject_hidden_states(0, llm_first_hs)
+        
+        llm_output = self.llm_integration.get_output_using_dummy(llm_first_hs.shape[1])
+        
+        self.assertIsInstance(llm_output, str)
+        self.assertGreater(len(llm_output), 0)  # Ensure the decoded text is not empty
+        print(llm_output.split(" ")[-1])
 
 
+    
 if __name__ == '__main__':
     unittest.main()

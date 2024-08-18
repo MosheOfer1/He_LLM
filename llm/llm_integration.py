@@ -1,24 +1,11 @@
 from transformers import AutoTokenizer, OPTForCausalLM
 import torch
 import torch.nn as nn
+from utilty.injectable import Injectable
+from utilty.custom_layer_wrapper import CustomLayerWrapper
 
 
-class CustomLayerWrapper(nn.Module):
-    def __init__(self, layer, hidden_states):
-        super().__init__()
-        self.layer = layer
-        self.hs = hidden_states  # The injected hidden state layer
-
-    def forward(self, hidden_states, attention_mask=None, layer_head_mask=None,
-                past_key_value=None, output_attentions=None, use_cache=None):
-        # Apply modifications to hidden_states here
-
-        # Pass modified_hidden_states to the original layer
-        return self.layer(self.hs, attention_mask, layer_head_mask,
-                          past_key_value, output_attentions, use_cache)
-
-
-class LLMIntegration:
+class LLMIntegration(Injectable):
     def __init__(self, model_name):
         """
         Initialize the LLMIntegration with a specific OPT model.0
@@ -32,16 +19,17 @@ class LLMIntegration:
         wrapped_layer = CustomLayerWrapper(original_layer, None)
         self.model.base_model.decoder.layers[0] = wrapped_layer
 
-    def inject_hs(self, layer_num, llm_first_hs: torch.Tensor):
+    def inject_hidden_states(self, layer_num, hidden_states: torch.Tensor):
         """
         Inject hidden states into the LLM by using a custom layer that wrappers the origin first layer of the LLM: CustomLayerWrapper.
 
         :param inputs_embeds: The input embeddings to be injected into the LLM.
         :return: The logits layer from the LLM.
         """
-        self.model.base_model.decoder.layers[layer_num].hs = llm_first_hs
+        self.model.base_model.decoder.layers[layer_num].hs = hidden_states
 
-    def get_output(self, token_num=5):
+
+    def get_output_using_dummy(self, token_num: int):
         # Generate a dummy input for letting the model output the desired result of the injected layer
         inputs = self.tokenizer(" " * (token_num - 1), return_tensors="pt")
 
