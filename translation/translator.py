@@ -1,67 +1,155 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import torch
-from utilty.injectable import Injectable
-from utilty.custom_layer_wrapper import CustomLayerWrapper
-
+from utilty.injectable import Injectable, CustomLayerWrapper
 
 
 class Translator(Injectable):
-    
-    """
-        src: The source language
-        target: The target language
-    """
-    def __init__(self,src_to_target_translator_model_name,
-                target_to_src_translator_model_name,
-                src_to_target_tokenizer,
-                src_to_target_model,
-                target_to_src_tokenizer,
-                target_to_src_model):
-        
+    def __init__(self,
+                 src_to_target_translator_model_name,
+                 target_to_src_translator_model_name,
+                 source_to_target_model,
+                 target_to_source_model,
+                 source_to_target_tokenizer,
+                 target_to_source_tokenizer):
         self.src_to_target_translator_model_name = src_to_target_translator_model_name
         self.target_to_src_translator_model_name = target_to_src_translator_model_name
-        self.src_to_target_tokenizer = src_to_target_tokenizer
-        self.src_to_target_model = src_to_target_model
-        self.target_to_src_tokenizer = target_to_src_tokenizer
-        self.target_to_src_model = target_to_src_model
-        
-     # Let the LLM be Injectable by replacing the first layer of the LLM
-        original_layer = self.target_to_src_model.base_model.encoder.layers[0]
+        self.source_to_target_model = source_to_target_model
+        self.target_to_source_model = target_to_source_model
+        self.source_to_target_tokenizer = source_to_target_tokenizer
+        self.target_to_source_tokenizer = target_to_source_tokenizer
+
+        self.inputs = None
+        self.outputs = None
+
+        # Let the Second translator be Injectable by replacing his first block
+        self.injected_layer_num = 0
+        original_layer = self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num]
         wrapped_layer = CustomLayerWrapper(original_layer, None)
-        self.target_to_src_model.base_model.encoder.layers[0] = wrapped_layer
+        self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num] = wrapped_layer
 
-    
-    def inject_hidden_states(self, layer_num, hidden_states: torch.Tensor):
+    def inject_hidden_states(self, injected_hidden_state: torch.Tensor):
         """
-        Method to inject hidden states into the model.
+        Inject hidden states into the Second translator
 
-        :param hidden_states: The hidden states tensor to be injected.
+        :param injected_hidden_state: The injected hidden states
         """
-        self.target_to_src_model.model.encoder.layers[layer_num].hs = hidden_states
+        self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num].injected_hidden_state = injected_hidden_state
 
-    def get_output_using_dummy(self, token_num: int):
+    def get_output_by_using_dummy(self, token_num):
         """
-        Method to retrieve the output after injection.
-
-        :return: The output tensor or processed result.
+        Receive the output from the Second translator
+        :param token_num: The number of tokens to create the dummy
+        :return: The outputs of the model after passing it through
         """
         # Generate a dummy input for letting the model output the desired result of the injected layer
-        inputs = self.tokenizer(" " * (token_num - 1), return_tensors="pt")
+        self.inputs = self.target_to_source_tokenizer("`" * (token_num - 2), return_tensors="pt")
 
-        outputs = self.model(**inputs, output_hidden_states=True)
+        # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
+        self.generate_sentence_from_outputs(use_first_translator=False)
 
-        return self.decode_logits(outputs.logits)
+        return self.outputs
 
-    
-    def decode_logits(self, logits: torch.Tensor) -> str:
+    def get_output(self, from_first, text):
+        if from_first:
+            # Regular insertion
+            self.inputs = self.source_to_target_tokenizer(text, return_tensors="pt")
+            # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
+            self.generate_sentence_from_outputs(use_first_translator=True)
+
+        else:  # From second translator which his first block is a custom block must be injected
+            # Injection
+            second_trans_first_hs = self.text_to_hidden_states(text, 0, self.target_to_src_translator_model_name)
+            self.inject_hidden_states(second_trans_first_hs)
+
+            # Dummy insertion
+            token_num = second_trans_first_hs.shape[1]
+            self.outputs = self.get_output_by_using_dummy(token_num)
+
+        return self.outputs
+
+    def generate_sentence_from_outputs(self, use_first_translator=True):
+        """
+        Generate a full sentence without using the `generate` method.
+
+        :param use_first_translator: Boolean flag indicating whether to use the first translator (True) or the second (False).
+        :return: The generated sentence as a string.
+        """
+
+        # Choose the appropriate tokenizer and model based on the flag
+        if use_first_translator:
+            tokenizer = self.source_to_target_tokenizer
+            model = self.source_to_target_model
+        else:
+            tokenizer = self.target_to_source_tokenizer
+            model = self.target_to_source_model
+
+        # Use the static method to process inputs and get the final outputs
+        self.outputs = self.process_outputs(self.inputs, model, tokenizer)
+
+        # Extract the logits from the outputs
+        final_logits = self.outputs.logits
+
+        # Decode the logits into a sentence
+        generated_sentence = self.decode_logits(tokenizer=tokenizer, logits=final_logits)
+
+        return generated_sentence
+
+    @staticmethod
+    def process_outputs(inputs, model, tokenizer):
+        """
+        Processes the model to generate outputs, including logits and hidden states.
+
+        :param inputs: The inputs to the model (e.g., encoder inputs).
+        :param model: The MarianMTModel to use for generating outputs.
+        :param tokenizer: The tokenizer to use for decoding.
+        :return: The final outputs after processing all tokens.
+        """
+        # Initialize decoder input IDs with the start token ID
+        decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]])
+
+        while True:
+            # Run the model with the current decoder input IDs to get the outputs
+            outputs = model(
+                **inputs,
+                decoder_input_ids=decoder_input_ids,
+                output_hidden_states=True
+            )
+
+            # Get the token ID for the current timestep (take argmax over the vocabulary dimension)
+            token_id = torch.argmax(outputs.logits[:, -1, :], dim=-1).item()
+
+            # Check if the token is an end-of-sequence token
+            if token_id == tokenizer.eos_token_id:
+                break
+
+            # Update the decoder input IDs with the newly generated token
+            decoder_input_ids = torch.cat([decoder_input_ids, torch.tensor([[token_id]])], dim=-1)
+
+        return outputs
+
+    @staticmethod
+    def decode_logits(tokenizer, logits: torch.Tensor) -> str:
         """
         Decodes the logits back into text.
 
-        :param logits: The logits tensor output from the LLM.
+        :param logits: The logits tensor output from the model.
+        :param tokenizer: The tokenizer to use for decoding.
         :return: The decoded text.
         """
         # Get the token IDs by taking the argmax over the vocabulary dimension (dim=-1)
         token_ids = torch.argmax(logits, dim=-1)
 
-        # Decode the token IDs to text
-        generated_text = self.tokenizer.decode(token_ids[0], skip_special_tokens=True)
+        # If logits contain multiple sequences (batch size > 1), process each separately
+        if token_ids.dim() > 1:
+            # Concatenate token IDs along the sequence length dimension (dim=1)
+            token_ids = token_ids.squeeze()
+
+        # Decode the token IDs to a full sentence, skipping special tokens like <pad>, <eos>, etc.
+        generated_text = tokenizer.decode(token_ids, skip_special_tokens=True)
+
+        return generated_text
+
+    @staticmethod
+    @abstractmethod
+    def text_to_hidden_states(text, layer_num, model_name, from_encoder=True):
+        pass
