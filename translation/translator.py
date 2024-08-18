@@ -58,7 +58,12 @@ class Translator(Injectable):
 
         else:  # From second translator which his first block is a custom block must be injected
             # Injection
-            second_trans_first_hs = self.text_to_hidden_states(text, 0, self.target_to_src_translator_model_name)
+            second_trans_first_hs = self.text_to_hidden_states(
+                text=text,
+                layer_num=0,
+                tokenizer=self.target_to_source_tokenizer,
+                model=self.target_to_source_model
+            )
             self.inject_hidden_states(second_trans_first_hs)
 
             # Dummy insertion
@@ -66,6 +71,18 @@ class Translator(Injectable):
             self.outputs = self.get_output_by_using_dummy(token_num)
 
         return self.outputs
+
+    def translate(self, from_first, text):
+        output = self.get_output(
+            from_first=from_first,
+            text=text
+        )
+        tokenizer = self.source_to_target_tokenizer if from_first else self.target_to_source_tokenizer
+        translated_text = self.decode_logits(
+            tokenizer=tokenizer,
+            logits=output.logits
+        )
+        return translated_text
 
     def generate_sentence_from_outputs(self, use_first_translator=True):
         """
@@ -150,6 +167,26 @@ class Translator(Injectable):
         return generated_text
 
     @staticmethod
-    @abstractmethod
-    def text_to_hidden_states(text, layer_num, model_name, from_encoder=True):
-        pass
+    def text_to_hidden_states(text, layer_num, tokenizer, model, from_encoder=True):
+        """
+        Extracts hidden states from the specified layer in either the encoder or decoder.
+
+        :param text: The input text to be tokenized and passed through the model.
+        :param layer_num: The layer number from which to extract hidden states.
+        :param tokenizer: The specific tokenizer.
+        :param model: The specific model.
+        :param from_encoder: If True, return hidden states from the encoder; otherwise, return from the decoder.
+        :return: The hidden states from the specified layer.
+        """
+        # Tokenize the input text
+        inputs = tokenizer(text, return_tensors="pt")
+
+        # Forward pass through the model, providing decoder input ids
+        outputs = Translator.process_outputs(inputs, model, tokenizer)
+
+        # Return the hidden states of the specified layer
+        if from_encoder:
+            return outputs.encoder_hidden_states[layer_num]
+        else:
+            return outputs.decoder_hidden_states[layer_num]
+

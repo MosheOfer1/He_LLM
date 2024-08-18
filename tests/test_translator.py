@@ -1,4 +1,7 @@
 import unittest
+
+from transformers import MarianMTModel, MarianTokenizer
+
 from translation.helsinki_translator import HelsinkiTranslator
 
 
@@ -15,9 +18,18 @@ class TestTranslator(unittest.TestCase):
 
     def test_injection_second_translator_model(self):
         """Test the Second translator injection"""
+        # Load the tokenizer and model
+        tokenizer = MarianTokenizer.from_pretrained(self.target_to_src_translator_model_name)
+        model = MarianMTModel.from_pretrained(self.target_to_src_translator_model_name, output_hidden_states=True)
+        translator2 = HelsinkiTranslator(self.src_to_target_translator_model_name,
+                                             self.target_to_src_translator_model_name)
         # Step 1: Get the hidden states from the first layer of the second translator model
-        translator_first_hs = self.translator.text_to_hidden_states(self.sample_text_en, 0,
-                                                                    self.target_to_src_translator_model_name)
+        translator_first_hs = translator2.text_to_hidden_states(
+            self.sample_text_en,
+            0,
+            tokenizer,
+            model
+            )
 
         # Step 2: Inject these hidden states into the model
         self.translator.inject_hidden_states(translator_first_hs)

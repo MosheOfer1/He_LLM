@@ -78,7 +78,7 @@ def run_tests(sentences):
 if __name__ == "__main__":
     mlflow.start_run()  # Start a new MLflow run
     try:
-        sentences = load_dataset('../datasets/hebrew_sentences.csv')
+        sentences = load_dataset('../my_datasets/hebrew_sentences.csv')
         run_tests(sentences)
     finally:
         mlflow.end_run()  # End the MLflow run

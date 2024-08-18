@@ -64,10 +64,7 @@ class LLMIntegration(Injectable):
         return generated_text
 
     @staticmethod
-    def text_to_hidden_states(text, layer_num, model_name):
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = OPTForCausalLM.from_pretrained(model_name)
-
+    def text_to_hidden_states(tokenizer, model, text, layer_num):
         inputs = tokenizer(text, return_tensors="pt")
         outputs = model(**inputs, output_hidden_states=True)
 
