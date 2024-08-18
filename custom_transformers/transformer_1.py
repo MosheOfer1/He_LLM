@@ -1,9 +1,11 @@
 import torch.nn as nn
 from custom_transformers.base_transformer import BaseTransformer
+from llm.llm_integration import LLMIntegration
+from translation.translator import Translator
 
 
 class Transformer1(BaseTransformer):
-    def __init__(self, translator, llm, hidden_dim=1024):
+    def __init__(self, translator: Translator, llm: LLMIntegration, hidden_dim=1024):
         """
         Initialize the Transformer1 model.
 
@@ -16,7 +18,7 @@ class Transformer1(BaseTransformer):
         output_dim = llm.model.config.hidden_size
 
         # Generate a model name that includes the translator and LLM names
-        model_name = f"transformer_1_{translator.source_to_target_model_name}_to_{llm.model.config.name_or_path}"
+        model_name = f"transformer_1_{translator.src_to_target_translator_model_name.replace('/','_')}_to_{llm.model.config.name_or_path.replace('/','_')}"
 
         super(Transformer1, self).__init__(model_name=model_name)
 

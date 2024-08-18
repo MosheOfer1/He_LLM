@@ -16,7 +16,7 @@ class Transformer2(BaseTransformer):
         output_dim = translator.target_to_source_model.config.hidden_size
 
         # Generate a model name that includes the translator and LLM names
-        model_name = f"transformer_2_{llm.model.config.name_or_path}_to_{translator.target_to_source_model_name}"
+        model_name = f"transformer_2_{llm.model.config.name_or_path.replace('/','_')}_to_{translator.target_to_source_model_name.replace('/','_')}"
 
         super(Transformer2, self).__init__(model_name=model_name)
 

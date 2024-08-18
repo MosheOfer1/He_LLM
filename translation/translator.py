@@ -1,4 +1,3 @@
-from abc import abstractmethod
 import torch
 from utilty.injectable import Injectable, CustomLayerWrapper
 
@@ -51,24 +50,21 @@ class Translator(Injectable):
 
     def get_output(self, from_first, text):
         if from_first:
-            # Regular insertion
-            self.inputs = self.source_to_target_tokenizer(text, return_tensors="pt")
-            # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
-            self.generate_sentence_from_outputs(use_first_translator=True)
+            tokenizer = self.source_to_target_tokenizer
+            use_first_translator = True
+        else:
+            # Set the costume block to be not in injected mode
+            self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num].set_injection_state(False)
 
-        else:  # From second translator which his first block is a custom block must be injected
-            # Injection
-            second_trans_first_hs = self.text_to_hidden_states(
-                text=text,
-                layer_num=0,
-                tokenizer=self.target_to_source_tokenizer,
-                model=self.target_to_source_model
-            )
-            self.inject_hidden_states(second_trans_first_hs)
+            tokenizer = self.target_to_source_tokenizer
+            use_first_translator = False
 
-            # Dummy insertion
-            token_num = second_trans_first_hs.shape[1]
-            self.outputs = self.get_output_by_using_dummy(token_num)
+        # Regular insertion
+        self.inputs = tokenizer(text, return_tensors="pt")
+        # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
+        self.generate_sentence_from_outputs(use_first_translator=use_first_translator)
+        # Put it back as injectable
+        self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num].set_injection_state(True)
 
         return self.outputs
 

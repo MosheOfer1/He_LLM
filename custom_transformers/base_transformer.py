@@ -4,14 +4,19 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from abc import ABC
 from my_datasets.create_datasets import create_transformer1_dataset, create_transformer2_dataset
+from torch.utils.data import Dataset
 
 
 class BaseTransformer(nn.Module, ABC):
     def __init__(self, model_name: str, translator=None, llm=None):
         super(BaseTransformer, self).__init__()
         self.model_name = model_name
-        self.model_path = f'models/{model_name}.pth'
-        self.dataset_path = f'datasets/generated_datasets/{model_name}_dataset.pth'
+        if "transformer_1" in model_name:
+            self.dataset_path = '../my_datasets/transformer1_dataset.pt'
+        else:
+            self.dataset_path = '../my_datasets/transformer2_dataset.pt'
+
+        self.model_path = f'../models/{model_name}.pth'
         self.translator = translator
         self.llm = llm
 
@@ -26,12 +31,11 @@ class BaseTransformer(nn.Module, ABC):
             # Check if the dataset exists, if not create it
             if not os.path.exists(self.dataset_path):
                 if "transformer_1" in self.model_name:
-                    dataset = create_transformer1_dataset(self.translator, self.llm)
+                    create_transformer1_dataset(self.translator, self.llm, self.dataset_path)
                 elif "transformer_2" in self.model_name:
-                    dataset = create_transformer2_dataset(self.translator, self.llm)
+                    create_transformer2_dataset(self.translator, self.llm, self.dataset_path)
                 else:
                     raise ValueError(f"Unknown transformer model name: {self.model_name}")
-                torch.save(dataset, self.dataset_path)
 
             # Load the DataLoader of the right model
             train_loader = BaseTransformer.load_dataset(self.dataset_path)
@@ -72,17 +76,7 @@ class BaseTransformer(nn.Module, ABC):
             print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}")
 
         # Save the trained model with a name reflecting the translator and LLM used
-        torch.save(self.state_dict(), f"{self.model_name}_state_dict.pth")
-
-    def transform(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        """
-        Transform the hidden states using the model, ensuring the model is trained.
-
-        :param hidden_states: The hidden states from the previous layer or model.
-        :return: The transformed hidden states.
-        """
-        self.load_or_train_model()
-        return self.forward(hidden_states)
+        torch.save(self.state_dict(), f"../models/{self.model_name}_state_dict.pth")
 
     def forward(self, hidden_states):
         """
@@ -96,8 +90,20 @@ class BaseTransformer(nn.Module, ABC):
 
     @staticmethod
     def load_dataset(path, batch_size=32, shuffle=True):
-        """
-        Utility function to load a dataset from a given path.
-        """
-        dataset = torch.load(path)
+        loaded_data = torch.load(path)
+        dataset = CustomHiddenStateDataset(loaded_data)
         return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+class CustomHiddenStateDataset(Dataset):
+    def __init__(self, data):
+        self.input_data = data['input']
+        self.target_data = data['target']
+
+    def __len__(self):
+        return self.input_data.shape[0]
+
+    def __getitem__(self, idx):
+        input_sample = self.input_data[idx]
+        target_sample = self.target_data[idx]
+        return input_sample, target_sample
