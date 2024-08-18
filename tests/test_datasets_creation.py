@@ -1,6 +1,7 @@
 import unittest
 
 from custom_transformers.transformer_1 import Transformer1
+from custom_transformers.transformer_2 import Transformer2
 from llm.llm_integration import LLMIntegration
 from my_datasets.create_datasets import create_transformer1_dataset, create_transformer2_dataset
 from translation.helsinki_translator import HelsinkiTranslator
@@ -20,6 +21,13 @@ class TestTranslator(unittest.TestCase):
 
     def test_transformer_1(self):
         tr = Transformer1(
+            self.translator,
+            self.llm_integration
+        )
+        tr.load_or_train_model()
+
+    def test_transformer_2(self):
+        tr = Transformer2(
             self.translator,
             self.llm_integration
         )

@@ -86,7 +86,7 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
         save_to_file(input_hidden_states_tensor, target_hidden_states_tensor, file_path)
 
 
-def create_transformer2_dataset(translator: Translator, llm: LLMIntegration, file_path: str, save_interval: int = 100, dataset_name = 'english_sentences'):
+def create_transformer2_dataset(translator: Translator, llm: LLMIntegration, file_path: str, save_interval: int = 100, dataset_name = 'english_sentences.csv'):
     """
     Create a dataset for training Transformer2 and save it to a file in chunks.
 
