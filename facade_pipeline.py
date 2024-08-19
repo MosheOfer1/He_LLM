@@ -1,11 +1,11 @@
-from llm.llm_integration import LLMIntegration
+from llm.llm_integration import LLMWrapper
 from custom_transformers.transformer_1 import Transformer1
 from custom_transformers.transformer_2 import Transformer2
 from translation.translator import Translator
 
 
 class Pipeline:
-    def __init__(self, translator: Translator, llm: LLMIntegration, use_transformer_1: bool = True, use_transformer_2: bool = True):
+    def __init__(self, translator: Translator, llm: LLMWrapper, use_transformer_1: bool = True, use_transformer_2: bool = True):
         """
         Initialize the Pipeline with optional transformers and LLM integration.
 
