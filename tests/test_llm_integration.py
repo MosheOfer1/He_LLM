@@ -2,6 +2,7 @@ import unittest
 import sys
 import os
 import torch
+from transformers import AutoTokenizer, OPTForCausalLM
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -13,12 +14,20 @@ class TestLLMIntegration(unittest.TestCase):
     def setUp(self):
         """Set up the LLMIntegration instance for testing."""
 
-        model_name = "facebook/opt-125m"
-        self.llm_integration = LLMIntegration(model_name)
+        self.model_name = "facebook/opt-125m"
+        self.llm_integration = LLMIntegration(self.model_name)
         self.sample_text = "to be or not to"
 
     def test_injection(self):
-        llm_first_hs = self.llm_integration.text_to_hidden_states(self.sample_text, 0, self.llm_integration.model_name)
+        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        model = OPTForCausalLM.from_pretrained(self.model_name)
+
+        llm_first_hs = self.llm_integration.text_to_hidden_states(
+            tokenizer=tokenizer,
+            model=model,
+            text=self.sample_text,
+            layer_num=0
+        )
 
         self.llm_integration.inject_hidden_states(llm_first_hs)
 
@@ -29,8 +38,15 @@ class TestLLMIntegration(unittest.TestCase):
         print(llm_output.split(" ")[-1])
 
     def test_retrieval(self):
-        llm_last_hs = self.llm_integration.text_to_hidden_states(self.sample_text, -1, self.llm_integration.model_name)
+        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        model = OPTForCausalLM.from_pretrained(self.model_name)
 
+        llm_last_hs = self.llm_integration.text_to_hidden_states(
+            tokenizer=tokenizer,
+            model=model,
+            text=self.sample_text,
+            layer_num=-1
+        )
         # Ensure the model is in evaluation mode
         self.llm_integration.model.eval()
 
