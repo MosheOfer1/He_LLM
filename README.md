@@ -8,41 +8,48 @@ This document provides an overview of the project's structure, outlining the pur
 /He_LLM/
 │
 ├── facade_pipeline.py                # Orchestrates the overall processing pipeline
-├── main.py                           # A basic use Example
+├── main.py                           # A basic example of how to use the pipeline
 ├── requirements.txt                  # Specifies project dependencies
 │
 ├── /custom_transformers/             # Contains custom transformers for processing hidden states
-│   ├── __init__.py                  
 │   ├── base_transformer.py           # Base class for transformers (inherits from nn.Module)
-│   ├── transformer_strategy.py       # Base strategy interface for transformers
-│   ├── transformer_1.py              # Implementation of the first transformer
-│   └── transformer_2.py              # Implementation of the second transformer
-│
-├── /datasets/                        # Directory for storing datasets
-│   └── hebrew_sentences.csv          # Example dataset of Hebrew sentences
+│   ├── transformer_1.py              # Implementation of the first custom transformer
+│   └── transformer_2.py              # Implementation of the second custom transformer
 │
 ├── /input_handler/                   # Manages user input and output
-│   ├── __init__.py                  
-│   └── input_handler.py             
+│   └── input_handler.py              # Handles input collection and output display
 │
-├── /llm/                             # Handles integration with the LLM (e.g., OPT)
-│   ├── __init__.py                  
-│   └── llm_integration.py           
+├── /llm/                             # Handles integration with the Language Model (LLM)
+│   └── llm_integration.py            # Manages the processing of text and hidden states through the LLM
 │
 ├── /tests/                           # Contains unit tests for the various components
-│   ├── __init__.py                  
-│   ├── test_input_handler.py        
-│   ├── test_helsinki_translator.py  
-│   ├── test_transformers.py         
-│   ├── test_llm_integration.py      
-│   └── test_facade.py               # Unit test for the pipeline (facade_pipeline.py)
+│   ├── test_input_handler.py         # Unit tests for the input handler
+│   ├── test_llm_integration.py       # Unit tests for LLM integration
+│   ├── test_transformers.py          # Unit tests for custom transformers
+│   └── test_translator.py            # Unit tests for translation logic
 │
-├── /evaluations/
+├── /evaluations/                     # Contains scripts for evaluating model performance
 │   ├── next_word_prediction.py       # Script to evaluate next-word prediction accuracy
+│   └── perplexity.py                 # Script to evaluate model perplexity
 │
-├── /translation/                     # Handles translation logic
-    ├── __init__.py
-    └── helsinki_translator.py       
+├── /translation/                     # Handles translation logic between Hebrew and English
+│   └── helsinki_translator.py        # Implements translation using the Helsinki-NLP models
+│
+├── /models/                          # Stores saved model states
+│   ├── transformer_1_Helsinki-NLP_opus-mt-tc-big-he-en_to_facebook_opt-125m.pth
+│   ├── transformer_1_Helsinki-NLP_opus-mt-tc-big-he-en_to_facebook_opt-125m_state_dict.pth
+│   ├── transformer_2_facebook_opt-125m_to_Helsinki-NLP_opus-mt-en-he.pth
+│   └── transformer_2_facebook_opt-125m_to_Helsinki-NLP_opus-mt-en-he_state_dict.pth
+│
+├── /my_datasets/                     # Contains scripts and datasets used for model training
+│   ├── create_datasets.py            # Script to create datasets for training
+│   ├── english_sentences.csv         # Example dataset of English sentences
+│   ├── hebrew_sentences.csv          # Example dataset of Hebrew sentences
+│   ├── transformer1_dataset.pt       # Processed dataset for transformer 1
+│   └── transformer2_dataset.pt       # Processed dataset for transformer 2
+│
+├── /utility/                         # Contains utility scripts
+    └── injectable.py                 # 
 ```
 
 ## Detailed Directory and File Descriptions
