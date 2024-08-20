@@ -49,7 +49,6 @@ class MyCustomModel(nn.Module):
         self.llm.set_requires_grad(False)
         
         
-        
     def forward(self):
         pass
 

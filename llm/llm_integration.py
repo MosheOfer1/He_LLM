@@ -10,7 +10,7 @@ class LLMWrapper(Injectable):
         """
         self.outputs = None
         self.tokenizer = tokenizer
-        self.model = llm_model
+        self.model: OPTForCausalLM = llm_model
         self.model_name = model_name
 
         # Let the LLM be Injectable by replacing the first block of the LLM

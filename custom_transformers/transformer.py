@@ -27,12 +27,3 @@ class Transformer:
     
         self.transformer2 = Transformer2(translator=translator,
                                          llm=llm)
-    
-    
-
-    def get_transformer(self, first: bool):
-        if first:
-            return self.transformer1
-        
-        return self.transformer2
-    
