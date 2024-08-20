@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from custom_transformers.transformer import Transformer
 # Translators
 from translation.helsinki_translator import HelsinkiTranslator
-from llm.facebook_llm import facebookLLM
+from llm.facebook_llm import FacebookLLM
 
 
 class MyCustomModel(nn.Module):
@@ -24,7 +24,7 @@ class MyCustomModel(nn.Module):
         self.translator = HelsinkiTranslator(src_to_target_translator_model_name,
                                              target_to_src_translator_model_name)
         # Custom LLM
-        self.llm = facebookLLM(llm_model_name)
+        self.llm = FacebookLLM(llm_model_name)
 
         self.transformer = Transformer(translator=self.translator,
                                        llm=self.llm)
