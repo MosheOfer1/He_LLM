@@ -1,11 +1,11 @@
 import torch.nn as nn
 from custom_transformers.base_transformer import BaseTransformer
-from llm.llm_integration import LLMIntegration
+from llm.llm_integration import LLMWrapper
 from translation.translator import Translator
 
 
 class Transformer1(BaseTransformer):
-    def __init__(self, translator: Translator, llm: LLMIntegration, hidden_dim=1024):
+    def __init__(self, translator: Translator, llm: LLMWrapper, hidden_dim=1024):
         """
         Initialize the Transformer1 model.
 
@@ -14,7 +14,7 @@ class Transformer1(BaseTransformer):
         :param hidden_dim: Dimension of the hidden layer(s) in Transformer1.
         """
         # Determine input and output dimensions based on the translator and LLM
-        input_dim = translator.source_to_target_model.config.hidden_size
+        input_dim = translator.src_to_target_model.config.hidden_size
         output_dim = llm.model.config.hidden_size
 
         # Generate a model name that includes the translator and LLM names

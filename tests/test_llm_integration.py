@@ -6,7 +6,7 @@ from transformers import AutoTokenizer, OPTForCausalLM
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from llm.llm_integration import LLMIntegration
+from llm.llm_integration import LLMWrapper
 
 
 class TestLLMIntegration(unittest.TestCase):
@@ -15,7 +15,10 @@ class TestLLMIntegration(unittest.TestCase):
         """Set up the LLMIntegration instance for testing."""
 
         self.model_name = "facebook/opt-125m"
-        self.llm_integration = LLMIntegration(self.model_name)
+        self.llm_tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.llm_model = OPTForCausalLM.from_pretrained(self.model_name)
+        
+        self.llm_integration = LLMWrapper(self.model_name, self.llm_tokenizer, self.llm_model)
         self.sample_text = "to be or not to"
 
     def test_injection(self):
@@ -59,6 +62,20 @@ class TestLLMIntegration(unittest.TestCase):
         self.assertGreater(len(llm_output), 0)  # Ensure the decoded text is not empty
         print(llm_output.split(" ")[-1])
 
+
+    def test_set_requires_grad(self):
+        for param in self.llm_integration.model.parameters():
+            self.assertEqual(param.requires_grad, True)
+        
+        self.llm_integration.set_requires_grad(False)
+        
+        for param in self.llm_integration.model.parameters():
+            self.assertEqual(param.requires_grad, False)
+            
+        
+    def test_llm_dict(self):
+        m: OPTForCausalLM = self.llm_integration.model
+        print(m.state_dict())
 
 if __name__ == '__main__':
     unittest.main()

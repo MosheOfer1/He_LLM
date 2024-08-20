@@ -1,6 +1,6 @@
 from input_handler.input_handler import InputHandler
 from facade_pipeline import Pipeline
-from llm.llm_integration import LLMIntegration
+from llm.llm_integration import LLMWrapper
 from translation.helsinki_translator import HelsinkiTranslator
 
 
@@ -11,7 +11,7 @@ def main():
 
     # Initialize the translator and LLMIntegration
     translator = HelsinkiTranslator()
-    llm_integration = LLMIntegration()
+    llm_integration = LLMWrapper()
 
     pipeline = Pipeline(
         translator=translator,

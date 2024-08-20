@@ -1,7 +1,7 @@
 import csv
 import mlflow
 from facade_pipeline import Pipeline
-from llm.llm_integration import LLMIntegration
+from llm.llm_integration import LLMWrapper
 from translation.helsinki_translator import HelsinkiTranslator
 
 
@@ -13,7 +13,7 @@ def load_dataset(filepath: str):
 
 
 def predict_next_word_straight_llm(input_sentence: str) -> str:
-    llm = LLMIntegration()
+    llm = LLMWrapper()
     hidden_states = llm.process_text_input_to_logits(input_sentence)
     next_word = llm.tokenizer.decode(hidden_states[0].argmax(-1))
     return next_word.split()[-1]
@@ -44,7 +44,7 @@ def run_tests(sentences):
     input_sentences = [" ".join(sentence.split()[:-1]) for sentence in sentences]
 
     translator = HelsinkiTranslator()
-    llm_integration = LLMIntegration()
+    llm_integration = LLMWrapper()
 
     # Initialize pipelines with different configurations
     pipeline_2 = Pipeline(translator=translator, llm=llm_integration,

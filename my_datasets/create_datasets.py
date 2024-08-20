@@ -2,11 +2,16 @@ import pandas as pd
 import torch
 from transformers import AutoTokenizer, OPTForCausalLM
 import os
-from llm.llm_integration import LLMIntegration
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
+from llm.llm_integration import LLMWrapper
 from translation.translator import Translator
 
 
-def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, file_path: str, save_interval: int = 100, dataset_name = 'hebrew_sentences.csv'):
+def create_transformer1_dataset(translator: Translator, llm: LLMWrapper, file_path: str, save_interval: int = 100, dataset_name = 'hebrew_sentences.csv'):
     """
     Create a dataset for training Transformer1 and save it to a file in chunks.
 
@@ -15,7 +20,7 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
     :param file_path: Path to the file where the dataset should be saved.
     :param save_interval: Number of sentences to process before saving to a file.
     """
-    hebrew_sentences = load_sentences_from_csv(f"../my_datasets/{dataset_name}", "sentence")
+    hebrew_sentences = load_sentences_from_csv(f"my_datasets/{dataset_name}", "sentence")
     filtered_hebrew_sentences = filter_sentences(hebrew_sentences)
 
     llm_tokenizer = AutoTokenizer.from_pretrained(llm.model_name)
@@ -39,7 +44,7 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
 
         # Step 2: Translate the sentence
         translated_text = translator.decode_logits(
-            tokenizer=translator.source_to_target_tokenizer,
+            tokenizer=translator.src_to_target_tokenizer,
             logits=outputs.logits
         )
 
@@ -86,7 +91,7 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
         save_to_file(input_hidden_states_tensor, target_hidden_states_tensor, file_path)
 
 
-def create_transformer2_dataset(translator: Translator, llm: LLMIntegration, file_path: str, save_interval: int = 100, dataset_name = 'english_sentences.csv'):
+def create_transformer2_dataset(translator: Translator, llm: LLMWrapper, file_path: str, save_interval: int = 100, dataset_name = 'english_sentences.csv'):
     """
     Create a dataset for training Transformer2 and save it to a file in chunks.
 
@@ -95,7 +100,7 @@ def create_transformer2_dataset(translator: Translator, llm: LLMIntegration, fil
     :param file_path: Path to the file where the dataset should be saved.
     :param save_interval: Number of sentences to process before saving to a file.
     """
-    english_sentences = load_sentences_from_csv(f"../my_datasets/{dataset_name}", "sentence")
+    english_sentences = load_sentences_from_csv(f"my_datasets/{dataset_name}", "sentence")
     filtered_english_sentences = filter_sentences(english_sentences)
 
     llm_tokenizer = AutoTokenizer.from_pretrained(llm.model_name)
