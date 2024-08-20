@@ -26,6 +26,5 @@ class TestHelsinkiTranslator(unittest.TestCase):
         self.hidden_states = self.translator.target_to_src_model.get_input_embeddings()(self.tokens.input_ids)
 
 
-    
 if __name__ == '__main__':
     unittest.main()

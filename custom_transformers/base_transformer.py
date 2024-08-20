@@ -22,6 +22,13 @@ class BaseTransformer(nn.Module, ABC):
         self.translator = translator
         self.llm = llm
 
+    def load_model(self, transformer_path):
+        if os.path.exists(transformer_path):
+            self.load_state_dict(torch.load(transformer_path))
+            self.eval()  # Set the model to evaluation mode
+        
+        
+        
     def load_or_train_model(self):
         """
         Load the model if it exists; otherwise, train and save it.

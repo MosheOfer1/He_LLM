@@ -15,9 +15,12 @@ from llm.facebook_llm import FacebookLLM
 class MyCustomModel(nn.Module):
 
     def __init__(self,
-                 src_to_target_translator_model_name,
-                 target_to_src_translator_model_name,
-                 llm_model_name):
+                src_to_target_translator_model_name,
+                target_to_src_translator_model_name,
+                llm_model_name,
+                pretrained_transformer1_path: str = None,
+                pretrained_transformer2_path: str = None):
+        
         super(MyCustomModel, self).__init__()
 
         # Custom Translator
@@ -26,8 +29,11 @@ class MyCustomModel(nn.Module):
         # Custom LLM
         self.llm = FacebookLLM(llm_model_name)
 
-        self.transformer = Transformer(translator=self.translator,
-                                       llm=self.llm)
+        # Custom Transformer
+        self.transformer = Transformer(translator=self.translator, 
+                                       llm=self.llm, 
+                                       pretrained_transformer1_path=pretrained_transformer1_path, 
+                                       pretrained_transformer2_path=pretrained_transformer2_path)
 
         # Freeze Translator1 parameters
         self.translator.set_requires_grad(False)
