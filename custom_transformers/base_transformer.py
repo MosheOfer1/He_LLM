@@ -8,7 +8,9 @@ from torch.utils.data import Dataset
 
 
 class BaseTransformer(nn.Module, ABC):
-    def __init__(self, model_name: str, translator=None, llm=None):
+    def __init__(self, model_name: str,
+                 translator=None, llm=None):
+
         super(BaseTransformer, self).__init__()
         self.model_name = model_name
         if "transformer_1" in model_name:

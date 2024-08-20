@@ -24,6 +24,7 @@ class Transformer1(BaseTransformer):
 
         # Define the layers of the transformer model
         self.layer1 = nn.Linear(input_dim, hidden_dim)
+        self.layer2 = nn.Linear(hidden_dim, output_dim)
         self.activation = nn.ReLU()
         self.dropout = nn.Dropout(0.1)
-        self.layer2 = nn.Linear(hidden_dim, output_dim)
+

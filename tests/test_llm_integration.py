@@ -2,7 +2,7 @@ import unittest
 import sys
 import os
 import torch
-from transformers import AutoTokenizer, OPTForCausalLM
+from transformers import AutoTokenizer, OPTForCausalLM, MarianMTModel, MarianTokenizer
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -74,8 +74,9 @@ class TestLLMIntegration(unittest.TestCase):
             
         
     def test_llm_dict(self):
-        m: OPTForCausalLM = self.llm_integration.model
-        print(m.state_dict())
+        # m: OPTForCausalLM = self.llm_integration.model
+        vocab_dict = self.llm_integration.tokenizer.get_vocab()
+
 
 if __name__ == '__main__':
     unittest.main()
