@@ -2,14 +2,23 @@ import pandas as pd
 import torch
 from transformers import AutoTokenizer, OPTForCausalLM
 import os
-from llm.llm_integration import LLMIntegration
+from llm.llm_integration import LLMWrapper
 from translation.translator import Translator
 
 
-def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, file_path: str, save_interval: int = 100, dataset_name = 'hebrew_sentences.csv'):
+def create_transformer1_dataset(
+        translator: Translator,
+        llm: LLMWrapper,
+        file_path: str,
+        save_interval: int = 100,
+        max_length=15,
+        dataset_name='hebrew_sentences.csv'
+):
     """
     Create a dataset for training Transformer1 and save it to a file in chunks.
 
+    :param dataset_name:
+    :param max_length:
     :param translator: The translator instance used to generate hidden states.
     :param llm: The LLM instance used to generate hidden states.
     :param file_path: Path to the file where the dataset should be saved.
@@ -29,8 +38,6 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
 
     input_hidden_states_list = []
     target_hidden_states_list = []
-    max_input_length = 0
-    max_target_length = 0
     processed_count = 0
 
     for sentence in filtered_hebrew_sentences:
@@ -41,11 +48,10 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
                 text=sentence
             )
         input_hidden_states = outputs.decoder_hidden_states[-1]
-        max_input_length = max(max_input_length, input_hidden_states.size(1))
 
         # Step 2: Translate the sentence
         translated_text = translator.decode_logits(
-            tokenizer=translator.source_to_target_tokenizer,
+            tokenizer=translator.src_to_target_tokenizer,
             logits=outputs.logits
         )
 
@@ -57,7 +63,6 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
                 text=translated_text,
                 layer_num=0
             )
-        max_target_length = max(max_target_length, target_hidden_states.size(1))
 
         input_hidden_states_list.append(input_hidden_states)
         target_hidden_states_list.append(target_hidden_states)
@@ -65,8 +70,8 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
 
         if processed_count % save_interval == 0:
             # Pad all hidden states to the maximum length
-            input_hidden_states_list = [pad_hidden_states(h, max_input_length) for h in input_hidden_states_list]
-            target_hidden_states_list = [pad_hidden_states(h, max_target_length) for h in target_hidden_states_list]
+            input_hidden_states_list = [pad_hidden_states(h, max_length) for h in input_hidden_states_list]
+            target_hidden_states_list = [pad_hidden_states(h, max_length) for h in target_hidden_states_list]
 
             # Convert lists to tensors
             input_hidden_states_tensor = torch.stack(input_hidden_states_list, dim=0)
@@ -78,13 +83,11 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
             # Reset lists for next batch
             input_hidden_states_list = []
             target_hidden_states_list = []
-            max_input_length = 0
-            max_target_length = 0
 
     # Save any remaining data after the loop
     if input_hidden_states_list:
-        input_hidden_states_list = [pad_hidden_states(h, max_input_length) for h in input_hidden_states_list]
-        target_hidden_states_list = [pad_hidden_states(h, max_target_length) for h in target_hidden_states_list]
+        input_hidden_states_list = [pad_hidden_states(h, max_length) for h in input_hidden_states_list]
+        target_hidden_states_list = [pad_hidden_states(h, max_length) for h in target_hidden_states_list]
 
         input_hidden_states_tensor = torch.stack(input_hidden_states_list, dim=0)
         target_hidden_states_tensor = torch.stack(target_hidden_states_list, dim=0)
@@ -92,10 +95,19 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
         save_to_file(input_hidden_states_tensor, target_hidden_states_tensor, file_path)
 
 
-def create_transformer2_dataset(translator: Translator, llm: LLMIntegration, file_path: str, save_interval: int = 100, dataset_name = 'english_sentences.csv'):
+def create_transformer2_dataset(
+        translator: Translator,
+        llm: LLMWrapper,
+        file_path: str,
+        save_interval: int = 100,
+        max_length=15,
+        dataset_name='english_sentences.csv'
+):
     """
     Create a dataset for training Transformer2 and save it to a file in chunks.
 
+    :param dataset_name:
+    :param max_length:
     :param llm: The LLM instance used to generate hidden states.
     :param translator: The translator instance used to generate hidden states.
     :param file_path: Path to the file where the dataset should be saved.
@@ -109,8 +121,6 @@ def create_transformer2_dataset(translator: Translator, llm: LLMIntegration, fil
 
     input_hidden_states_list = []
     target_hidden_states_list = []
-    max_input_length = 0
-    max_target_length = 0
     processed_count = 0
 
     for sentence in filtered_english_sentences:
@@ -121,17 +131,13 @@ def create_transformer2_dataset(translator: Translator, llm: LLMIntegration, fil
                 model=llm_model,
                 text=sentence,
                 layer_num=-1  # Last layer of the LLM
-            )
-        max_input_length = max(max_input_length, input_hidden_states.size(1))
+            )[:, -1, :].unsqeeze(0)
 
-        # Step 2: Translate the sentence to Hebrew using the second translator
-        with torch.no_grad():
-            outputs = translator.get_output(
-                from_first=False,
-                text=sentence
-            )
+        # Step 2: Insert the output to the second translator
+        translator.inject_hidden_states(input_hidden_states)
+        outputs = translator.get_output_by_using_dummy(input_hidden_states.shape[1])
+
         target_hidden_states = outputs.encoder_hidden_states[0]  # First layer of the second transformer
-        max_target_length = max(max_target_length, target_hidden_states.size(1))
 
         input_hidden_states_list.append(input_hidden_states)
         target_hidden_states_list.append(target_hidden_states)
@@ -139,8 +145,8 @@ def create_transformer2_dataset(translator: Translator, llm: LLMIntegration, fil
 
         if processed_count % save_interval == 0:
             # Pad all hidden states to the maximum length
-            input_hidden_states_list = [pad_hidden_states(h, max_input_length) for h in input_hidden_states_list]
-            target_hidden_states_list = [pad_hidden_states(h, max_target_length) for h in target_hidden_states_list]
+            input_hidden_states_list = [pad_hidden_states(h, max_length) for h in input_hidden_states_list]
+            target_hidden_states_list = [pad_hidden_states(h, max_length) for h in target_hidden_states_list]
 
             # Convert lists to tensors
             input_hidden_states_tensor = torch.stack(input_hidden_states_list, dim=0)
@@ -152,13 +158,11 @@ def create_transformer2_dataset(translator: Translator, llm: LLMIntegration, fil
             # Reset lists for next batch
             input_hidden_states_list = []
             target_hidden_states_list = []
-            max_input_length = 0
-            max_target_length = 0
 
     # Save any remaining data after the loop
     if input_hidden_states_list:
-        input_hidden_states_list = [pad_hidden_states(h, max_input_length) for h in input_hidden_states_list]
-        target_hidden_states_list = [pad_hidden_states(h, max_target_length) for h in target_hidden_states_list]
+        input_hidden_states_list = [pad_hidden_states(h, max_length) for h in input_hidden_states_list]
+        target_hidden_states_list = [pad_hidden_states(h, max_length) for h in target_hidden_states_list]
 
         input_hidden_states_tensor = torch.stack(input_hidden_states_list, dim=0)
         target_hidden_states_tensor = torch.stack(target_hidden_states_list, dim=0)

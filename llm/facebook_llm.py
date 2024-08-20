@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from llm.llm_integration import LLMWrapper
 
 
-class facebookLLM(LLMWrapper):
+class FacebookLLM(LLMWrapper):
     
     def __init__(self, model_name):
     
@@ -18,7 +18,7 @@ class facebookLLM(LLMWrapper):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.llm_model = OPTForCausalLM.from_pretrained(model_name)
 
-        super(facebookLLM, self).__init__(model_name, self.tokenizer, self.llm_model)
+        super(FacebookLLM, self).__init__(model_name, self.tokenizer, self.llm_model)
         
         
         
