@@ -1,2 +1,7 @@
-.idea
-__pycache__
+__pycache__/
+.idea/
+input_handler/__pycache__/
+custom_transformers/__pycache__/
+llm/__pycache__/
+translation/__pycache__/
+tests/__pycache__/
