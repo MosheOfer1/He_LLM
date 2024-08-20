@@ -5,7 +5,7 @@ from translation.translator import Translator
 
 
 class Transformer2(BaseTransformer):
-    def __init__(self, translator: Translator, llm: LLMWrapper, hidden_dim=1024):
+    def __init__(self, translator: Translator, llm: LLMWrapper, hidden_dim=1024, input_size=512, output_size=512):
         """
         Initialize the Transformer2 model.
 
@@ -20,7 +20,7 @@ class Transformer2(BaseTransformer):
         # Generate a model name that includes the translator and LLM names
         model_name = f"transformer_2_{llm.model.config.name_or_path.replace('/','_')}_to_{translator.target_to_src_translator_model_name.replace('/','_')}"
 
-        super(Transformer2, self).__init__(model_name=model_name, translator=translator, llm=llm)
+        super(Transformer2, self).__init__(model_name=model_name, translator=translator, llm=llm, input_size=input_size, output_size=output_size)
 
         # Define the layers of the transformer model
         self.layer1 = nn.Linear(input_dim, hidden_dim)
