@@ -22,20 +22,26 @@ class TestLLMIntegration(unittest.TestCase):
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         model = OPTForCausalLM.from_pretrained(self.model_name)
 
-        llm_first_hs = self.llm_integration.text_to_hidden_states(
+        first_hs = LLMIntegration.text_to_hidden_states(
             tokenizer=tokenizer,
             model=model,
             text=self.sample_text,
             layer_num=0
         )
 
-        self.llm_integration.inject_hidden_states(llm_first_hs)
+        last_hs = LLMIntegration.text_to_hidden_states(
+            tokenizer=tokenizer,
+            model=model,
+            text=self.sample_text,
+            layer_num=-1
+        )
 
-        llm_output = self.llm_integration.get_output_by_using_dummy(llm_first_hs.shape[1])
-        llm_output = self.llm_integration.decode_logits(llm_output.logits)
-        self.assertIsInstance(llm_output, str)
-        self.assertGreater(len(llm_output), 0)  # Ensure the decoded text is not empty
-        print(llm_output.split(" ")[-1])
+        self.llm_integration.inject_hidden_states(first_hs)
+        outputs = self.llm_integration.get_output_by_using_dummy(first_hs.shape[1])
+        self.assertTrue(torch.equal(outputs.hidden_states[-1], last_hs))
+
+        text = self.llm_integration.decode_logits(outputs.logits)
+        print(text)
 
     def test_retrieval(self):
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
