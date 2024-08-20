@@ -30,9 +30,8 @@ class Translator(Injectable):
 
     def set_requires_grad(self, requires_grad: bool):
         """
-            If requires_grad = True the parameters (weights) will freeze meaning they will not change during training.
+        If requires_grad = True the parameters (weights) will freeze meaning they will not change during training.
         """
-
         # Translator1 parameters
         for param in self.src_to_target_model.parameters():
             param.requires_grad = requires_grad
@@ -124,21 +123,19 @@ class Translator(Injectable):
         return generated_sentence
 
     @staticmethod
-    def process_outputs(inputs, model, tokenizer, max_len=50):
+    def process_outputs(inputs, model, tokenizer):
         """
         Processes the model to generate outputs, including logits and hidden states.
 
-        :param max_len: To stop the loop if EOS did not show up.
         :param inputs: The inputs to the model (e.g., encoder inputs).
         :param model: The MarianMTModel to use for generating outputs.
         :param tokenizer: The tokenizer to use for decoding.
         :return: The final outputs after processing all tokens.
         """
         # Initialize decoder input IDs with the start token ID
-        outputs = None
         decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]])
 
-        for i in range(max_len):
+        while True:
             # Run the model with the current decoder input IDs to get the outputs
             outputs = model(
                 **inputs,

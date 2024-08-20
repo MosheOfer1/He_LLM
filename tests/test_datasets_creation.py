@@ -47,7 +47,7 @@ class TestTranslator(unittest.TestCase):
 
     def test_creation1(self):
         file_path = 'my_datasets/transformer1_dataset.pt'
-        create_transformer1_dataset(self.translator, self.llm_integration, file_path)
+        create_transformer1_dataset(self.translator, self.llm_integration, file_path, dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt")
 
     def test_creation2(self):
         file_path = 'my_datasets/transformer2_dataset_test.pt'
