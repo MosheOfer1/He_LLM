@@ -6,33 +6,49 @@ class Translator(Injectable):
     def __init__(self,
                  src_to_target_translator_model_name,
                  target_to_src_translator_model_name,
-                 source_to_target_model,
-                 target_to_source_model,
-                 source_to_target_tokenizer,
-                 target_to_source_tokenizer):
+                 src_to_target_model,
+                 target_to_src_model,
+                 src_to_target_tokenizer,
+                 target_to_src_tokenizer):
+        
         self.src_to_target_translator_model_name = src_to_target_translator_model_name
         self.target_to_src_translator_model_name = target_to_src_translator_model_name
-        self.source_to_target_model = source_to_target_model
-        self.target_to_source_model = target_to_source_model
-        self.source_to_target_tokenizer = source_to_target_tokenizer
-        self.target_to_source_tokenizer = target_to_source_tokenizer
+        
+        self.src_to_target_model = src_to_target_model
+        self.target_to_src_model = target_to_src_model
+        self.src_to_target_tokenizer = src_to_target_tokenizer
+        self.target_to_src_tokenizer = target_to_src_tokenizer
 
         self.inputs = None
         self.outputs = None
 
         # Let the Second translator be Injectable by replacing his first block
         self.injected_layer_num = 0
-        original_layer = self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num]
+        original_layer = self.target_to_src_model.base_model.encoder.layers[self.injected_layer_num]
         wrapped_layer = CustomLayerWrapper(original_layer, None)
-        self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num] = wrapped_layer
+        self.target_to_src_model.base_model.encoder.layers[self.injected_layer_num] = wrapped_layer
 
+    def set_requires_grad(self, requires_grad: bool):
+        """
+            If requires_grad = True the parameters (weights) will freeze meaning they will not change during training.
+        """
+        
+        # Translator1 parameters
+        for param in self.src_to_target_model.parameters():
+            param.requires_grad = requires_grad
+        
+        # Translator2 parameters
+        for param in self.target_to_src_model.parameters():
+            param.requires_grad = requires_grad 
+        
+        
     def inject_hidden_states(self, injected_hidden_state: torch.Tensor):
         """
         Inject hidden states into the Second translator
 
         :param injected_hidden_state: The injected hidden states
         """
-        self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num].injected_hidden_state = injected_hidden_state
+        self.target_to_src_model.base_model.encoder.layers[self.injected_layer_num].injected_hidden_state = injected_hidden_state
 
     def get_output_by_using_dummy(self, token_num):
         """
@@ -41,7 +57,7 @@ class Translator(Injectable):
         :return: The outputs of the model after passing it through
         """
         # Generate a dummy input for letting the model output the desired result of the injected layer
-        self.inputs = self.target_to_source_tokenizer("`" * (token_num - 2), return_tensors="pt")
+        self.inputs = self.target_to_src_tokenizer("`" * (token_num - 2), return_tensors="pt")
 
         # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
         self.generate_sentence_from_outputs(use_first_translator=False)
@@ -50,13 +66,13 @@ class Translator(Injectable):
 
     def get_output(self, from_first, text):
         if from_first:
-            tokenizer = self.source_to_target_tokenizer
+            tokenizer = self.src_to_target_tokenizer
             use_first_translator = True
         else:
             # Set the costume block to be not in injected mode
-            self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num].set_injection_state(False)
+            self.target_to_src_model.base_model.encoder.layers[self.injected_layer_num].set_injection_state(False)
 
-            tokenizer = self.target_to_source_tokenizer
+            tokenizer = self.target_to_src_tokenizer
             use_first_translator = False
 
         # Regular insertion
@@ -64,7 +80,7 @@ class Translator(Injectable):
         # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
         self.generate_sentence_from_outputs(use_first_translator=use_first_translator)
         # Put it back as injectable
-        self.target_to_source_model.base_model.encoder.layers[self.injected_layer_num].set_injection_state(True)
+        self.target_to_src_model.base_model.encoder.layers[self.injected_layer_num].set_injection_state(True)
 
         return self.outputs
 
@@ -73,7 +89,7 @@ class Translator(Injectable):
             from_first=from_first,
             text=text
         )
-        tokenizer = self.source_to_target_tokenizer if from_first else self.target_to_source_tokenizer
+        tokenizer = self.src_to_target_tokenizer if from_first else self.target_to_src_tokenizer
         translated_text = self.decode_logits(
             tokenizer=tokenizer,
             logits=output.logits
@@ -90,11 +106,11 @@ class Translator(Injectable):
 
         # Choose the appropriate tokenizer and model based on the flag
         if use_first_translator:
-            tokenizer = self.source_to_target_tokenizer
-            model = self.source_to_target_model
+            tokenizer = self.src_to_target_tokenizer
+            model = self.src_to_target_model
         else:
-            tokenizer = self.target_to_source_tokenizer
-            model = self.target_to_source_model
+            tokenizer = self.target_to_src_tokenizer
+            model = self.target_to_src_model
 
         # Use the static method to process inputs and get the final outputs
         self.outputs = self.process_outputs(self.inputs, model, tokenizer)
@@ -185,4 +201,3 @@ class Translator(Injectable):
             return outputs.encoder_hidden_states[layer_num]
         else:
             return outputs.decoder_hidden_states[layer_num]
-

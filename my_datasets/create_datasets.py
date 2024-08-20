@@ -15,7 +15,13 @@ def create_transformer1_dataset(translator: Translator, llm: LLMIntegration, fil
     :param file_path: Path to the file where the dataset should be saved.
     :param save_interval: Number of sentences to process before saving to a file.
     """
-    hebrew_sentences = load_sentences_from_csv(f"../my_datasets/{dataset_name}", "sentence")
+    if dataset_name.split(".")[1] == 'csv':
+        hebrew_sentences = load_sentences_from_csv(f"../my_datasets/{dataset_name}", "sentence")
+    elif dataset_name.split(".")[1] == 'txt':
+        hebrew_sentences = read_file_lines(f"../my_datasets/{dataset_name}")
+    else:
+        raise ValueError("Has to be txt or csv file")
+
     filtered_hebrew_sentences = filter_sentences(hebrew_sentences)
 
     llm_tokenizer = AutoTokenizer.from_pretrained(llm.model_name)
@@ -171,6 +177,28 @@ def load_sentences_from_csv(file_path, sentence_column):
     df = pd.read_csv(file_path)
     sentences = df[sentence_column].dropna().tolist()
     return sentences
+
+
+def read_file_lines(file_name):
+    """
+    Reads a text file and returns a list of its lines.
+
+    Args:
+        file_name (str): The name of the text file to read.
+
+    Returns:
+        list: A list of strings, each representing a line in the file.
+    """
+    try:
+        with open(file_name, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+            return [line.strip() for line in lines]  # Remove newline characters
+    except FileNotFoundError:
+        print(f"Error: The file '{file_name}' was not found.")
+        return []
+    except IOError:
+        print(f"Error: An IOError occurred while reading the file '{file_name}'.")
+        return []
 
 
 def filter_sentences(sentences, min_length=5, max_length=50):
