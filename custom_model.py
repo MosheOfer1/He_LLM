@@ -50,17 +50,16 @@ class MyCustomModel(nn.Module):
         llm_outputs = self.llm.get_output_by_using_dummy(transformed_to_llm_hs.shape[1])
 
         # Extract the last hidden states
-        llm_last_hidden_state = llm_outputs.hidden_states[-1]
+        # llm_last_hidden_state = llm_outputs.hidden_states[-1]
+        llm_last_hidden_state = llm_outputs.hidden_states[-1][:,-1,:].unsqueeze(0)
 
         # Transform to translator first hidden states
         transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state)
 
         # Inject the new hidden states to translator2 first layer
         self.translator.inject_hidden_states(transformed_to_translator_hs)
-
-        print(transformed_to_translator_hs.shape[1])
-
+                
         # Input dummy text but the it is ignored and uses the injected 
         translator_outputs = self.translator.get_output_by_using_dummy(transformed_to_translator_hs.shape[1])
 
-        # return translator_outputs.logits
+        return translator_outputs.logits
