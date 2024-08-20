@@ -14,19 +14,19 @@ class HelsinkiTranslator(Translator):
         """
         self.src_to_target_translator_model_name = src_to_target_translator_model_name
         self.target_to_src_translator_model_name = target_to_src_translator_model_name
-        self.source_to_target_tokenizer = MarianTokenizer.from_pretrained(self.src_to_target_translator_model_name)
-        self.source_to_target_model = MarianMTModel.from_pretrained(self.src_to_target_translator_model_name,
+        self.src_to_target_tokenizer = MarianTokenizer.from_pretrained(self.src_to_target_translator_model_name)
+        self.src_to_target_model = MarianMTModel.from_pretrained(self.src_to_target_translator_model_name,
                                                                     output_hidden_states=True)
 
-        self.target_to_source_tokenizer = MarianTokenizer.from_pretrained(self.target_to_src_translator_model_name)
-        self.target_to_source_model = MarianMTModel.from_pretrained(self.target_to_src_translator_model_name,
+        self.target_to_src_tokenizer = MarianTokenizer.from_pretrained(self.target_to_src_translator_model_name)
+        self.target_to_src_model = MarianMTModel.from_pretrained(self.target_to_src_translator_model_name,
                                                                     output_hidden_states=True)
 
         super().__init__(
             self.src_to_target_translator_model_name,
             self.target_to_src_translator_model_name,
-            self.source_to_target_model,
-            self.target_to_source_model,
-            self.source_to_target_tokenizer,
-            self.target_to_source_tokenizer
+            self.src_to_target_model,
+            self.target_to_src_model,
+            self.src_to_target_tokenizer,
+            self.target_to_src_tokenizer
         )

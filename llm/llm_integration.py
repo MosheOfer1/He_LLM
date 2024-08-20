@@ -3,14 +3,14 @@ import torch
 from utilty.injectable import CustomLayerWrapper, Injectable
 
 
-class LLMIntegration(Injectable):
-    def __init__(self, model_name):
+class LLMWrapper(Injectable):
+    def __init__(self, model_name, tokenizer, llm_model):
         """
         Initialize the LLMIntegration with a specific OPT model.0
         """
         self.outputs = None
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = OPTForCausalLM.from_pretrained(model_name)
+        self.tokenizer = tokenizer
+        self.model: OPTForCausalLM = llm_model
         self.model_name = model_name
 
         # Let the LLM be Injectable by replacing the first block of the LLM
@@ -19,6 +19,16 @@ class LLMIntegration(Injectable):
         wrapped_layer = CustomLayerWrapper(original_layer, None)
         self.model.base_model.decoder.layers[self.injected_layer_num] = wrapped_layer
 
+
+    def set_requires_grad(self, requires_grad: bool):
+        """
+            If requires_grad = True the parameters (weights) will freeze meaning they will not change during training.
+        """
+        
+        for param in self.model.parameters():
+            param.requires_grad = requires_grad
+            
+            
     def inject_hidden_states(self, injected_hidden_state: torch.Tensor):
         """
         Inject hidden states into the LLM by using a custom layer that wrappers the origin first layer
@@ -45,7 +55,7 @@ class LLMIntegration(Injectable):
         """
         # Tokenize the text input
         inputs = self.tokenizer(text, return_tensors="pt")
-        outputs = self.model(**inputs)
+        outputs = self.model(inputs.input_ids)
         return outputs.logits
 
     def decode_logits(self, logits: torch.Tensor) -> str:
