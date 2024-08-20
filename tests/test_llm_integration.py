@@ -25,14 +25,14 @@ class TestLLMIntegration(unittest.TestCase):
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         model = OPTForCausalLM.from_pretrained(self.model_name)
 
-        first_hs = LLMIntegration.text_to_hidden_states(
+        first_hs = LLMWrapper.text_to_hidden_states(
             tokenizer=tokenizer,
             model=model,
             text=self.sample_text,
             layer_num=0
         )
 
-        last_hs = LLMIntegration.text_to_hidden_states(
+        last_hs = LLMWrapper.text_to_hidden_states(
             tokenizer=tokenizer,
             model=model,
             text=self.sample_text,
