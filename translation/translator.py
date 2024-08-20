@@ -10,10 +10,10 @@ class Translator(Injectable):
                  target_to_src_model,
                  src_to_target_tokenizer,
                  target_to_src_tokenizer):
-        
+
         self.src_to_target_translator_model_name = src_to_target_translator_model_name
         self.target_to_src_translator_model_name = target_to_src_translator_model_name
-        
+
         self.src_to_target_model = src_to_target_model
         self.target_to_src_model = target_to_src_model
         self.src_to_target_tokenizer = src_to_target_tokenizer
@@ -32,23 +32,23 @@ class Translator(Injectable):
         """
             If requires_grad = True the parameters (weights) will freeze meaning they will not change during training.
         """
-        
+
         # Translator1 parameters
         for param in self.src_to_target_model.parameters():
             param.requires_grad = requires_grad
-        
+
         # Translator2 parameters
         for param in self.target_to_src_model.parameters():
-            param.requires_grad = requires_grad 
-        
-        
+            param.requires_grad = requires_grad
+
     def inject_hidden_states(self, injected_hidden_state: torch.Tensor):
         """
         Inject hidden states into the Second translator
 
         :param injected_hidden_state: The injected hidden states
         """
-        self.target_to_src_model.base_model.encoder.layers[self.injected_layer_num].injected_hidden_state = injected_hidden_state
+        self.target_to_src_model.base_model.encoder.layers[
+            self.injected_layer_num].injected_hidden_state = injected_hidden_state
 
     def get_output_by_using_dummy(self, token_num):
         """
@@ -124,19 +124,21 @@ class Translator(Injectable):
         return generated_sentence
 
     @staticmethod
-    def process_outputs(inputs, model, tokenizer):
+    def process_outputs(inputs, model, tokenizer, max_len=50):
         """
         Processes the model to generate outputs, including logits and hidden states.
 
+        :param max_len: To stop the loop if EOS did not show up.
         :param inputs: The inputs to the model (e.g., encoder inputs).
         :param model: The MarianMTModel to use for generating outputs.
         :param tokenizer: The tokenizer to use for decoding.
         :return: The final outputs after processing all tokens.
         """
         # Initialize decoder input IDs with the start token ID
+        outputs = None
         decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]])
 
-        while True:
+        for i in range(max_len):
             # Run the model with the current decoder input IDs to get the outputs
             outputs = model(
                 **inputs,

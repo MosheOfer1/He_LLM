@@ -10,11 +10,11 @@ class Transformer2(BaseTransformer):
         Initialize the Transformer2 model.
 
         :param translator: The translator instance used in the pipeline.
-        :param llm: The LLM instance used in the pipeline.
+        :param llm: The LLM instance used.
         :param hidden_dim: Dimension of the hidden layer(s) in Transformer2.
         """
         # Determine input and output dimensions based on the LLM and translator
-        input_dim = llm.model.config.hidden_size
+        input_dim = llm.model.config.word_embed_proj_dim
         output_dim = translator.target_to_src_model.config.hidden_size
 
         # Generate a model name that includes the translator and LLM names
@@ -24,6 +24,6 @@ class Transformer2(BaseTransformer):
 
         # Define the layers of the transformer model
         self.layer1 = nn.Linear(input_dim, hidden_dim)
-        self.activation = nn.ReLU()
         self.layer2 = nn.Linear(hidden_dim, output_dim)
+        self.activation = nn.ReLU()
         self.dropout = nn.Dropout(0.1)
