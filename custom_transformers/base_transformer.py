@@ -5,30 +5,12 @@ from torch.utils.data import DataLoader
 from abc import ABC
 from my_datasets.create_datasets import create_transformer1_dataset, create_transformer2_dataset
 from torch.utils.data import Dataset
-import torch.nn.functional as F
-
-
-MAX_TANSOR_LENGTH = 15
-BATCH_SIZE = 64
-TEST_SIZE = 0.10
-VALIDATION_SIZE = 0.15
-EPOCHS = 3
-DROPOUT = 0.1
-INPUT_SIZE = 1024
-OUTPUT_SIZE = 512
 
 
 class BaseTransformer(nn.Module, ABC):
-    def __init__(self, model_name: str, 
-                 translator=None, llm=None,
-                 input_size=INPUT_SIZE,
-                 output_size=OUTPUT_SIZE, 
-                 num_layers=2, 
-                 num_heads=1, 
-                 dim_feedforward=128, 
-                 dropout=DROPOUT, 
-                 activation=F.relu):
-        
+    def __init__(self, model_name: str,
+                 translator=None, llm=None):
+
         super(BaseTransformer, self).__init__()
         self.model_name = model_name
         if "transformer_1" in model_name:
@@ -40,16 +22,6 @@ class BaseTransformer(nn.Module, ABC):
         self.translator = translator
         self.llm = llm
 
-
-        # TODO - Check it
-        self.encoder_layers = nn.TransformerEncoderLayer(d_model=input_size, nhead=num_heads, dim_feedforward=dim_feedforward, dropout=dropout, activation=activation)
-        self.encoder_layers.self_attn.batch_first = True
-        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layers, num_layers)
-
-        # Linear layer to map to the target hidden size
-        self.fc = nn.Linear(input_size, output_size)
-    
-    
     def load_or_train_model(self):
         """
         Load the model if it exists; otherwise, train and save it.
@@ -108,11 +80,15 @@ class BaseTransformer(nn.Module, ABC):
         # Save the trained model with a name reflecting the translator and LLM used
         torch.save(self.state_dict(), f"../models/{self.model_name}_state_dict.pth")
 
-
-    def forward(self, hidden_states, src_key_padding_mask=None):
-        encoded = self.transformer_encoder(hidden_states, src_key_padding_mask=src_key_padding_mask)
-        output = self.fc(encoded)
-        return output
+    def forward(self, hidden_states):
+        """
+        Define the forward pass for Transformer1/2.
+        """
+        x = self.layer1(hidden_states)
+        x = self.activation(x)
+        x = self.dropout(x)
+        x = self.layer2(x)
+        return x
 
     @staticmethod
     def load_dataset(path, batch_size=32, shuffle=True):
