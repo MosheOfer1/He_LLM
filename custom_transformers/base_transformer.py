@@ -1,9 +1,5 @@
-import torch
 import torch.nn as nn
 from abc import ABC
-
-from llm.llm_integration import LLMWrapper
-from translation.translator import Translator
 
 
 class BaseTransformer(nn.Module, ABC):

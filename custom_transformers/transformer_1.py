@@ -42,6 +42,10 @@ class Transformer1(BaseTransformer):
         # Output projection to align model's output to the LLM's required hidden dimension
         self.output_projection = nn.Linear(hidden_dim, self.output_dim)
 
+        # Define the EOS vector (e.g., a vector of zeros or a specific learned vector)
+        self.eos_vector_input = torch.zeros(translator.src_to_target_model.config.hidden_size)
+        self.eos_vector_output = torch.zeros(llm.model.config.hidden_size)
+
     def encode(self, input_seq):
         input_seq = self.input_projection(input_seq)
         input_seq = input_seq + self.positional_encoding[:, :input_seq.size(1), :]
@@ -62,12 +66,11 @@ class Transformer1(BaseTransformer):
         output = self.decoder(tgt=target_seq, memory=memory)
         return output
 
-    def forward(self, input_ids, labels=None, eos_vector=None, mse_threshold=1e-4):
+    def forward(self, input_ids, labels=None, mse_threshold=1e-4):
         """
         Forward pass through the Transformer1 model.
 
         :param mse_threshold:
-        :param eos_vector:
         :param input_ids: Input tensor of shape (batch_size, seq_len, input_dim).
         :param labels: Target tensor of shape (batch_size, seq_len, output_dim), optional.
         :return: The output of the model.
@@ -104,7 +107,8 @@ class Transformer1(BaseTransformer):
                 # Get the predicted token by taking the argmax of the logits (greedy decoding)
                 next_token = logits[:, -1, :]  # Take the last time step's output
                 # Calculate MSE with the EOS vector
-                mse = F.mse_loss(next_token, eos_vector.expand_as(next_token), reduction='mean')
+                mse_loss = torch.nn.MSELoss()
+                mse = mse_loss(next_token, self.eos_vector_output)
 
                 # If MSE is below the threshold, stop decoding
                 if mse < mse_threshold:

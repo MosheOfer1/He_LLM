@@ -65,6 +65,7 @@ def create_transformer1_dataset(
     # Define the EOS vector (e.g., a vector of zeros or a specific learned vector)
     eos_vector_input = torch.zeros(translator.src_to_target_model.config.hidden_size)
     eos_vector_output = torch.zeros(llm.model.config.hidden_size)
+
     # Process training and test sentences
     train_input_tensor, train_target_tensor = process_sentences(train_sentences, translator, llm, eos_vector_input, eos_vector_output, max_length)
     test_input_tensor, test_target_tensor = process_sentences(test_sentences, translator, llm, eos_vector_input, eos_vector_output, max_length)
