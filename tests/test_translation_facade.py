@@ -3,8 +3,7 @@ import sys
 import os
 import torch
 
-from transformers import AutoTokenizer, AutoModel, MarianTokenizer, MarianMTModel, AutoTokenizer, OPTForCausalLM, \
-    modeling_outputs
+from transformers import modeling_outputs
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -12,7 +11,6 @@ from custom_model import MyCustomModel
 from translation.translator import Translator
 from custom_transformers.transformer import Transformer
 from llm.llm_integration import LLMWrapper
-from llm.facebook_llm import FacebookLLM
 
 
 class TestCustomModel(unittest.TestCase):
@@ -29,9 +27,7 @@ class TestCustomModel(unittest.TestCase):
                                        self.llm_model_name)
 
         self.he_text = "אבא בא לגן"
-        self.en_text = "David came home"
 
-    # TODO - complete
     def test_setup(self):
         self.assertIsInstance(self.customLLM, MyCustomModel)
 
