@@ -38,9 +38,9 @@ class LLMWrapper(Injectable):
 
     def get_output_by_using_dummy(self, token_num):
         # Generate a dummy input for letting the model output the desired result of the injected layer
-        inputs = self.tokenizer(" " * (token_num - 1), return_tensors="pt")
+        dummy_input = torch.zeros((1, token_num), dtype=torch.long)  # dtype=torch.long for token IDs
 
-        self.outputs = self.model(**inputs, output_hidden_states=True)
+        self.outputs = self.model(input_ids=dummy_input, output_hidden_states=True)
 
         return self.outputs
 

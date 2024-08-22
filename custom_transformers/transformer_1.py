@@ -139,6 +139,14 @@ class Transformer1(BaseTransformer):
             logging_dir='../my_datasets/logs',
         )
 
+        # Print trainable layers and parameters
+        print("Trainable Layers and Parameters:")
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                print(f"Layer: {name} | Size: {param.size()} | Requires Grad: {param.requires_grad}")
+            else:
+                print(f"Layer: {name} | Size: {param.size()} | Requires Grad: {param.requires_grad} (Not trainable)")
+
         # Initialize the Seq2SeqTrainer
         trainer = Seq2SeqTrainer(
             model=self,  # Pass the current model instance

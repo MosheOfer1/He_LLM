@@ -22,7 +22,7 @@ class TestBaseTransformer(unittest.TestCase):
         self.llm_model = OPTForCausalLM.from_pretrained(self.llm_model_name)
         self.llm_integration = LLMWrapper(self.llm_model_name, self.llm_tokenizer, self.llm_model)
 
-    def test_train_model(self):
+    def test_train_transformer1(self):
         transformer = Transformer1(
             translator=self.translator,
             llm=self.llm_integration
@@ -55,7 +55,7 @@ class TestBaseTransformer(unittest.TestCase):
         loaded_model = Transformer1.load_model(model_name=model_name, translator=self.translator,
                                                   llm=self.llm_integration)
 
-        sentence = "העיר בירה הכי יפה ב"
+        sentence = input("הכנס משפט בעברית: ")
         # Step 1: Get the last hidden state from the first translator model
         with torch.no_grad():
             outputs = self.translator.get_output(from_first=True, text=sentence)
@@ -70,8 +70,8 @@ class TestBaseTransformer(unittest.TestCase):
         # Step 3: Pass the English translation through the LLM and get the first hidden state
         with torch.no_grad():
             target_hidden_states = self.llm_integration.text_to_hidden_states(
-                tokenizer=AutoTokenizer.from_pretrained(self.llm_integration.model_name),
-                model=OPTForCausalLM.from_pretrained(self.llm_integration.model_name),
+                tokenizer=self.llm_tokenizer,
+                model=self.llm_model,
                 text=translated_text,
                 layer_num=0  # Assuming this returns a tensor of shape (seq_len, hidden_dim)
             )
