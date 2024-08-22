@@ -25,7 +25,8 @@ class TestBaseTransformer(unittest.TestCase):
     def test_train_transformer1(self):
         transformer = Transformer1(
             translator=self.translator,
-            llm=self.llm_integration
+            llm=self.llm_integration,
+            model_name="transform1_test_model"
         )
         seq_len = 4
         batch_size = 5
@@ -45,7 +46,7 @@ class TestBaseTransformer(unittest.TestCase):
             targets=toy_targets
         )
 
-        transformer.train_model(toy_ds)
+        transformer.train_model(toy_ds, toy_ds)
 
     def test_load_and_evaluate_model(self):
         """Test loading a model by name and running a forward pass in evaluation mode."""
@@ -69,27 +70,27 @@ class TestBaseTransformer(unittest.TestCase):
         print(translated_text)
         # Step 3: Pass the English translation through the LLM and get the first hidden state
         with torch.no_grad():
+            self.llm_model.base_model.decoder.layers[self.llm_integration.injected_layer_num].set_injection_state(False)
             target_hidden_states = self.llm_integration.text_to_hidden_states(
-                tokenizer=self.llm_tokenizer,
+                tokenizer=self.llm_integration.tokenizer,
                 model=self.llm_model,
                 text=translated_text,
                 layer_num=0  # Assuming this returns a tensor of shape (seq_len, hidden_dim)
             )
+            self.llm_model.base_model.decoder.layers[self.llm_integration.injected_layer_num].set_injection_state(True)
 
         # Perform a forward pass
         with torch.no_grad():
             output = loaded_model(input_hidden_states)
 
-        # # Calculate the MSE between target_hidden_states and output
-        # mse_loss_fn = torch.nn.MSELoss()
-        # mse_loss = mse_loss_fn(output, target_hidden_states)
-        #
-        # # Assert that the MSE is below a threshold
-        # threshold = 0.01  # Adjust this threshold based on what you consider acceptable
-        # self.assertLess(mse_loss.item(), threshold, f"MSE loss too high: {mse_loss.item()}")
+        # TODO:Calculate the MSE between target_hidden_states and output
 
         self.llm_integration.inject_hidden_states(output)
         outputs = self.llm_integration.get_output_by_using_dummy(output.shape[1])
+        print(self.llm_integration.decode_logits(outputs.logits))
+
+        self.llm_integration.inject_hidden_states(target_hidden_states)
+        outputs = self.llm_integration.get_output_by_using_dummy(target_hidden_states.shape[1])
         print(self.llm_integration.decode_logits(outputs.logits))
 
 

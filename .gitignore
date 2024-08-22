@@ -5,3 +5,7 @@ custom_transformers/__pycache__/
 llm/__pycache__/
 translation/__pycache__/
 tests/__pycache__/
+# Ignore PyTorch model files
+*.pt
+*.pth
+*.safetensors
