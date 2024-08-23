@@ -3,7 +3,7 @@ import sys
 import torch
 import torch.nn as nn
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 # Transformers
 from custom_transformers.transformer import Transformer

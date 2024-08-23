@@ -2,7 +2,6 @@ import torch.nn as nn
 import os
 import torch
 from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
-import torch.nn.functional as F
 from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
 from my_datasets.create_datasets import create_transformer1_dataset
 from custom_transformers.base_transformer import BaseTransformer

@@ -50,7 +50,7 @@ class TestBaseTransformer(unittest.TestCase):
 
     def test_load_and_evaluate_model(self):
         """Test loading a model by name and running a forward pass in evaluation mode."""
-        model_name = "transformer_1_Helsinki-NLP_opus-mt-tc-big-he-en_to_facebook_opt-125m"
+        model_name = "rnn_transformer_1_Helsinki-NLP_opus-mt-tc-big-he-en_to_facebook_opt-125m"
 
         # Load the model
         loaded_model = Transformer1.load_model(model_name=model_name, translator=self.translator,

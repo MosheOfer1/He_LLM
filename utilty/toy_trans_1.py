@@ -1,5 +1,5 @@
 from transformers import AutoTokenizer, OPTForCausalLM
-from custom_transformers.transformer_1 import Transformer1
+from custom_transformers.rnn_based_transformer1 import Transformer1
 from llm.llm_integration import LLMWrapper
 from my_datasets.create_datasets import create_transformer1_dataset, load_and_create_dataset
 from translation.helsinki_translator import HelsinkiTranslator
