@@ -1,15 +1,26 @@
-import os
-import sys
 import torch
 import torch.nn as nn
+from datasets import Dataset
+from sklearn.model_selection import train_test_split
+import pandas as pd
+from sklearn.metrics import f1_score
 
+import os
+import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from transformers import Trainer, TrainingArguments
+from custom_trainers.combined_model_trainer import CombinedTrainer
 
 # Transformers
 from custom_transformers.transformer import Transformer
+
 # Translators
 from translation.helsinki_translator import HelsinkiTranslator
 from llm.facebook_llm import FacebookLLM
+
+# Dataset
+from my_datasets.hebrew_dataset_wiki import HebrewDataset
 
 
 class MyCustomModel(nn.Module):
@@ -41,10 +52,23 @@ class MyCustomModel(nn.Module):
         # Freeze LLM parameters
         self.llm.set_requires_grad(False)
 
-    def forward(self, text: str) -> torch.Tensor:
-        # Get hidden states from text
-        translator_last_hs = self.translator.text_to_hidden_states(text, -1, self.translator.src_to_target_tokenizer,
-                                                                   self.translator.src_to_target_model, False)
+    def forward(self, input_ids = None, text = None, attention_mask=None, labels = None, class_weights = None) -> torch.Tensor:
+                
+        
+        # Remove batch if batch_size=1
+        input_ids = input_ids.squeeze(0)
+        attention_mask = attention_mask.squeeze(0)
+        
+        # print(f"input_ids shape: {input_ids.shape}")
+        # print(f"attention_mask shape: {attention_mask.shape}")
+        
+        if text:
+            # Get hidden states from text
+            translator_last_hs = self.translator.text_to_hidden_states(text, -1, self.translator.src_to_target_tokenizer,
+                                                                    self.translator.src_to_target_model, False)
+        else:                    
+            translator_last_hs = self.translator.input_ids_to_hidden_states(input_ids, -1, self.translator.src_to_target_tokenizer,
+                                                                   self.translator.src_to_target_model, False, attention_mask=attention_mask)
 
         # Transform to llm first hidden states
         transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs)
@@ -52,20 +76,105 @@ class MyCustomModel(nn.Module):
         # Inject the new hidden states to the llm first layer
         self.llm.inject_hidden_states(transformed_to_llm_hs)
 
+        token_num = transformed_to_llm_hs.shape[1]
+        print(f"\n\n transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}, token_num = {token_num}\n\n")
+        
         # Input dummy text but the it is ignored and uses the injected 
-        llm_outputs = self.llm.get_output_by_using_dummy(transformed_to_llm_hs.shape[1])
+        llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num)
 
         # Extract the last hidden states
-        # llm_last_hidden_state = llm_outputs.hidden_states[-1]
-        llm_last_hidden_state = llm_outputs.hidden_states[-1][:,-1,:].unsqueeze(0)
+        llm_last_hidden_state = llm_outputs.hidden_states[-1]
+        # llm_last_hidden_state = llm_outputs.hidden_states[-1][:,-1,:].unsqueeze(0)
+        
+        print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
 
         # Transform to translator first hidden states
         transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state)
+        
+        print(f"transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
 
         # Inject the new hidden states to translator2 first layer
         self.translator.inject_hidden_states(transformed_to_translator_hs)
-                
+        
+        token_num = transformed_to_translator_hs.shape[1]
+        print(f"\n\n transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}, token_num2 = {token_num}\n\n")
+        
         # Input dummy text but the it is ignored and uses the injected 
-        translator_outputs = self.translator.get_output_by_using_dummy(transformed_to_translator_hs.shape[1])
+        translator_outputs = self.translator.get_output_by_using_dummy(token_num=token_num)
+        
+        # print(f"translator_outputs = {translator_outputs}")
 
-        return translator_outputs.logits
+        return translator_outputs
+
+    def compute_metrics(pred):
+        labels = pred.label_ids
+        preds = pred.predictions.argmax(-1)
+        f1 = f1_score(labels, preds, average="weighted")
+        
+        return {"f1": f1}
+        
+    def train_model(self, train_dataset: Dataset, eval_dataset: Dataset, output_dir: str, logging_dir: str, epochs: int = 5, 
+                    batch_size: int = 1, warmup_steps: int = 500, weight_decay: float = 0.01,
+                    logging_steps: int = 10, evaluation_strategy: str = "steps",
+                    save_steps: int = 100):
+        
+        # Set up training arguments
+        training_args = TrainingArguments(
+            output_dir=f"./{output_dir}",
+            num_train_epochs=epochs,
+            per_device_train_batch_size=batch_size,
+            per_device_eval_batch_size=batch_size,
+            warmup_steps=warmup_steps,
+            weight_decay=weight_decay,
+            logging_dir=f"./{logging_dir}",
+            logging_steps=logging_steps,
+            evaluation_strategy=evaluation_strategy,
+            save_steps=save_steps,
+            eval_steps=save_steps,
+            load_best_model_at_end=True
+        )
+        
+        trainer = CombinedTrainer(
+        model=self,
+            args=training_args,
+            # compute_metrics=self.compute_metrics,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+        )
+
+        trainer.train()
+        
+        # Save the finetuned model and tokenizer with a new name
+        pretrained_model_dir = f"./pretrained_models/end_to_end_model"
+        trainer.save_model(pretrained_model_dir)
+
+ 
+translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
+translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
+llm_model_name = "facebook/opt-125m"
+
+customLLM = MyCustomModel(translator1_model_name,
+                            translator2_model_name,
+                            llm_model_name)
+
+data = pd.read_csv("my_datasets/wikipedia_data.csv")
+
+
+# Split the data into training and evaluation sets
+train_data, eval_data = train_test_split(data, test_size=0.2)
+
+# Create datasets
+train_dataset = HebrewDataset(data=train_data, 
+                              input_tokenizer=customLLM.translator.src_to_target_tokenizer, 
+                              output_tokenizer=customLLM.translator.target_to_src_tokenizer, 
+                              max_length=20)
+
+eval_dataset = HebrewDataset(data=eval_data, 
+                             input_tokenizer=customLLM.translator.src_to_target_tokenizer, 
+                             output_tokenizer=customLLM.translator.target_to_src_tokenizer, 
+                             max_length=20)
+# Train the model
+customLLM.train_model(train_dataset=train_dataset, 
+                      eval_dataset=eval_dataset, 
+                      output_dir="results", 
+                      logging_dir="loggings")

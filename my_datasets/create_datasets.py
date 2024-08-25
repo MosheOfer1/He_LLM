@@ -1,5 +1,10 @@
 import pandas as pd
 from transformers import AutoTokenizer, OPTForCausalLM
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from llm.llm_integration import LLMWrapper
 from my_datasets.seq2seq_dataset import Seq2SeqDataset
 from translation.translator import Translator
@@ -33,8 +38,7 @@ def create_transformer1_dataset(
         max_length=15,
         dataset_name='hebrew_sentences.csv',
         sentence_num=900,
-        test_portion=0.3
-) -> (Seq2SeqDataset, Seq2SeqDataset):
+        test_portion=0.3) -> (Seq2SeqDataset, Seq2SeqDataset):
     """
     Create a dataset for training Transformer1 and save it to a file in chunks.
 

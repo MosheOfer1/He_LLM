@@ -1,8 +1,8 @@
 
-import sys
-import os
 import torch
 
+import os
+import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
@@ -34,8 +34,7 @@ class Transformer:
             pass
 
         else:
-            # self.transformer1 = Transformer1(translator=translator, llm=llm)
-            pass
+            self.transformer1 = Transformer1(translator=translator, llm=llm)
         
         # Obtain transformer2
         if pretrained_transformer2_path:
