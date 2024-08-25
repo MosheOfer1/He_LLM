@@ -19,16 +19,14 @@ class LLMWrapper(Injectable):
         wrapped_layer = CustomLayerWrapper(original_layer, None)
         self.model.base_model.decoder.layers[self.injected_layer_num] = wrapped_layer
 
-
     def set_requires_grad(self, requires_grad: bool):
         """
             If requires_grad = True the parameters (weights) will freeze meaning they will not change during training.
         """
-        
+
         for param in self.model.parameters():
             param.requires_grad = requires_grad
-            
-            
+
     def inject_hidden_states(self, injected_hidden_state: torch.Tensor):
         """
         Inject hidden states into the LLM by using a custom layer that wrappers the origin first layer
@@ -79,4 +77,3 @@ class LLMWrapper(Injectable):
         outputs = model(**inputs, output_hidden_states=True)
 
         return outputs.hidden_states[layer_num]
-

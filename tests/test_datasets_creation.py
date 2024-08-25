@@ -46,8 +46,8 @@ class TestTranslator(unittest.TestCase):
         tr.load_or_train_model()
 
     def test_creation1(self):
-        file_path = 'my_datasets/transformer1_dataset.pt'
-        create_transformer1_dataset(self.translator, self.llm_integration, file_path)
+        file_path = '../my_datasets/'
+        create_transformer1_dataset(self.translator, self.llm_integration, file_path, dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt",sentence_num=10)
 
     def test_creation2(self):
         file_path = 'my_datasets/transformer2_dataset_test.pt'

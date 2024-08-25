@@ -27,3 +27,13 @@ class Transformer2(BaseTransformer):
         self.layer2 = nn.Linear(hidden_dim, output_dim)
         self.activation = nn.ReLU()
         self.dropout = nn.Dropout(0.1)
+
+    def forward(self, hidden_states):
+        """
+        Define the forward pass for Transformer2.
+        """
+        x = self.layer1(hidden_states)
+        x = self.activation(x)
+        x = self.dropout(x)
+        x = self.layer2(x)
+        return x

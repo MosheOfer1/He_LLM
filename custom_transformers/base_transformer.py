@@ -1,10 +1,7 @@
+import torch.nn as nn
+from abc import ABC
 import os
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
-from abc import ABC
-from my_datasets.create_datasets import create_transformer1_dataset, create_transformer2_dataset
-from torch.utils.data import Dataset
 
 
 class BaseTransformer(nn.Module, ABC):
