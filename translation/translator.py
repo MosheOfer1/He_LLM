@@ -64,7 +64,7 @@ class Translator(Injectable):
         self.inputs = self.target_to_src_tokenizer("`" * (token_num), return_tensors="pt")
         # self.inputs = self.target_to_src_tokenizer("`" * (token_num - 2), return_tensors="pt")
 
-        print(f"self.inputs.keys() = {self.inputs.keys()}, inputs = {self.inputs}")
+        # print(f"self.inputs.keys() = {self.inputs.keys()}, inputs = {self.inputs}")
         
         # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
         self.generate_sentence_from_outputs(use_first_translator=False)
@@ -131,7 +131,7 @@ class Translator(Injectable):
         return generated_sentence
 
     @staticmethod
-    def process_outputs(input_ids, model, tokenizer, max_len=50, attention_mask=None):
+    def process_outputs(input_ids, model, tokenizer, max_len=20, attention_mask=None):
         """
         Processes the model to generate outputs, including logits and hidden states.
 
@@ -143,8 +143,9 @@ class Translator(Injectable):
         # Initialize decoder input IDs with the start token ID
         decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]])
         # decoder_input_ids = torch.tensor([[tokenizer.bos_token_id]])
-
-        while True:
+        
+        counter = 0
+        while counter < max_len:
             # Run the model with the current decoder input IDs to get the outputs
             outputs = model(
                 input_ids,
@@ -163,6 +164,7 @@ class Translator(Injectable):
             # Update the decoder input IDs with the newly generated token
             decoder_input_ids = torch.cat([decoder_input_ids, torch.tensor([[token_id]])], dim=-1)
 
+            counter += 1
         return outputs
 
     @staticmethod

@@ -11,7 +11,7 @@ class CombinedTrainer(Trainer):
     
     def compute_loss(self, model, inputs, return_outputs=False):
         
-        print(f"inputs.keys() = {inputs.keys()}")
+        # print(f"inputs.keys() = {inputs.keys()}")
         
         # Extract labels
         labels = inputs.get("labels")
@@ -19,7 +19,7 @@ class CombinedTrainer(Trainer):
         attention_mask = inputs.get("attention_mask")
         class_weights = inputs.get("class_weights")
         
-        print(f"\n\n labels.shape = {labels.shape}, labels = {labels}\n\n")
+        # print(f"\n\n labels.shape = {labels.shape}, labels = {labels}\n\n")
         
         # Feed inputs to model and extract logits
         outputs = model(input_ids=input_ids,
@@ -28,17 +28,16 @@ class CombinedTrainer(Trainer):
         
         logits = outputs.get("logits")
         
-        print(f"\n\n logits.shape = {logits.shape}")
-        print(f"\n\n class_weights = {class_weights}")
+        # print(f"\n\n logits.shape = {logits.shape}")
+        # print(f"\n\n class_weights = {class_weights}")
         
-        learning_index = min(logits.shape[1], labels.shape[1])
-        
-        # (f"inputs.input_ids.shape = {inputs.input_ids.shape}")
-        
+        stop_learning_index = min(logits.shape[1], labels.shape[1])
+                
         # Compute loss
-        loss_func = nn.CrossEntropyLoss(weight=class_weights)
+        # loss_func = nn.CrossEntropyLoss(weight=class_weights)
+        loss_func = nn.CrossEntropyLoss()
         
-        print(f"logits.shape = {logits.shape}")
-        loss = loss_func(logits[0, :learning_index, :], labels.squeeze(0)[:learning_index])
+        # print(f"logits.shape = {logits.shape}")
+        loss = loss_func(logits[0, :stop_learning_index, :], labels.squeeze(0)[:stop_learning_index])
         
         return (loss, outputs) if return_outputs else loss

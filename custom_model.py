@@ -77,7 +77,8 @@ class MyCustomModel(nn.Module):
         self.llm.inject_hidden_states(transformed_to_llm_hs)
 
         token_num = transformed_to_llm_hs.shape[1]
-        print(f"\n\n transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}, token_num = {token_num}\n\n")
+        
+        # print(f"\n\n transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}, token_num = {token_num}\n\n")
         
         # Input dummy text but the it is ignored and uses the injected 
         llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num)
@@ -86,18 +87,19 @@ class MyCustomModel(nn.Module):
         llm_last_hidden_state = llm_outputs.hidden_states[-1]
         # llm_last_hidden_state = llm_outputs.hidden_states[-1][:,-1,:].unsqueeze(0)
         
-        print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
+        # print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
 
         # Transform to translator first hidden states
         transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state)
         
-        print(f"transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
+        # print(f"transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
 
         # Inject the new hidden states to translator2 first layer
         self.translator.inject_hidden_states(transformed_to_translator_hs)
         
         token_num = transformed_to_translator_hs.shape[1]
-        print(f"\n\n transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}, token_num2 = {token_num}\n\n")
+        
+        # print(f"\n\n transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}, token_num2 = {token_num}\n\n")
         
         # Input dummy text but the it is ignored and uses the injected 
         translator_outputs = self.translator.get_output_by_using_dummy(token_num=token_num)
@@ -115,8 +117,8 @@ class MyCustomModel(nn.Module):
         
     def train_model(self, train_dataset: Dataset, eval_dataset: Dataset, output_dir: str, logging_dir: str, epochs: int = 5, 
                     batch_size: int = 1, warmup_steps: int = 500, weight_decay: float = 0.01,
-                    logging_steps: int = 10, evaluation_strategy: str = "steps",
-                    save_steps: int = 100):
+                    logging_steps: int = 1000, evaluation_strategy: str = "steps",
+                    save_steps: int = 10000):
         
         # Set up training arguments
         training_args = TrainingArguments(
@@ -149,32 +151,32 @@ class MyCustomModel(nn.Module):
         trainer.save_model(pretrained_model_dir)
 
  
-translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
-translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
-llm_model_name = "facebook/opt-125m"
+# translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
+# translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
+# llm_model_name = "facebook/opt-125m"
 
-customLLM = MyCustomModel(translator1_model_name,
-                            translator2_model_name,
-                            llm_model_name)
+# customLLM = MyCustomModel(translator1_model_name,
+#                             translator2_model_name,
+#                             llm_model_name)
 
-data = pd.read_csv("my_datasets/wikipedia_data.csv")
+# data = pd.read_csv("my_datasets/wikipedia_data.csv")
 
 
-# Split the data into training and evaluation sets
-train_data, eval_data = train_test_split(data, test_size=0.2)
+# # Split the data into training and evaluation sets
+# train_data, eval_data = train_test_split(data, test_size=0.2)
 
-# Create datasets
-train_dataset = HebrewDataset(data=train_data, 
-                              input_tokenizer=customLLM.translator.src_to_target_tokenizer, 
-                              output_tokenizer=customLLM.translator.target_to_src_tokenizer, 
-                              max_length=20)
+# # Create datasets
+# train_dataset = HebrewDataset(data=train_data, 
+#                               input_tokenizer=customLLM.translator.src_to_target_tokenizer, 
+#                               output_tokenizer=customLLM.translator.target_to_src_tokenizer, 
+#                               max_length=20)
 
-eval_dataset = HebrewDataset(data=eval_data, 
-                             input_tokenizer=customLLM.translator.src_to_target_tokenizer, 
-                             output_tokenizer=customLLM.translator.target_to_src_tokenizer, 
-                             max_length=20)
-# Train the model
-customLLM.train_model(train_dataset=train_dataset, 
-                      eval_dataset=eval_dataset, 
-                      output_dir="results", 
-                      logging_dir="loggings")
+# eval_dataset = HebrewDataset(data=eval_data, 
+#                              input_tokenizer=customLLM.translator.src_to_target_tokenizer, 
+#                              output_tokenizer=customLLM.translator.target_to_src_tokenizer, 
+#                              max_length=20)
+# # Train the model
+# customLLM.train_model(train_dataset=train_dataset, 
+#                       eval_dataset=eval_dataset, 
+#                       output_dir="results", 
+#                       logging_dir="loggings")

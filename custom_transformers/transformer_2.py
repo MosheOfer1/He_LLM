@@ -29,7 +29,7 @@ class Transformer2(BaseTransformer):
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, hidden_states):
-        print(f"Input hidden_states.shape = {hidden_states.shape}")
+        # print(f"Input hidden_states.shape = {hidden_states.shape}")
         """
         Define the forward pass for Transformer2.
         """
@@ -38,6 +38,6 @@ class Transformer2(BaseTransformer):
         x = self.dropout(x)
         x = self.layer2(x)
         
-        print(f"Output x.shape = {x.shape}")
+        # print(f"Output x.shape = {x.shape}")
 
         return x
