@@ -118,7 +118,7 @@ class MyCustomModel(nn.Module):
     def train_model(self, train_dataset: Dataset, eval_dataset: Dataset, output_dir: str, logging_dir: str, epochs: int = 5, 
                     batch_size: int = 1, warmup_steps: int = 500, weight_decay: float = 0.01,
                     logging_steps: int = 1000, evaluation_strategy: str = "steps",
-                    save_steps: int = 10000):
+                    save_steps: int = 10000, lr=0.006334926670051613):
         
         # Set up training arguments
         training_args = TrainingArguments(
@@ -133,7 +133,8 @@ class MyCustomModel(nn.Module):
             evaluation_strategy=evaluation_strategy,
             save_steps=save_steps,
             eval_steps=save_steps,
-            load_best_model_at_end=True
+            load_best_model_at_end=True, 
+            learning_rate=lr
         )
         
         trainer = CombinedTrainer(

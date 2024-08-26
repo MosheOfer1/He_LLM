@@ -32,6 +32,8 @@ class CombinedTrainer(Trainer):
         # print(f"\n\n class_weights = {class_weights}")
         
         stop_learning_index = min(logits.shape[1], labels.shape[1])
+        
+        print(f"stop_learning_index = {stop_learning_index}")
                 
         # Compute loss
         # loss_func = nn.CrossEntropyLoss(weight=class_weights)
