@@ -1,12 +1,19 @@
 import torch
 import matplotlib.pyplot as plt
-from llm.llm_integration import LLMIntegration
+from transformers import AutoTokenizer, OPTForCausalLM
+
+from llm.llm_integration import LLMWrapper
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Initialize the LLM model once
 model_name = "facebook/opt-350m"
-llm = LLMIntegration(model_name)
+llm_tokenizer = AutoTokenizer.from_pretrained(model_name)
+llm_model = OPTForCausalLM.from_pretrained(model_name)
+
+llm = LLMWrapper(model_name,
+                 llm_tokenizer,
+                 llm_model)
 
 # Create the main window
 root = tk.Tk()

@@ -2,19 +2,15 @@ from torch.utils.data import Dataset
 
 
 class Seq2SeqDataset(Dataset):
-    def __init__(self, inputs, targets):
-        """
-        inputs: Tensor of shape (num_samples, seq_len, hidden_state_dim)
-        targets: Tensor of shape (num_samples, seq_len, hidden_state_dim)
-        """
-        self.inputs = inputs
-        self.targets = targets
+    def __init__(self, input_tensors, target_tensors):
+        self.input_tensors = input_tensors
+        self.target_tensors = target_tensors
 
     def __len__(self):
-        return len(self.inputs)
+        return len(self.input_tensors)
 
     def __getitem__(self, idx):
         return {
-            'input_ids': self.inputs[idx],
-            'labels': self.targets[idx]
+            "input_ids": self.input_tensors[idx],  # Match expected key
+            "labels": self.target_tensors[idx]  # Match expected key
         }

@@ -1,4 +1,5 @@
 import unittest
+import torch.nn as nn
 
 import torch
 from transformers import AutoTokenizer, OPTForCausalLM
@@ -42,15 +43,15 @@ class TestBaseTransformer(unittest.TestCase):
 
         # Create the dataset
         toy_ds = Seq2SeqDataset(
-            inputs=toy_inputs,
-            targets=toy_targets
+            toy_inputs,
+            toy_targets
         )
 
         transformer.train_model(toy_ds, toy_ds)
 
     def test_load_and_evaluate_model(self):
         """Test loading a model by name and running a forward pass in evaluation mode."""
-        model_name = "rnn_transformer_1_Helsinki-NLP_opus-mt-tc-big-he-en_to_facebook_opt-125m"
+        model_name = "try_model"
 
         # Load the model
         loaded_model = Transformer1.load_model(model_name=model_name, translator=self.translator,
@@ -84,6 +85,9 @@ class TestBaseTransformer(unittest.TestCase):
             output = loaded_model(input_hidden_states)
 
         # TODO:Calculate the MSE between target_hidden_states and output
+        loss_fct = nn.MSELoss()  # Assuming regression task, modify if needed
+        loss = loss_fct(output, target_hidden_states)
+        print(loss)
 
         self.llm_integration.inject_hidden_states(output)
         outputs = self.llm_integration.get_output_by_using_dummy(output.shape[1])

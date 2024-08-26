@@ -1,11 +1,11 @@
 from transformers import AutoTokenizer, OPTForCausalLM
-from custom_transformers.rnn_based_transformer1 import Transformer1
+from custom_transformers.short_rnn_transformer1 import Transformer1
 from llm.llm_integration import LLMWrapper
 from my_datasets.create_datasets import create_transformer1_dataset, load_and_create_dataset
 from translation.helsinki_translator import HelsinkiTranslator
 
 
-def load_dataset_and_train_model(dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt", sentence_num=5000, test_portion=0.3, save_interval=100):
+def load_dataset_and_train_model(dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt", sentence_num=10000, test_portion=0, save_interval=100):
     """
     Load or create the dataset and train the Transformer1 model.
 
@@ -24,8 +24,9 @@ def load_dataset_and_train_model(dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt"
     llm_model = OPTForCausalLM.from_pretrained(llm_model_name)
     llm = LLMWrapper(llm_model_name, llm_tokenizer, llm_model)
 
+    model_name = input("model_name: ")
     # Initialize Transformer1
-    transformer1 = Transformer1(translator, llm)
+    transformer1 = Transformer1.load_model(model_name=model_name, translator=translator, llm=llm)
 
     file_path = '../my_datasets/'
 
@@ -38,7 +39,8 @@ def load_dataset_and_train_model(dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt"
         train_ds = load_and_create_dataset(train_dataset_path)
         test_ds = load_and_create_dataset(test_dataset_path)
         print(f"Datasets loaded from {train_dataset_path} and {test_dataset_path}")
-    except FileNotFoundError and input("Failed to load the dataset, do you want to create a new ds? y/n") == 'y':
+    except FileNotFoundError:
+        print("Failed to load the dataset")
         # If the datasets do not exist, create them
         train_ds, test_ds = create_transformer1_dataset(
             translator,
@@ -47,9 +49,10 @@ def load_dataset_and_train_model(dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt"
             dataset_name=dataset_name,
             sentence_num=sentence_num,
             test_portion=test_portion,
-            chunk_size=save_interval
+            chunk_size=save_interval,
+            starting_point=5000
         )
-        print(f"Datasets created and saved to {train_dataset_path} and {test_dataset_path}")
+        print(f"Datasets created and saved to {file_path}")
 
     # Train the model
     transformer1.train_model(train_ds, test_ds)

@@ -2,8 +2,7 @@ import os
 
 import torch
 import torch.nn as nn
-from torch import optim
-from torch.utils.data import DataLoader
+from transformers import TrainingArguments, Trainer
 
 from custom_transformers.base_transformer import BaseTransformer
 from my_datasets.create_datasets import create_transformer1_dataset
@@ -30,76 +29,50 @@ class Transformer1(BaseTransformer):
         # Define the encoder and decoder
         self.encoder = RNNEncoder(input_dim=self.input_dim, hidden_dim=hidden_dim, num_layers=num_layers)
         self.decoder = RNNDecoder(output_dim=self.output_dim, hidden_dim=hidden_dim, num_layers=num_layers)
-        # Define the loss function and optimizer
-        self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adam(self.parameters(), lr=1e-4)
 
     def train_model(self, train_dataset=None, test_dataset=None, epochs=8):
         if not train_dataset:
             train_dataset, test_dataset = create_transformer1_dataset(self.translator, self.llm, '../my_datasets/')
+            # Define training arguments
+        training_args = TrainingArguments(
+            output_dir='./results',  # output directory
+            num_train_epochs=5,  # total number of training epochs
+            per_device_train_batch_size=8,  # batch size per device during training
+            save_steps=10_000,  # number of updates steps before saving checkpoint
+            save_total_limit=2,  # limit the total amount of checkpoints
+        )
 
-        train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=16)
+        # Initialize the Trainer
+        trainer = CustomTrainer(
+            model=self,  # the instantiated 🤗 Transformers model to be trained
+            args=training_args,  # training arguments, defined above
+            train_dataset=train_dataset,  # training dataset
+            eval_dataset=test_dataset
+        )
 
-        for epoch in range(epochs):
-            self.train()
-            epoch_loss = 0
-
-            for batch in train_loader:
-                src = batch['input_ids']  # Assuming batch is a dictionary with 'inputs' and 'targets'
-                tgt = batch['labels']
-
-                self.optimizer.zero_grad()
-
-                # Forward pass
-                output = self(src, tgt)
-
-                # Calculate loss
-                loss = self.criterion(output, tgt)
-                loss.backward()
-                self.optimizer.step()
-
-                epoch_loss += loss.item()
-
-            # Print epoch loss
-            print(f"Epoch {epoch + 1}/{epochs}, Loss: {epoch_loss / len(train_loader)}")
-
-            # Evaluate on test dataset
-            self.evaluate(test_loader)
+        # Train the model
+        trainer.train()
 
         # Optionally save the trained model
         if not os.path.exists(os.path.dirname(self.model_path)):
             os.makedirs(os.path.dirname(self.model_path))
         torch.save(self.state_dict(), self.model_path)
 
-    def evaluate(self, test_loader):
-        self.eval()
-        test_loss = 0
+    def forward(self, input_ids, labels=None, teacher_forcing_ratio=0.5):
+        batch_size, src_len, _ = input_ids.size()
+        tgt_len = labels.size(1) if labels is not None else src_len
+        outputs = torch.zeros(batch_size, tgt_len, self.output_dim).to(input_ids.device)
 
-        with torch.no_grad():
-            for batch in test_loader:
-                src = batch['input_ids']  # Assuming batch is a dictionary with 'inputs' and 'targets'
-                tgt = batch['labels']
-
-                output = self(src, tgt)
-                loss = self.criterion(output, tgt)
-                test_loss += loss.item()
-
-        print(f"Test Loss: {test_loss / len(test_loader)}")
-
-    def forward(self, src, tgt, teacher_forcing_ratio=0.5):
-        batch_size, src_len, _ = src.size()
-        tgt_len = tgt.size(1)
-        outputs = torch.zeros(batch_size, tgt_len, self.output_dim).to(src.device)
-
-        encoder_outputs, hidden = self.encoder(src)
-        input = tgt[:, 0, :]  # Initial decoder input
+        encoder_outputs, hidden = self.encoder(input_ids)
+        input = labels[:, 0, :] if labels is not None else torch.zeros(batch_size, self.output_dim).to(input_ids.device)
 
         for t in range(1, tgt_len):
+            input = input.clone().detach()
+
             output, hidden = self.decoder(input.unsqueeze(1), hidden)
             outputs[:, t, :] = output.squeeze(1)
             teacher_force = torch.rand(1).item() < teacher_forcing_ratio
-            input = tgt[:, t, :] if teacher_force else output.squeeze(1)
+            input = labels[:, t, :] if teacher_force and labels is not None else outputs[:, t, :]
 
         return outputs
 
@@ -152,3 +125,17 @@ class RNNDecoder(nn.Module):
         outputs, hidden = self.rnn(x, hidden)
         predictions = self.fc(outputs)
         return predictions, hidden
+
+
+class CustomTrainer(Trainer):
+    def compute_loss(self, model, inputs, return_outputs=False):
+        input_ids = inputs.get("input_ids")
+        labels = inputs.get("labels")
+        outputs = model(input_ids)
+
+        # Calculate the loss
+        loss_fct = nn.MSELoss()  # Assuming regression task, modify if needed
+        loss = loss_fct(outputs, labels)
+
+        return (loss, outputs) if return_outputs else loss
+
