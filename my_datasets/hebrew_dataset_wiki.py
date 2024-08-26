@@ -50,29 +50,37 @@ class HebrewDataset(Dataset):
             truncation=True
         )
         
-        # Tokenize the label
-        tokenized_label = self.output_tokenizer(
-            sentence + label,
-            return_tensors='pt',
-            # max_length=1,
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True
-        )
+        # # Tokenize the label
+        # tokenized_label = self.output_tokenizer(
+        #     sentence + label,
+        #     return_tensors='pt',
+        #     # max_length=1,
+        #     max_length=self.max_length,
+        #     padding='max_length',
+        #     truncation=True
+        # )
         
-        input_ids = tokenized_input.input_ids
-        attention_mask = tokenized_input.attention_mask
-        label = tokenized_label.input_ids.squeeze(0)
-        # label = tokenized_label.input_ids.squeeze(0)[0]
-        
-        # print(input_ids.shape)
-        # print(f"input_ids shape: {input_ids.shape}")
-        # print(f"attention_mask shape: {attention_mask.shape}")
+        with self.output_tokenizer.as_target_tokenizer():
+            target_ids = self.output_tokenizer.encode(
+                sentence + label,
+                return_tensors="pt",
+                # max_length=1,
+                max_length=self.max_length,
+                padding='max_length',
+                truncation=True)
+            
+            input_ids = tokenized_input.input_ids
+            attention_mask = tokenized_input.attention_mask
+            label = target_ids.squeeze(0)
+            
+            # print(input_ids.shape)
+            # print(f"input_ids shape: {input_ids.shape}")
+            # print(f"attention_mask shape: {attention_mask.shape}")
 
-        return {
-            'input_ids': input_ids,
-            'text': sentence,
-            'attention_mask': attention_mask, 
-            'labels': label,
-            'class_weights': self.class_weights
-        }
+            return {
+                'input_ids': input_ids,
+                'text': sentence,
+                'attention_mask': attention_mask, 
+                'labels': label,
+                'class_weights': self.class_weights
+            }

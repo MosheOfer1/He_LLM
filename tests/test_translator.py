@@ -103,6 +103,15 @@ class TestTranslator(unittest.TestCase):
                 self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
                 print(f"From second, size={len(text)}:", translated_text)
 
+    def test_input_output_tokenizers(self):
+        
+        known_target_ids = self.translator.target_to_src_tokenizer(self.sample_text_he, return_tensors="pt").input_ids
+
+        with self.translator.target_to_src_tokenizer.as_target_tokenizer():
+            target_ids = self.translator.target_to_src_tokenizer.encode(self.sample_text_he, return_tensors="pt")
+        
+            print(f"regular_target_ids = {known_target_ids}")
+            print(f"as_output_tokenizer_target_ids = {target_ids}")
 
 if __name__ == '__main__':
     unittest.main()
