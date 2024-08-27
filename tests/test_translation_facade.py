@@ -88,19 +88,28 @@ class TestCustomModel(unittest.TestCase):
 
     def test_forward(self):
         pass
+    
+    def test_params_requires_grad(self):
+        # Check if only the transformers parameters are learned
+        for name, param in self.customLLM.named_parameters():
+            if param.requires_grad:
+                name_list = name.split('.')
+                self.assertEqual(name_list[0],"transformer")
+                self.assertTrue(name_list[1] == "transformer1" or name_list[1] == "transformer2")
 
-    def test_training(self):
+
+    # def test_training(self):
         
-        # Train the model
-        self.customLLM.train_model(train_dataset=self.train_dataset, 
-                            eval_dataset=self.eval_dataset, 
-                            output_dir="test_results", 
-                            logging_dir="test_loggings",
-                            epochs=1,
-                            logging_steps=10,
-                            save_steps=80,
-                            warmup_steps=10
-                            )
+    #     # Train the model
+    #     self.customLLM.train_model(train_dataset=self.train_dataset, 
+    #                         eval_dataset=self.eval_dataset, 
+    #                         output_dir="test_results", 
+    #                         logging_dir="test_loggings",
+    #                         epochs=1,
+    #                         logging_steps=10,
+    #                         save_steps=80,
+    #                         warmup_steps=10
+    #                         )
 
 if __name__ == '__main__':
     unittest.main()

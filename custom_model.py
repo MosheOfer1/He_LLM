@@ -115,10 +115,20 @@ class MyCustomModel(nn.Module):
         
         return {"f1": f1}
         
-    def train_model(self, train_dataset: Dataset, eval_dataset: Dataset, output_dir: str, logging_dir: str, epochs: int = 5, 
-                    batch_size: int = 1, warmup_steps: int = 500, weight_decay: float = 0.01,
-                    logging_steps: int = 1000, evaluation_strategy: str = "steps",
-                    save_steps: int = 10000, lr=0.006334926670051613):
+    def create_trainer(
+        self, train_dataset: Dataset, eval_dataset: Dataset,
+        output_dir: str, logging_dir: str, epochs: int = 5, 
+        batch_size: int = 1, weight_decay: float = 0.01,
+        logging_steps: int = 1000, evaluation_strategy: str = "steps",
+        lr=0.006334926670051613, max_grad_norm: float = 1.0, 
+        optimizer = None, scheduler = None
+        ) -> CombinedTrainer:
+        
+        epoch = len(train_dataset)
+        total_steps = int(epoch // batch_size * epochs)
+        warmup_steps = int(0.1 * total_steps)
+        
+        print(f"\n\n epoch = {epoch}, total = {total_steps}, warmup = {warmup_steps} \n\n")
         
         # Set up training arguments
         training_args = TrainingArguments(
@@ -131,22 +141,53 @@ class MyCustomModel(nn.Module):
             logging_dir=f"./{logging_dir}",
             logging_steps=logging_steps,
             evaluation_strategy=evaluation_strategy,
-            save_steps=save_steps,
-            eval_steps=save_steps,
-            load_best_model_at_end=True, 
-            learning_rate=lr
+            eval_steps=epoch,
+            learning_rate=lr,
+            max_grad_norm=max_grad_norm,
+            fp16=True, # nable mixed precision training
         )
         
+
         trainer = CombinedTrainer(
-        model=self,
+        
+            model=self,
             args=training_args,
-            # compute_metrics=self.compute_metrics,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            total_steps=total_steps,
         )
+        
+        return trainer
+        
+    def train_model(
+        self, train_dataset: Dataset, eval_dataset: Dataset,
+        output_dir: str, logging_dir: str, epochs: int = 5, 
+        batch_size: int = 1, weight_decay: float = 0.01,
+        logging_steps: int = 1000, evaluation_strategy: str = "steps",
+        lr=0.006334926670051613, max_grad_norm: float = 1.0, 
+        optimizer = None, scheduler = None
+        ):
 
+        trainer = self.create_trainer(
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+            output_dir=output_dir,
+            logging_dir=logging_dir,
+            epochs=epochs,
+            batch_size=batch_size,
+            weight_decay=weight_decay,
+            logging_steps=logging_steps,
+            evaluation_strategy=evaluation_strategy,
+            lr=lr,
+            max_grad_norm=max_grad_norm,
+            optimizer=optimizer,
+            scheduler=scheduler
+        )
+        
         trainer.train()
         
         # Save the finetuned model and tokenizer with a new name
-        pretrained_model_dir = f"./pretrained_models/end_to_end_model"
+        pretrained_model_dir = f"./pretrained_models/end_to_end_model/{output_dir}"
         trainer.save_model(pretrained_model_dir)

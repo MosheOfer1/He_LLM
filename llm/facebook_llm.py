@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+
 from typing import Union, Tuple
 import sys
 import os
@@ -20,12 +21,19 @@ from translation.helsinki_translator import HelsinkiTranslator
 from llm.llm_integration import LLMWrapper
 
 
-class FacebookLLM(LLMWrapper):
+class FacebookLLM(nn.Module ,LLMWrapper):
 
     def __init__(self, model_name):
+        
+        # Initialize nn.Module
+        nn.Module.__init__(self)
+        
         self.llm_model_name = model_name
-
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.llm_model = OPTForCausalLM.from_pretrained(model_name)
 
-        super(FacebookLLM, self).__init__(model_name, self.tokenizer, self.llm_model)
+        # Initialize LLMWrapper
+        LLMWrapper.__init__(self, 
+                            model_name, 
+                            self.tokenizer, 
+                            self.llm_model)

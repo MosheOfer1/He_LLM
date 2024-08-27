@@ -1,5 +1,6 @@
 
 import torch
+import torch.nn as nn
 
 import os
 import sys
@@ -19,7 +20,7 @@ from llm.llm_integration import LLMWrapper
 
 # TODO - allow loading pretrained transformers
 
-class Transformer:
+class Transformer(nn.Module):
     
     def __init__(self,
                 translator: Translator = None,
@@ -27,15 +28,16 @@ class Transformer:
                 pretrained_transformer1_path: str = None,
                 pretrained_transformer2_path: str = None):
         
+        nn.Module.__init__(self)
+        
         # Obtain transformer1
         if pretrained_transformer1_path:
-            
             # self.transformer1: Transformer1 = torch.load(pretrained_transformer1_path)
             pass
 
         else:
             self.transformer1 = Transformer1(translator=translator, llm=llm)
-        
+
         # Obtain transformer2
         if pretrained_transformer2_path:
             self.transformer2: Transformer2 = torch.load(pretrained_transformer2_path)
