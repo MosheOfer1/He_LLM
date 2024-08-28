@@ -1,14 +1,8 @@
-import pandas as pd
-from transformers import AutoTokenizer, OPTForCausalLM
-
 import os
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+import pandas as pd
 from llm.llm_integration import LLMWrapper
 from my_datasets.seq2seq_dataset import Seq2SeqDataset
 from translation.translator import Translator
-
 import torch
 import random
 
@@ -38,10 +32,15 @@ def create_transformer1_dataset(
         max_length=15,
         dataset_name='hebrew_sentences.csv',
         sentence_num=900,
-        test_portion=0.3) -> (Seq2SeqDataset, Seq2SeqDataset):
+        test_portion=0.3,
+        chunk_size=100,
+        starting_point=0
+) -> (Seq2SeqDataset, Seq2SeqDataset):
     """
     Create a dataset for training Transformer1 and save it to a file in chunks.
 
+    :param starting_point: Where to start taking sentences from the dataset_name.
+    :param chunk_size: The number of samples to save in each chunk.
     :param test_portion: Proportion of the dataset to use for testing.
     :param sentence_num: The number of sentences to use from the dataset.
     :param dataset_name: Name of the dataset file containing Hebrew sentences.
@@ -58,7 +57,7 @@ def create_transformer1_dataset(
         raise ValueError("Dataset file must be either .csv or .txt")
 
     # Filter and limit the number of sentences
-    filtered_hebrew_sentences = filter_sentences(hebrew_sentences)[:sentence_num]
+    filtered_hebrew_sentences = filter_sentences(hebrew_sentences)[starting_point:starting_point+sentence_num]
 
     # Split into training and test sets
     random.shuffle(filtered_hebrew_sentences)
@@ -70,17 +69,28 @@ def create_transformer1_dataset(
     eos_vector_input = torch.zeros(translator.src_to_target_model.config.hidden_size)
     eos_vector_output = torch.zeros(llm.model.config.hidden_size)
 
-    # Process training and test sentences
-    train_input_tensor, train_target_tensor = process_sentences(train_sentences, translator, llm, eos_vector_input, eos_vector_output, max_length)
-    test_input_tensor, test_target_tensor = process_sentences(test_sentences, translator, llm, eos_vector_input, eos_vector_output, max_length)
+    # Process training and test sentences in chunks
+    for i in range(0, len(train_sentences), chunk_size):
+        chunk_train_sentences = train_sentences[i:i + chunk_size]
+        chunk_train_input_tensor, chunk_train_target_tensor = process_sentences(chunk_train_sentences, translator, llm,
+                                                                                eos_vector_input, eos_vector_output,
+                                                                                max_length)
+        save_to_file(chunk_train_input_tensor, chunk_train_target_tensor, file_path + f"transformer1_dataset_train_{sentence_num}.pt")
+        print(f"added the {(i+1)} chunk to the file for training")
 
-    # Save datasets to files
-    save_to_file(train_input_tensor, train_target_tensor, file_path + "transformer1_dataset_train.pt")
-    save_to_file(test_input_tensor, test_target_tensor, file_path + "transformer1_dataset_test.pt")
+    for i in range(0, len(test_sentences), chunk_size):
+        chunk_test_sentences = test_sentences[i:i + chunk_size]
+        chunk_test_input_tensor, chunk_test_target_tensor = process_sentences(chunk_test_sentences, translator, llm,
+                                                                              eos_vector_input, eos_vector_output,
+                                                                              max_length)
+        save_to_file(chunk_test_input_tensor, chunk_test_target_tensor, file_path + f"transformer1_dataset_test_{sentence_num}.pt")
+        print(f"added the {(i+1)} chunk to the file for testing")
 
     # Create Seq2SeqDataset instances
-    train_dataset = Seq2SeqDataset(train_input_tensor, train_target_tensor)
-    test_dataset = Seq2SeqDataset(test_input_tensor, test_target_tensor)
+    train_dataset = Seq2SeqDataset(torch.load(file_path + f"transformer1_dataset_train_{sentence_num}.pt")['input'],
+                                   torch.load(file_path + f"transformer1_dataset_train_{sentence_num}.pt")['target'])
+    test_dataset = Seq2SeqDataset(torch.load(file_path + f"transformer1_dataset_test_{sentence_num}.pt")['input'],
+                                  torch.load(file_path + f"transformer1_dataset_test_{sentence_num}.pt")['target'])
 
     return train_dataset, test_dataset
 
@@ -103,12 +113,14 @@ def process_sentences(sentences, translator, llm, eos_vector_in, eos_vector_out,
 
         # Step 3: Pass the English translation through the LLM and get the first hidden state
         with torch.no_grad():
+            llm.model.base_model.decoder.layers[llm.injected_layer_num].set_injection_state(False)
             target_hidden_states = llm.text_to_hidden_states(
-                tokenizer=AutoTokenizer.from_pretrained(llm.model_name),
-                model=OPTForCausalLM.from_pretrained(llm.model_name),
+                tokenizer=llm.tokenizer,
+                model=llm.model,
                 text=translated_text,
                 layer_num=0  # Assuming this returns a tensor of shape (seq_len, hidden_dim)
             )
+            llm.model.base_model.decoder.layers[llm.injected_layer_num].set_injection_state(True)
 
         input_hidden_states_list.append(input_hidden_states)
         target_hidden_states_list.append(target_hidden_states)
@@ -151,10 +163,30 @@ def pad_target_with_eos(target_hidden_states, max_length, eos_vector):
 
 def save_to_file(input_tensor, target_tensor, file_path):
     """
-    Save tensors to a file (this is a placeholder function, implement your saving logic).
+    Save tensors to a file in chunks by appending to the existing file.
+
+    :param input_tensor: The input tensor to be saved.
+    :param target_tensor: The target tensor to be saved.
+    :param file_path: The file path to save the tensors.
     """
-    # Implement logic to save input_tensor and target_tensor to the specified file path
-    torch.save({'input': input_tensor, 'target': target_tensor}, file_path)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    # Check if the file exists
+    if os.path.exists(file_path):
+        # Load the existing tensors from the file
+        existing_data = torch.load(file_path)
+        existing_input = existing_data['input']
+        existing_target = existing_data['target']
+    else:
+        existing_input = torch.tensor([])
+        existing_target = torch.tensor([])
+
+    # Concatenate the new tensors with the existing ones
+    new_input = torch.cat([existing_input, input_tensor], dim=0)
+    new_target = torch.cat([existing_target, target_tensor], dim=0)
+
+    # Save the combined tensors to the file
+    torch.save({'input': new_input, 'target': new_target}, file_path, _use_new_zipfile_serialization=False)
 
 
 def create_transformer2_dataset(
@@ -175,61 +207,7 @@ def create_transformer2_dataset(
     :param file_path: Path to the file where the dataset should be saved.
     :param save_interval: Number of sentences to process before saving to a file.
     """
-    english_sentences = load_sentences_from_csv(f"../my_datasets/{dataset_name}", "sentence")
-    filtered_english_sentences = filter_sentences(english_sentences)
-
-    llm_tokenizer = AutoTokenizer.from_pretrained(llm.model_name)
-    llm_model = OPTForCausalLM.from_pretrained(llm.model_name)
-
-    input_hidden_states_list = []
-    target_hidden_states_list = []
-    processed_count = 0
-
-    for sentence in filtered_english_sentences:
-        # Step 1: Pass the English sentence through the LLM and get the last hidden state
-        with torch.no_grad():
-            input_hidden_states = llm.text_to_hidden_states(
-                tokenizer=llm_tokenizer,
-                model=llm_model,
-                text=sentence,
-                layer_num=-1  # Last layer of the LLM
-            )[:, -1, :].unsqeeze(0)
-
-        # Step 2: Insert the output to the second translator
-        translator.inject_hidden_states(input_hidden_states)
-        outputs = translator.get_output_by_using_dummy(input_hidden_states.shape[1])
-
-        target_hidden_states = outputs.encoder_hidden_states[0]  # First layer of the second transformer
-
-        input_hidden_states_list.append(input_hidden_states)
-        target_hidden_states_list.append(target_hidden_states)
-        processed_count += 1
-
-        if processed_count % save_interval == 0:
-            # Pad all hidden states to the maximum length
-            input_hidden_states_list = [pad_hidden_states(h, max_length) for h in input_hidden_states_list]
-            target_hidden_states_list = [pad_hidden_states(h, max_length) for h in target_hidden_states_list]
-
-            # Convert lists to tensors
-            input_hidden_states_tensor = torch.stack(input_hidden_states_list, dim=0)
-            target_hidden_states_tensor = torch.stack(target_hidden_states_list, dim=0)
-
-            # Save tensors to a file
-            save_to_file(input_hidden_states_tensor, target_hidden_states_tensor, file_path)
-
-            # Reset lists for next batch
-            input_hidden_states_list = []
-            target_hidden_states_list = []
-
-    # Save any remaining data after the loop
-    if input_hidden_states_list:
-        input_hidden_states_list = [pad_hidden_states(h, max_length) for h in input_hidden_states_list]
-        target_hidden_states_list = [pad_hidden_states(h, max_length) for h in target_hidden_states_list]
-
-        input_hidden_states_tensor = torch.stack(input_hidden_states_list, dim=0)
-        target_hidden_states_tensor = torch.stack(target_hidden_states_list, dim=0)
-
-        save_to_file(input_hidden_states_tensor, target_hidden_states_tensor, file_path)
+    pass
 
 
 def load_sentences_from_csv(file_path, sentence_column):

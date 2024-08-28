@@ -47,10 +47,13 @@ class TestTranslator(unittest.TestCase):
 
     def test_creation1(self):
         file_path = '../my_datasets/'
-        create_transformer1_dataset(self.translator, self.llm_integration, file_path, dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt",sentence_num=10)
+        create_transformer1_dataset(self.translator, self.llm_integration, file_path,
+                                    dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt",
+                                    sentence_num=5
+                                    )
 
     def test_creation2(self):
-        file_path = 'my_datasets/transformer2_dataset_test.pt'
+        file_path = '../my_datasets/'
         create_transformer2_dataset(self.translator, self.llm_integration, file_path)
 
 

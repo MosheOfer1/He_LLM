@@ -1,7 +1,6 @@
 import torch.nn as nn
 import torch
 from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
-import torch.nn.functional as F
 from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
 
 import os
@@ -19,7 +18,7 @@ from translation.translator import Translator
 
 
 class Transformer1(BaseTransformer):
-    def __init__(self, translator: Translator, llm: LLMWrapper, nhead=8, num_layers=6, max_seq_len=512):
+    def __init__(self, translator: Translator, llm: LLMWrapper, model_name=None, nhead=8, num_layers=6, max_seq_len=512):
         """
         Initialize the Transformer1 model.
 
@@ -31,7 +30,8 @@ class Transformer1(BaseTransformer):
         self.output_dim = llm.model.config.hidden_size
         hidden_dim = self.output_dim
         # Generate a model name that includes the translator and LLM names
-        model_name = f"transformer_1_{translator.src_to_target_translator_model_name.replace('/', '_')}_to_{llm.model.config.name_or_path.replace('/', '_')}"
+        if not model_name:
+            model_name = f"transformer_1_{translator.src_to_target_translator_model_name.replace('/', '_')}_to_{llm.model.config.name_or_path.replace('/', '_')}"
 
         super(Transformer1, self).__init__(model_name=model_name, translator=translator, llm=llm)
 
@@ -131,7 +131,7 @@ class Transformer1(BaseTransformer):
 
     def train_model(self, train_dataset=None, test_dataset=None, epochs=8):
         if not train_dataset:
-            train_dataset, test_dataset = create_transformer1_dataset(self.translator, self.llm, self.dataset_path)
+            train_dataset, test_dataset = create_transformer1_dataset(self.translator, self.llm, '../my_datasets/')
 
         training_args = Seq2SeqTrainingArguments(
             output_dir='../my_datasets',
@@ -145,6 +145,14 @@ class Transformer1(BaseTransformer):
             predict_with_generate=False,  # Not generating text, so disable generation
             logging_dir='../my_datasets/logs',
         )
+
+        # Print trainable layers and parameters
+        print("Trainable Layers and Parameters:")
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                print(f"Layer: {name} | Size: {param.size()} | Requires Grad: {param.requires_grad}")
+            else:
+                print(f"Layer: {name} | Size: {param.size()} | Requires Grad: {param.requires_grad} (Not trainable)")
 
         # Initialize the Seq2SeqTrainer
         trainer = Seq2SeqTrainer(
