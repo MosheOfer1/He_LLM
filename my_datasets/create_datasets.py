@@ -1,10 +1,14 @@
+import torch
+import random
+
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import pandas as pd
 from llm.llm_integration import LLMWrapper
 from my_datasets.seq2seq_dataset import Seq2SeqDataset
 from translation.translator import Translator
-import torch
-import random
 
 
 def load_and_create_dataset(file_path: str) -> Seq2SeqDataset:
@@ -50,9 +54,9 @@ def create_transformer1_dataset(
     :param file_path: Path to the file where the dataset should be saved.
     """
     if dataset_name.endswith('.csv'):
-        hebrew_sentences = load_sentences_from_csv(f"../my_datasets/{dataset_name}", "sentence")
+        hebrew_sentences = load_sentences_from_csv(f"my_datasets/{dataset_name}", "sentence")
     elif dataset_name.endswith('.txt'):
-        hebrew_sentences = read_file_lines(f"../my_datasets/{dataset_name}")
+        hebrew_sentences = read_file_lines(f"my_datasets/{dataset_name}")
     else:
         raise ValueError("Dataset file must be either .csv or .txt")
 

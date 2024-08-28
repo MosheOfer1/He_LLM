@@ -1,4 +1,9 @@
 import torch.nn as nn
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_integration import LLMWrapper
 from translation.translator import Translator

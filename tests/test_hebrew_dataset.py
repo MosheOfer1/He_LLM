@@ -5,14 +5,12 @@ import torch
 import sys
 import os
 
-from transformers import AutoTokenizer, OPTForCausalLM
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from my_datasets.hebrew_dataset_wiki import HebrewDataset
-from custom_model import MyCustomModel
+from models.custom_model import MyCustomModel
 
-class TestTranslator(unittest.TestCase):
+class TestHebrewDataset(unittest.TestCase):
 
     def setUp(self):
         """Set up for testing."""

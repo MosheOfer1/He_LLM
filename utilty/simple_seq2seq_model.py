@@ -1,7 +1,11 @@
-import os
 import torch
 import torch.nn as nn
 from transformers import Trainer, TrainingArguments
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from my_datasets.create_datasets import load_and_create_dataset
 
 
@@ -27,7 +31,7 @@ class Seq2SeqModel(nn.Module):
         if not model_name.endswith('.pth') and not model_name.endswith('.pt'):
             model_name += '.pth'
         # Construct the full path to the model file
-        model_path = f"../models/{model_name}"
+        model_path = f"models/{model_name}"
 
         # Initialize the appropriate Transformer model
         model = Seq2SeqModel()
@@ -55,7 +59,7 @@ class CustomTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
-file_path = '../my_datasets/'
+file_path = 'my_datasets/'
 
 train_dataset_path = file_path + input("Enter train dataset name")
 test_dataset_path = file_path + input("Enter test dataset name")
@@ -93,7 +97,7 @@ trainer = CustomTrainer(
 # Train the model
 trainer.train()
 
-model_path = f'../models/try_model.pth'
+model_path = f'models/try_model.pth'
 
 # Optionally save the trained model
 if not os.path.exists(os.path.dirname(model_path)):

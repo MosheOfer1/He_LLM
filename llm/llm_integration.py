@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, OPTForCausalLM
+from transformers import OPTForCausalLM
 import torch
 from utilty.injectable import CustomLayerWrapper, Injectable
 

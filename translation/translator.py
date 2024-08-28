@@ -119,7 +119,7 @@ class Translator(Injectable):
             model = self.target_to_src_model
 
         # Use the static method to process inputs and get the final outputs
-        self.outputs = self.process_outputs(self.inputs.input_ids, model, tokenizer)
+        self.outputs = self.process_outputs(self.inputs, model, tokenizer)
 
         # Extract the logits from the outputs
         final_logits = self.outputs.logits
@@ -130,7 +130,7 @@ class Translator(Injectable):
         return generated_sentence
 
     @staticmethod
-    def process_outputs(input_ids, model, tokenizer, max_len=20, attention_mask=None):
+    def process_outputs(inputs, model, tokenizer):
         """
         Processes the model to generate outputs, including logits and hidden states.
 
@@ -141,15 +141,12 @@ class Translator(Injectable):
         """
         # Initialize decoder input IDs with the start token ID
         decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]])
-        # decoder_input_ids = torch.tensor([[tokenizer.bos_token_id]])
-        
-        counter = 0
-        while counter < max_len:
+
+        while True:
             # Run the model with the current decoder input IDs to get the outputs
             outputs = model(
-                input_ids,
+                **inputs,
                 decoder_input_ids=decoder_input_ids,
-                attention_mask=attention_mask,
                 output_hidden_states=True
             )
 
@@ -163,17 +160,8 @@ class Translator(Injectable):
             # Update the decoder input IDs with the newly generated token
             decoder_input_ids = torch.cat([decoder_input_ids, torch.tensor([[token_id]])], dim=-1)
 
-            counter += 1
         return outputs
 
-    @staticmethod
-    def text_input_to_input_ids(text: str, tokenizer):
-        # Tokenize the input text
-        inputs = tokenizer(text, return_tensors="pt")
-        
-        return inputs.input_ids
-        
-        
     @staticmethod
     def decode_logits(tokenizer, logits: torch.Tensor) -> str:
         """
@@ -212,7 +200,7 @@ class Translator(Injectable):
         inputs = tokenizer(text, return_tensors="pt")
 
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs.input_ids, model, tokenizer)
+        outputs = Translator.process_outputs(inputs, model, tokenizer)
 
         # Return the hidden states of the specified layer
         if from_encoder:
@@ -222,8 +210,9 @@ class Translator(Injectable):
 
     @staticmethod
     def input_ids_to_hidden_states(input_ids, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
-                # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(input_ids=input_ids, model=model, tokenizer=tokenizer, attention_mask=attention_mask)
+        inputs = {"input_ids": input_ids}
+        # Forward pass through the model, providing decoder input ids
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, attention_mask=attention_mask)
 
         # Return the hidden states of the specified layer
         if from_encoder:

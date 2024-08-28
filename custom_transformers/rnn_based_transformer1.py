@@ -4,6 +4,10 @@ import torch
 import torch.nn as nn
 from transformers import TrainingArguments, Trainer
 
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from custom_transformers.base_transformer import BaseTransformer
 from my_datasets.create_datasets import create_transformer1_dataset
 
@@ -32,7 +36,7 @@ class Transformer1(BaseTransformer):
 
     def train_model(self, train_dataset=None, test_dataset=None, epochs=8):
         if not train_dataset:
-            train_dataset, test_dataset = create_transformer1_dataset(self.translator, self.llm, '../my_datasets/')
+            train_dataset, test_dataset = create_transformer1_dataset(self.translator, self.llm, 'my_datasets/')
             # Define training arguments
         training_args = TrainingArguments(
             output_dir='./results',  # output directory
@@ -138,4 +142,3 @@ class CustomTrainer(Trainer):
         loss = loss_fct(outputs, labels)
 
         return (loss, outputs) if return_outputs else loss
-

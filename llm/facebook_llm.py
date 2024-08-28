@@ -1,7 +1,10 @@
+import torch.nn as nn
+
 import sys
 import os
-from transformers import AutoTokenizer, OPTForCausalLM
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from transformers import AutoTokenizer, OPTForCausalLM
 from llm.llm_integration import LLMWrapper
 
 
