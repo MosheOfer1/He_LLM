@@ -1,4 +1,9 @@
 import torch
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from utilty.injectable import Injectable, CustomLayerWrapper
 
 
@@ -196,6 +201,18 @@ class Translator(Injectable):
 
         # Forward pass through the model, providing decoder input ids
         outputs = Translator.process_outputs(inputs, model, tokenizer)
+
+        # Return the hidden states of the specified layer
+        if from_encoder:
+            return outputs.encoder_hidden_states[layer_num]
+        else:
+            return outputs.decoder_hidden_states[layer_num]
+
+    @staticmethod
+    def input_ids_to_hidden_states(input_ids, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
+        inputs = {"input_ids": input_ids}
+        # Forward pass through the model, providing decoder input ids
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, attention_mask=attention_mask)
 
         # Return the hidden states of the specified layer
         if from_encoder:

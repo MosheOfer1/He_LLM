@@ -1,4 +1,9 @@
 from transformers import AutoTokenizer, OPTForCausalLM
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from custom_transformers.short_rnn_transformer1 import Transformer1
 from llm.llm_integration import LLMWrapper
 from my_datasets.create_datasets import create_transformer1_dataset, load_and_create_dataset
@@ -28,7 +33,7 @@ def load_dataset_and_train_model(dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt"
     # Initialize Transformer1
     transformer1 = Transformer1.load_model(model_name=model_name, translator=translator, llm=llm)
 
-    file_path = '../my_datasets/'
+    file_path = 'my_datasets/'
 
     # Create or load the dataset
     train_dataset_path = file_path + input("Enter train dataset name")

@@ -3,6 +3,11 @@ import torch.nn as nn
 
 import torch
 from transformers import AutoTokenizer, OPTForCausalLM
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from custom_transformers.transformer_1 import Transformer1
 from llm.llm_integration import LLMWrapper
 from my_datasets.seq2seq_dataset import Seq2SeqDataset

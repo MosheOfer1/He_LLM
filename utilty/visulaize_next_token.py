@@ -2,6 +2,10 @@ import torch
 import matplotlib.pyplot as plt
 from transformers import AutoTokenizer, OPTForCausalLM
 
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from llm.llm_integration import LLMWrapper
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg

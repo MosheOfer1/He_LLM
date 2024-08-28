@@ -1,13 +1,20 @@
 import torch.nn as nn
-import os
 import torch
 from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
 from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import matplotlib.pyplot as plt
+
 from my_datasets.create_datasets import create_transformer1_dataset
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_integration import LLMWrapper
 from translation.translator import Translator
-import matplotlib.pyplot as plt
+
+
 
 
 class Transformer1(BaseTransformer):

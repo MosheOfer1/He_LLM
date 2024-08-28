@@ -15,7 +15,7 @@ from my_datasets.create_datasets import create_transformer1_dataset, create_tran
 from translation.helsinki_translator import HelsinkiTranslator
 
 
-class TestTranslator(unittest.TestCase):
+class TestDatasetCreation(unittest.TestCase):
 
     def setUp(self):
         """Set up the LLMIntegration instance for testing."""
@@ -46,14 +46,14 @@ class TestTranslator(unittest.TestCase):
         tr.load_or_train_model()
 
     def test_creation1(self):
-        file_path = '../my_datasets/'
+        file_path = 'my_datasets/'
         create_transformer1_dataset(self.translator, self.llm_integration, file_path,
                                     dataset_name="SVLM_Hebrew_Wikipedia_Corpus.txt",
                                     sentence_num=5
                                     )
 
     def test_creation2(self):
-        file_path = '../my_datasets/'
+        file_path = 'my_datasets/'
         create_transformer2_dataset(self.translator, self.llm_integration, file_path)
 
 

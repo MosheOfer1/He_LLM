@@ -1,7 +1,11 @@
-import os
 import torch
 import torch.nn as nn
 from transformers import Trainer, TrainingArguments, AutoTokenizer, OPTForCausalLM
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_integration import LLMWrapper
@@ -28,7 +32,7 @@ class Transformer1(BaseTransformer):
 
         # Set model name and path for saving
         self.model_name = model_name if model_name else "seq2seq_model"
-        self.model_path = f"../models/{self.model_name}.pth"
+        self.model_path = f"models/{self.model_name}.pth"
 
     def forward(self, input_ids, labels=None, teacher_forcing_ratio=0.01):
         batch_size, src_len, _ = input_ids.size()
@@ -86,7 +90,7 @@ class Transformer1(BaseTransformer):
         if not model_name.endswith('.pth') and not model_name.endswith('.pt'):
             model_name += '.pth'
         # Construct the full path to the model file
-        model_path = f"../models/{model_name}"
+        model_path = f"models/{model_name}"
 
         # Initialize the appropriate Transformer model
         model = Transformer1(model_name=model_name, translator=translator, llm=llm)
@@ -157,7 +161,7 @@ class CustomTrainer(Trainer):
 
 # Example usage
 if __name__ == "__main__":
-    file_path = '../my_datasets/'
+    file_path = 'my_datasets/'
     train_dataset_path = file_path + input("Enter train dataset name: ")
     test_dataset_path = file_path + input("Enter test dataset name: ")
 
@@ -183,7 +187,7 @@ if __name__ == "__main__":
     model.train_model(train_dataset=train_ds, test_dataset=test_ds)
 
     # Optionally save the trained model
-    model_path = f'../models/try_model.pth'
+    model_path = f'models/try_model.pth'
 
     # Optionally save the trained model
     if not os.path.exists(os.path.dirname(model_path)):

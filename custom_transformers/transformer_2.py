@@ -1,4 +1,9 @@
 import torch.nn as nn
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_integration import LLMWrapper
 from translation.translator import Translator
@@ -29,6 +34,7 @@ class Transformer2(BaseTransformer):
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, hidden_states):
+        # print(f"Input hidden_states.shape = {hidden_states.shape}")
         """
         Define the forward pass for Transformer2.
         """
@@ -36,4 +42,7 @@ class Transformer2(BaseTransformer):
         x = self.activation(x)
         x = self.dropout(x)
         x = self.layer2(x)
+        
+        # print(f"Output x.shape = {x.shape}")
+
         return x
