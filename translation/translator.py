@@ -55,8 +55,10 @@ class Translator(Injectable):
         :param token_num: The number of tokens to create the dummy
         :return: The outputs of the model after passing it through
         """
-        # Generate a dummy input for letting the model output the desired result of the injected layer
-        self.inputs = self.target_to_src_tokenizer("`" * (token_num - 2), return_tensors="pt")
+        dummy_input = torch.zeros((1, token_num), dtype=torch.long)  # dtype=torch.long for token IDs
+
+        # Directly set self.inputs to the dummy input tensor
+        self.inputs = {"input_ids": dummy_input}
 
         # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
         self.generate_sentence_from_outputs(use_first_translator=False)
