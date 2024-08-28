@@ -1,22 +1,7 @@
-import torch
-import torch.nn as nn
-from typing import Union, Tuple
 import sys
 import os
-
-from transformers import AutoTokenizer, AutoModel, MarianTokenizer, MarianMTModel, AutoTokenizer, OPTForCausalLM
-
+from transformers import AutoTokenizer, OPTForCausalLM
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# Transformers
-from custom_transformers.transformer_1 import Transformer1
-from custom_transformers.transformer_2 import Transformer2
-from custom_transformers.transformer import Transformer
-
-# Translators
-from translation.translator import Translator
-from translation.helsinki_translator import HelsinkiTranslator
-
 from llm.llm_integration import LLMWrapper
 
 

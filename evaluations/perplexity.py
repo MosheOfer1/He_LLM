@@ -40,11 +40,6 @@ def calculate_perplexity(model, tokenizer, texts, batch_size=8, max_length=512):
     return perplexity
 
 
-# Load the WikiText dataset
-dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
-texts = [dataset[i]['text'] for i in range(len(dataset)) if len(dataset[i]['text']) > 50][:1000]
-print(len(texts))
-
 # Initialize tokenizer and model
 model_path = "DAMO-NLP-MT/polylm-1.7b"
 
@@ -57,15 +52,17 @@ if tokenizer.pad_token is None:
 model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto", trust_remote_code=True, offload_folder="../offload_folder")
 model.eval()
 
+texts = read_file_lines('../my_datasets/He-En_1000_each.txt')
+he_text = texts[:1000]
+en_text = texts[1000:]
+print("he text len: ", len(he_text))
+print("en text len: ", len(en_text))
 
 # Calculate perplexity for polylm-1.7b in English
-perplexity_125m = calculate_perplexity(model, tokenizer, texts)
-print(f"Perplexity for polylm-1.7b: {perplexity_125m}")
-
-texts = read_file_lines('../my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt')[:1000]
-print(len(texts))
+perplexity_125m = calculate_perplexity(model, tokenizer, en_text)
+print(f"Perplexity for polylm-1.7b in English: {perplexity_125m}")
 
 # Calculate perplexity for polylm-1.7b in Hebrew
-perplexity_125m = calculate_perplexity(model, tokenizer, texts)
+perplexity_125m = calculate_perplexity(model, tokenizer, he_text)
 print(f"Perplexity for polylm-1.7b Hebrew: {perplexity_125m}")
 
