@@ -88,3 +88,21 @@ This document provides an overview of the project's structure, outlining the pur
 - **Testing:** Focus on `/tests/` directory and ensure all modules are covered.
 - **Evaluation and Performance Testing:** Use and potentially extend `next_word_prediction_test.py`.
 ![](He_LLM.jpg)
+
+
+
+## How to Run
+
+### Using the Virtual Environment
+
+To activate the virtual environment and run the project, follow these ***example*** steps:
+
+```bash
+source ~/Documents/GitHub/He_LLM/venv/bin/activate
+```
+
+Once activated, you can execute your scripts or commands within this environment. When you're finished, deactivate the environment with:
+
+```bash
+deactivate
+```

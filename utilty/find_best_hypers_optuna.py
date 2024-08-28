@@ -33,3 +33,8 @@ class BestHyper(ABC):
 
         # Print the best hyperparameters found
         print("Best hyperparameters: ", study.best_params)
+
+    @abstractmethod
+    def train_and_evaluate(self, lr, weight_decay, batch_size, epochs):
+        """Subclasses should implement this method to define how to train and evaluate the model using transformers.Trainer."""
+        pass
