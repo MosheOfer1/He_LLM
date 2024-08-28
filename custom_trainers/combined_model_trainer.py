@@ -65,7 +65,7 @@ class CombinedTrainer(Trainer):
         
         stop_learning_index = min(logits.shape[1], labels.shape[1])
         
-        print(f"stop_learning_index = {stop_learning_index}")
+        # print(f"stop_learning_index = {stop_learning_index}")
                 
         # Compute loss
         # loss_func = nn.CrossEntropyLoss(weight=class_weights)
@@ -76,7 +76,7 @@ class CombinedTrainer(Trainer):
         
         return (loss, outputs) if return_outputs else loss
 
-    def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter=100):
+    def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
         """
            This method runs a short training loop where the learning rate is gradually increased from `start_lr` to `end_lr` over a specified number of iterations (`num_iter`). The method records the learning rate and the corresponding loss at each step, allowing the user to analyze how the loss changes with different learning rates.
 
@@ -98,9 +98,17 @@ class CombinedTrainer(Trainer):
         losses = []
         self.model.train()  # Ensure the model is in training mode
 
-        for i, batch in enumerate(self.get_train_dataloader()):
+        data = self.get_train_dataloader()
+        num_iter = num_iter if num_iter else len(data)
+        
+        print_every = int(num_iter // 10)
+        
+        for i, batch in enumerate(data):
             if i >= num_iter:
                 break
+            
+            if i % print_every == 0:
+                print(f"Finished {i}/{num_iter}.")
 
             # Increase learning rate exponentially
             lr = start_lr * (end_lr / start_lr) ** (i / num_iter)
@@ -115,7 +123,7 @@ class CombinedTrainer(Trainer):
 
         return lrs, losses
         
-    def lr_finder_with_plot(self):
+    def lr_finder_with_plot(self, model_name: str = ""):
         """
            This method calls `lr_finder()` to execute the learning rate finder test and then plots the results.
 
@@ -125,7 +133,9 @@ class CombinedTrainer(Trainer):
                 - The plot is labeled appropriately with 'Learning Rate' on the x-axis and 'Loss' on the y-axis, and it is displayed using `plt.show()`.
 
             - **Purpose:**
-                - The resulting plot allows the user to visually identify the optimal learning rate. The ideal learning rate is usually chosen from the steepest downward slope on the plot, just before the loss starts to increase rapidly.
+                - The resulting plot allows the user to visually identify the optimal learning rate.
+                  The ideal learning rate is usually chosen from the steepest downward slope on the plot, 
+                  just before the loss starts to increase rapidly.
         """
         
         lrs, losses = self.lr_finder()
@@ -134,6 +144,7 @@ class CombinedTrainer(Trainer):
         plt.xlabel('Learning Rate')
         plt.ylabel('Loss')
         
+        name = model_name + "_lr_finder_plot.png"
         # plt.show()
-        plt.savefig('lr_finder_plot.png')
-        print("Plot saved as 'lr_finder_plot.png'")
+        plt.savefig(name)
+        print(f"Plot saved as {name}")

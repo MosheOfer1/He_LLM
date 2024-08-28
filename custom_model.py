@@ -143,6 +143,7 @@ class MyCustomModel(nn.Module):
             evaluation_strategy=evaluation_strategy,
             eval_steps=epoch,
             learning_rate=lr,
+            log_level="info",
             max_grad_norm=max_grad_norm,
             fp16=True, # nable mixed precision training
         )
@@ -160,7 +161,7 @@ class MyCustomModel(nn.Module):
         )
         
         return trainer
-        
+
     def train_model(
         self, train_dataset: Dataset, eval_dataset: Dataset,
         output_dir: str, logging_dir: str, epochs: int = 5, 
@@ -187,7 +188,15 @@ class MyCustomModel(nn.Module):
         )
         
         trainer.train()
-        
+
+        return trainer
+    
+    def train_and_evaluate(self, lr, weight_decay, batch_size, epochs):
+        """Subclasses should implement this method to define how to train and evaluate the model using transformers.Trainer."""
+        pass
+    
+    def save_model(trainer, output_dir):
         # Save the finetuned model and tokenizer with a new name
         pretrained_model_dir = f"./pretrained_models/end_to_end_model/{output_dir}"
         trainer.save_model(pretrained_model_dir)
+        

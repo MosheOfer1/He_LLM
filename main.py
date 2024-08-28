@@ -33,9 +33,11 @@ customLLM = MyCustomModel(translator1_model_name,
 
 data = pd.read_csv("my_datasets/wikipedia_data.csv")
 
+# Choose a random sample of 1000 rows
+sampled_data = data.sample(n=1250, random_state=42)
 
 # Split the data into training and evaluation sets
-train_data, eval_data = train_test_split(data, test_size=0.2)
+train_data, eval_data = train_test_split(sampled_data, test_size=0.2)
 
 # Create datasets
 train_dataset = HebrewDataset(data=train_data, 
@@ -60,19 +62,17 @@ trainer: CombinedTrainer = customLLM.create_trainer(train_dataset=train_dataset,
                       evaluation_strategy="steps",
                       lr=0.006334926670051613)
 
-trainer.lr_finder_with_plot()
-
-# # Train the model
-# customLLM.train_model(train_dataset=train_dataset, 
-#                       eval_dataset=eval_dataset, 
-#                       output_dir="results", 
-#                       logging_dir="loggings",
-#                       epochs= 5,
-#                       batch_size=1,
-#                       weight_decay=0.01,
-#                       logging_steps=1000,
-#                       evaluation_strategy="steps",
-#                       lr=0.006334926670051613)
+# Train the model
+customLLM.train_model(train_dataset=train_dataset, 
+                      eval_dataset=eval_dataset, 
+                      output_dir="results", 
+                      logging_dir="loggings",
+                      epochs= 5,
+                      batch_size=1,
+                      weight_decay=0.01,
+                      logging_steps=1000,
+                      evaluation_strategy="steps",
+                      lr=0.00001)
 
 # {'loss': 6.314, 'grad_norm': 0.19041453301906586, 'learning_rate': 0.004873020515424318, 'epoch': 1.25}
 # {'loss': 6.2977, 'grad_norm': 0.3401281535625458, 'learning_rate': 0.0032486803436162118, 'epoch': 2.5}

@@ -1,6 +1,10 @@
 from transformers import AutoTokenizer, OPTForCausalLM
 import torch
 import math
+import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from my_datasets.create_datasets import load_sentences_from_csv, read_file_lines
 
@@ -39,7 +43,8 @@ def calculate_perplexity(model, tokenizer, texts, max_length=512):
 
 
 # Load the WikiText dataset
-texts = read_file_lines('../my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt')[:1000]  # load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
+# texts = read_file_lines('../my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt')[:1000]  # load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
+texts = read_file_lines('my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt')[:1000]  # load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
 # texts = [dataset[i]['text'] for i in range(len(dataset)) if len(dataset[i]['text']) > 50]
 print(len(texts))
 # Initialize tokenizer and model for OPT-125M

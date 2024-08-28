@@ -82,7 +82,8 @@ class TestCustomModel(unittest.TestCase):
 
         self.customLLM.llm.inject_hidden_states(llm_hs)
         print(f"hs.shape[1] = {hs.shape[1]}")
-        outputs = self.customLLM.llm.get_output_by_using_dummy(hs.shape[1])
+        
+        outputs = self.customLLM.llm.get_output_by_using_dummy(llm_hs.shape[1])
 
         self.assertIsInstance(outputs, modeling_outputs.CausalLMOutputWithPast)
 
