@@ -8,7 +8,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from custom_transformers.transformer_1 import Transformer1
+from custom_transformers.short_rnn_transformer1 import Transformer1
 from llm.llm_integration import LLMWrapper
 from my_datasets.seq2seq_dataset import Seq2SeqDataset
 from translation.helsinki_translator import HelsinkiTranslator
@@ -62,7 +62,7 @@ class TestBaseTransformer(unittest.TestCase):
         loaded_model = Transformer1.load_model(model_name=model_name, translator=self.translator,
                                                   llm=self.llm_integration)
 
-        sentence = input("הכנס משפט בעברית: ")
+        sentence = "הכנס משפט בעברית"
         # Step 1: Get the last hidden state from the first translator model
         with torch.no_grad():
             outputs = self.translator.get_output(from_first=True, text=sentence)

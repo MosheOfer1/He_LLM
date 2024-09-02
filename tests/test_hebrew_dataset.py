@@ -7,7 +7,7 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from my_datasets.hebrew_dataset_wiki import HebrewDataset
+from my_datasets.combo_model_dataset import ComboModelDataset
 from models.custom_model import MyCustomModel
 
 class TestHebrewDataset(unittest.TestCase):
@@ -26,13 +26,13 @@ class TestHebrewDataset(unittest.TestCase):
         self.data = pd.read_csv("my_datasets/wikipedia_data.csv").head(100)
 
         # Create datasets
-        self.dataset = HebrewDataset(data=self.data, 
-                                    input_tokenizer=customLLM.translator.src_to_target_tokenizer, 
-                                    output_tokenizer=customLLM.translator.target_to_src_tokenizer, 
-                                    max_length=20)
+        self.dataset = ComboModelDataset(text=self.data,
+                                         input_tokenizer=customLLM.translator.src_to_target_tokenizer,
+                                         output_tokenizer=customLLM.translator.target_to_src_tokenizer,
+                                         max_length=20)
 
     def test_creation(self):
-        self.assertIsInstance(self.dataset, HebrewDataset)
+        self.assertIsInstance(self.dataset, ComboModelDataset)
     
     def test_len(self):
         self.assertEquals(len(self.dataset), len(self.data))

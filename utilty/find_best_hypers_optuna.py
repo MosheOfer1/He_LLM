@@ -2,15 +2,14 @@ from abc import ABC, abstractmethod
 import optuna
 import torch
 
+
 class BestHyper(ABC):
-    
+
     @abstractmethod
     def find_best_hyper_params(self, model_path, dataloader, n_trials=50):
-        
         # Save the initial state of the model
-        torch.save(self.state_dict(), 'initial_state.pth')  
-    
-   
+        torch.save(self.state_dict(), 'initial_state.pth')
+
         def objective(trial):
             # Suggest hyperparameters
             lr = trial.suggest_loguniform('lr', 1e-5, 1e-1)
@@ -26,7 +25,7 @@ class BestHyper(ABC):
 
             # Return evaluation loss
             return eval_loss
-             
+
         # Create an Optuna study
         study = optuna.create_study(direction="minimize")
         study.optimize(objective, n_trials=n_trials)

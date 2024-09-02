@@ -5,6 +5,7 @@ from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
 
 import os
 import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import matplotlib.pyplot as plt
@@ -15,10 +16,9 @@ from llm.llm_integration import LLMWrapper
 from translation.translator import Translator
 
 
-
-
 class Transformer1(BaseTransformer):
-    def __init__(self, translator: Translator, llm: LLMWrapper, model_name=None, nhead=8, num_layers=6, max_seq_len=512):
+    def __init__(self, translator: Translator, llm: LLMWrapper, model_name=None, nhead=8, num_layers=6,
+                 max_seq_len=512):
         """
         Initialize the Transformer1 model.
 

@@ -1,6 +1,3 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
-import math
 import os
 import sys
 
@@ -20,6 +17,10 @@ Perplexity for OPT-350M: 8.272500443599894
 
 """
 
+import torch
+import math
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
 
 def calculate_perplexity(model, tokenizer, texts, batch_size=8, max_length=512):
     model.eval()
@@ -28,18 +29,29 @@ def calculate_perplexity(model, tokenizer, texts, batch_size=8, max_length=512):
 
     with torch.no_grad():
         for i in range(0, len(texts), batch_size):
-            batch_texts = texts[i:i+batch_size]
+            batch_texts = texts[i:i + batch_size]
             inputs = tokenizer(batch_texts, return_tensors='pt', max_length=max_length, truncation=True, padding=True)
+
             input_ids = inputs['input_ids'].to(model.device)
             attention_mask = inputs['attention_mask'].to(model.device)
 
+            print(f"Batch {i // batch_size + 1}:")
+            print(f"Input Texts: {batch_texts}")
+            print(f"Input IDs: {input_ids}")
+            print(f"Attention Mask: {attention_mask}")
+
             outputs = model(input_ids, attention_mask=attention_mask, labels=input_ids)
             loss = outputs.loss
+
+            print(f"Loss for this batch: {loss.item()}")
+
             total_loss += loss.item() * input_ids.size(1)
             total_length += input_ids.size(1)
-            print(f"The loss in {i} is {loss}")
 
     perplexity = math.exp(total_loss / total_length)
+    print(f"Total Loss: {total_loss}, Total Length: {total_length}")
+    print(f"Calculated Perplexity: {perplexity}")
+
     return perplexity
 
 
@@ -52,20 +64,22 @@ tokenizer = AutoTokenizer.from_pretrained(model_path, legacy=False, use_fast=Fal
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token  # Use eos_token as pad_token
 
-model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto", trust_remote_code=True, offload_folder="../offload_folder")
+model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto", trust_remote_code=True,
+                                             offload_folder="offload_folder")
 model.eval()
 
-texts = read_file_lines('../my_datasets/He-En_1000_each.txt')
+texts = read_file_lines('my_datasets/He-En_1000_each.txt')
 he_text = texts[:1000]
 en_text = texts[1000:]
 print("he text len: ", len(he_text))
 print("en text len: ", len(en_text))
 
 # Calculate perplexity for polylm-1.7b in English
-perplexity_125m = calculate_perplexity(model, tokenizer, en_text)
-print(f"Perplexity for polylm-1.7b in English: {perplexity_125m}")
+print("Calculating perplexity for English...")
+perplexity_en = calculate_perplexity(model, tokenizer, en_text)
+print(f"Perplexity for polylm-1.7b in English: {perplexity_en}")
 
 # Calculate perplexity for polylm-1.7b in Hebrew
-perplexity_125m = calculate_perplexity(model, tokenizer, he_text)
-print(f"Perplexity for polylm-1.7b Hebrew: {perplexity_125m}")
-
+print("Calculating perplexity for Hebrew...")
+perplexity_he = calculate_perplexity(model, tokenizer, he_text)
+print(f"Perplexity for polylm-1.7b Hebrew: {perplexity_he}")

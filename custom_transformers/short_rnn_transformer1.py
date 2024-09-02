@@ -1,16 +1,14 @@
 import torch
 import torch.nn as nn
-from transformers import Trainer, TrainingArguments, AutoTokenizer, OPTForCausalLM
+from transformers import Trainer, TrainingArguments
 
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_integration import LLMWrapper
-from my_datasets.create_datasets import load_and_create_dataset, create_transformer1_dataset
-from translation.helsinki_translator import HelsinkiTranslator
+from my_datasets.create_datasets import create_transformer1_dataset
 from translation.translator import Translator
 
 
@@ -157,41 +155,3 @@ class CustomTrainer(Trainer):
         loss = loss_fct(outputs, labels)
 
         return (loss, outputs) if return_outputs else loss
-
-
-# Example usage
-if __name__ == "__main__":
-    file_path = 'my_datasets/'
-    train_dataset_path = file_path + input("Enter train dataset name: ")
-    test_dataset_path = file_path + input("Enter test dataset name: ")
-
-    while True:
-        try:
-            train_ds = load_and_create_dataset(train_dataset_path)
-            test_ds = load_and_create_dataset(test_dataset_path)
-            print(f"Datasets loaded from {train_dataset_path}")
-            break
-        except FileNotFoundError as e:
-            print(e)
-    # Initialize the translator and LLM
-    translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
-    translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
-    translator = HelsinkiTranslator(translator1_model_name, translator2_model_name)
-
-    llm_model_name = "facebook/opt-125m"
-    llm_tokenizer = AutoTokenizer.from_pretrained(llm_model_name)
-    llm_model = OPTForCausalLM.from_pretrained(llm_model_name)
-    llm = LLMWrapper(llm_model_name, llm_tokenizer, llm_model)
-
-    model = Transformer1(translator, llm)
-    model.train_model(train_dataset=train_ds, test_dataset=test_ds)
-
-    # Optionally save the trained model
-    model_path = f'models/try_model.pth'
-
-    # Optionally save the trained model
-    if not os.path.exists(os.path.dirname(model_path)):
-        os.makedirs(os.path.dirname(model_path))
-    torch.save(model.state_dict(), model_path)
-
-    print(f"Model saved to {model_path}")

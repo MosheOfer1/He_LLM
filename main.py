@@ -1,73 +1,58 @@
 import sys
 import os
-import torch
-import pandas as pd
-from sklearn.model_selection import train_test_split
-
+from my_datasets.create_datasets import read_file_to_string
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from custom_model import MyCustomModel
+from models.custom_model import MyCustomModel
 from custom_trainers.combined_model_trainer import CombinedTrainer
-
 # Dataset
-from my_datasets.hebrew_dataset_wiki import HebrewDataset
+from my_datasets.combo_model_dataset import ComboModelDataset
 
 
 translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
 llm_model_name = "facebook/opt-125m"
+text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
 
 customLLM = MyCustomModel(translator1_model_name,
-                            translator2_model_name,
-                            llm_model_name)
+                          translator2_model_name,
+                          llm_model_name)
 
-
-
-# print(f"\n\n len(customLLM.parameters()) = {len(list(customLLM.parameters()))}\n\n")
-
-# # Print the parameter names for the model customLLM
-# for name, param in customLLM.named_parameters():
-#     if param.requires_grad:
-#         print(name)
-
-
-data = pd.read_csv("my_datasets/wikipedia_data.csv")
-
-# Choose a random sample of 1000 rows
-sampled_data = data.sample(n=1250, random_state=42)
-
-# Split the data into training and evaluation sets
-train_data, eval_data = train_test_split(sampled_data, test_size=0.2)
+text = read_file_to_string(text_file_path)
+split_index = int(len(text) * 0.8)
+train_data, eval_data = text[:split_index], text[split_index:]
 
 # Create datasets
-train_dataset = HebrewDataset(data=train_data, 
-                              input_tokenizer=customLLM.translator.src_to_target_tokenizer, 
-                              output_tokenizer=customLLM.translator.target_to_src_tokenizer, 
-                              max_length=20)
+train_dataset = ComboModelDataset(
+    text=train_data,
+    input_tokenizer=customLLM.translator.src_to_target_tokenizer,
+    output_tokenizer=customLLM.translator.target_to_src_tokenizer,
+    max_length=20
+)
 
-eval_dataset = HebrewDataset(data=eval_data, 
-                             input_tokenizer=customLLM.translator.src_to_target_tokenizer, 
-                             output_tokenizer=customLLM.translator.target_to_src_tokenizer, 
-                             max_length=20)
+eval_dataset = ComboModelDataset(
+    text=eval_data,
+    input_tokenizer=customLLM.translator.src_to_target_tokenizer,
+    output_tokenizer=customLLM.translator.target_to_src_tokenizer,
+    max_length=20
+)
 
-
-trainer: CombinedTrainer = customLLM.create_trainer(train_dataset=train_dataset, 
-                      eval_dataset=eval_dataset, 
-                      output_dir="results", 
-                      logging_dir="loggings",
-                      epochs= 5,
-                      batch_size=1,
-                      weight_decay=0.01,
-                      logging_steps=1000,
-                      evaluation_strategy="steps",
-                      lr=0.006334926670051613)
+trainer: CombinedTrainer = customLLM.create_trainer(train_dataset=train_dataset,
+                                                    eval_dataset=eval_dataset,
+                                                    output_dir="results",
+                                                    logging_dir="loggings",
+                                                    epochs=5,
+                                                    batch_size=1,
+                                                    weight_decay=0.01,
+                                                    logging_steps=1000,
+                                                    evaluation_strategy="steps",
+                                                    lr=0.006334926670051613)
 
 # Train the model
-customLLM.train_model(train_dataset=train_dataset, 
-                      eval_dataset=eval_dataset, 
-                      output_dir="results", 
+customLLM.train_model(train_dataset=train_dataset,
+                      eval_dataset=eval_dataset,
+                      output_dir="results",
                       logging_dir="loggings",
-                      epochs= 5,
+                      epochs=5,
                       batch_size=1,
                       weight_decay=0.01,
                       logging_steps=1000,

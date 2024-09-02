@@ -4,12 +4,14 @@ from transformers import Trainer, get_linear_schedule_with_warmup
 from torch.optim import Adam
 
 import matplotlib
+
 matplotlib.use('Agg')  # Use 'Agg' for non-GUI environments
 
 import matplotlib.pyplot as plt
 
 import os
 import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
@@ -22,13 +24,13 @@ class CombinedTrainer(Trainer):
                  optimizer,
                  scheduler,
                  total_steps):
-        
+
         if not optimizer or not scheduler:
             # Initialize the optimizer and learning rate scheduler
             optimizer = Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
             total_steps = total_steps
-            scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=total_steps)
-
+            scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
+                                                        num_training_steps=total_steps)
 
         Trainer.__init__(self,
                          model=model,
@@ -36,44 +38,44 @@ class CombinedTrainer(Trainer):
                          train_dataset=train_dataset,
                          eval_dataset=eval_dataset,
                          optimizers=(optimizer, scheduler))
-    
-        
+
     def compute_loss(self, model, inputs, return_outputs=False):
-        
-        """ Overrides the Trainer lib default loss computation 
         """
-        
+        Overrides the Trainer lib default loss computation
+        """
+
         # print(f"inputs.keys() = {inputs.keys()}")
-        
+
         # Extract labels
         labels = inputs.get("labels")
         input_ids = inputs.get("input_ids")
         attention_mask = inputs.get("attention_mask")
-        class_weights = inputs.get("class_weights")
-        
+
         # print(f"\n\n labels.shape = {labels.shape}, labels = {labels}\n\n")
-        
+
         # Feed inputs to model and extract logits
-        outputs = model(input_ids=input_ids,
-                        attention_mask=attention_mask,
-                        labels=labels)
-        
+        outputs = model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            labels=labels
+        )
+
         logits = outputs.get("logits")
-        
+
         # print(f"\n\n logits.shape = {logits.shape}")
         # print(f"\n\n class_weights = {class_weights}")
-        
+
         stop_learning_index = min(logits.shape[1], labels.shape[1])
-        
+
         # print(f"stop_learning_index = {stop_learning_index}")
-                
+
         # Compute loss
         # loss_func = nn.CrossEntropyLoss(weight=class_weights)
         loss_func = nn.CrossEntropyLoss()
-        
+
         # print(f"logits.shape = {logits.shape}")
-        loss = loss_func(logits[0, :stop_learning_index, :], labels.squeeze(0)[:stop_learning_index])
-        
+        loss = loss_func(logits[-1, :stop_learning_index, :], labels.squeeze(0)[:stop_learning_index])
+
         return (loss, outputs) if return_outputs else loss
 
     def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
@@ -93,20 +95,20 @@ class CombinedTrainer(Trainer):
                 - The loop breaks after the specified number of iterations (`num_iter`), ensuring the process is not too long.
                 - Finally, the method returns the lists of learning rates and losses.
         """
-        
+
         lrs = []
         losses = []
         self.model.train()  # Ensure the model is in training mode
 
         data = self.get_train_dataloader()
         num_iter = num_iter if num_iter else len(data)
-        
+
         print_every = int(num_iter // 10)
-        
+
         for i, batch in enumerate(data):
             if i >= num_iter:
                 break
-            
+
             if i % print_every == 0:
                 print(f"Finished {i}/{num_iter}.")
 
@@ -122,7 +124,7 @@ class CombinedTrainer(Trainer):
             losses.append(loss)
 
         return lrs, losses
-        
+
     def lr_finder_with_plot(self, model_name: str = ""):
         """
            This method calls `lr_finder()` to execute the learning rate finder test and then plots the results.
@@ -137,13 +139,13 @@ class CombinedTrainer(Trainer):
                   The ideal learning rate is usually chosen from the steepest downward slope on the plot, 
                   just before the loss starts to increase rapidly.
         """
-        
+
         lrs, losses = self.lr_finder()
         plt.plot(lrs, losses)
         plt.xscale('log')
         plt.xlabel('Learning Rate')
         plt.ylabel('Loss')
-        
+
         name = model_name + "_lr_finder_plot.png"
         # plt.show()
         plt.savefig(name)
