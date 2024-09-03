@@ -249,6 +249,23 @@ def read_file_lines(file_name):
         return []
 
 
+def read_file_to_string(file_path):
+    """
+    Reads the content of a file and returns it as a string.
+
+    :param file_path: Path to the file to be read
+    :return: String containing the content of the file
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        return "File not found."
+    except Exception as e:
+        return f"An error occurred: {e}"
+
+
 def filter_sentences(sentences, min_length=5, max_length=50):
     return [sentence for sentence in sentences if min_length <= len(sentence.split()) <= max_length]
 

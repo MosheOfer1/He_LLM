@@ -6,7 +6,6 @@ from transformers import MarianMTModel, MarianTokenizer
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-
 from translation.helsinki_translator import HelsinkiTranslator
 
 
@@ -27,14 +26,14 @@ class TestTranslator(unittest.TestCase):
         tokenizer = MarianTokenizer.from_pretrained(self.target_to_src_translator_model_name)
         model = MarianMTModel.from_pretrained(self.target_to_src_translator_model_name, output_hidden_states=True)
         translator2 = HelsinkiTranslator(self.src_to_target_translator_model_name,
-                                             self.target_to_src_translator_model_name)
+                                         self.target_to_src_translator_model_name)
         # Step 1: Get the hidden states from the first layer of the second translator model
         translator_first_hs = translator2.text_to_hidden_states(
             self.sample_text_en,
             0,
             tokenizer,
             model
-            )
+        )
 
         # Step 2: Inject these hidden states into the model
         self.translator.inject_hidden_states(translator_first_hs)
@@ -43,7 +42,8 @@ class TestTranslator(unittest.TestCase):
         translator_output = self.translator.get_output_by_using_dummy(translator_first_hs.shape[1])
 
         # Step 4: Decode the logits into text
-        translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_src_tokenizer, logits=translator_output.logits)
+        translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_src_tokenizer,
+                                                        logits=translator_output.logits)
 
         # Step 5: Validate and print the output
         self.assertIsInstance(translated_text, str)
@@ -56,7 +56,8 @@ class TestTranslator(unittest.TestCase):
 
         self.assertIsNotNone(output.logits)  # Ensure logits are generated
 
-        translated_text = self.translator.decode_logits(tokenizer=self.translator.src_to_target_tokenizer, logits=output.logits)
+        translated_text = self.translator.decode_logits(tokenizer=self.translator.src_to_target_tokenizer,
+                                                        logits=output.logits)
         self.assertIsInstance(translated_text, str)
         self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
         print("From first:", translated_text)
@@ -66,7 +67,8 @@ class TestTranslator(unittest.TestCase):
         output = self.translator.get_output(from_first=False, text=self.sample_text_en)
 
         self.assertIsNotNone(output.logits)  # Ensure logits are generated
-        translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_src_tokenizer,  logits=output.logits)
+        translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_src_tokenizer,
+                                                        logits=output.logits)
         self.assertIsInstance(translated_text, str)
         self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
         print("From second:", translated_text)
@@ -88,7 +90,8 @@ class TestTranslator(unittest.TestCase):
             with self.subTest(text=text):
                 output = self.translator.get_output(from_first=True, text=text)
                 self.assertIsNotNone(output.logits)
-                translated_text = self.translator.decode_logits(tokenizer=self.translator.src_to_target_tokenizer, logits=output.logits)
+                translated_text = self.translator.decode_logits(tokenizer=self.translator.src_to_target_tokenizer,
+                                                                logits=output.logits)
                 self.assertIsInstance(translated_text, str)
                 self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
                 print(f"From first, size={len(text)}:", translated_text)
@@ -98,20 +101,22 @@ class TestTranslator(unittest.TestCase):
             with self.subTest(text=text):
                 output = self.translator.get_output(from_first=False, text=text)
                 self.assertIsNotNone(output.logits)
-                translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_src_tokenizer, logits=output.logits)
+                translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_src_tokenizer,
+                                                                logits=output.logits)
                 self.assertIsInstance(translated_text, str)
                 self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
                 print(f"From second, size={len(text)}:", translated_text)
 
     def test_input_output_tokenizers(self):
-        
+
         known_target_ids = self.translator.target_to_src_tokenizer(self.sample_text_he, return_tensors="pt").input_ids
 
         with self.translator.target_to_src_tokenizer.as_target_tokenizer():
             target_ids = self.translator.target_to_src_tokenizer.encode(self.sample_text_he, return_tensors="pt")
-        
+
             print(f"regular_target_ids = {known_target_ids}")
             print(f"as_output_tokenizer_target_ids = {target_ids}")
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -20,7 +20,7 @@ from custom_trainers.combined_model_trainer import CombinedTrainer
 from custom_transformers.transformer import Transformer
 
 # Dataset
-from my_datasets.hebrew_dataset_wiki import HebrewDataset
+from my_datasets.combo_model_dataset import ComboModelDataset
 
 
 class TestCustomModel(unittest.TestCase):
@@ -45,15 +45,15 @@ class TestCustomModel(unittest.TestCase):
         train_data, eval_data = train_test_split(self.df_first_100, test_size=0.2)
 
         # Create datasets
-        self.train_dataset = HebrewDataset(data=train_data, 
-                                           input_tokenizer=self.customLLM.translator.src_to_target_tokenizer, 
-                                           output_tokenizer=self.customLLM.translator.target_to_src_tokenizer, 
-                                           max_length=20)
+        self.train_dataset = ComboModelDataset(text=train_data,
+                                               input_tokenizer=self.customLLM.translator.src_to_target_tokenizer,
+                                               output_tokenizer=self.customLLM.translator.target_to_src_tokenizer,
+                                               max_length=20)
 
-        self.eval_dataset = HebrewDataset(data=eval_data, 
-                                     input_tokenizer=self.customLLM.translator.src_to_target_tokenizer, 
-                                     output_tokenizer=self.customLLM.translator.target_to_src_tokenizer, 
-                                     max_length=20)
+        self.eval_dataset = ComboModelDataset(text=eval_data,
+                                              input_tokenizer=self.customLLM.translator.src_to_target_tokenizer,
+                                              output_tokenizer=self.customLLM.translator.target_to_src_tokenizer,
+                                              max_length=20)
 
         self.he_text = "אבא בא לגן"
 

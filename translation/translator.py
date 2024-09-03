@@ -134,6 +134,8 @@ class Translator(Injectable):
         """
         Processes the model to generate outputs, including logits and hidden states.
 
+        :param attention_mask:
+        :param max_len:
         :param inputs: The inputs to the model (e.g., encoder inputs).
         :param model: The MarianMTModel to use for generating outputs.
         :param tokenizer: The tokenizer to use for decoding.
@@ -147,7 +149,7 @@ class Translator(Injectable):
         while counter < max_len:
             
             # Run the model with the current decoder input IDs to get the outputs
-            if attention_mask != None:
+            if attention_mask is not None:
                 outputs = model(
                     **inputs,
                     decoder_input_ids=decoder_input_ids,
@@ -200,6 +202,7 @@ class Translator(Injectable):
         """
         Extracts hidden states from the specified layer in either the encoder or decoder.
 
+        :param attention_mask:
         :param text: The input text to be tokenized and passed through the model.
         :param layer_num: The layer number from which to extract hidden states.
         :param tokenizer: The specific tokenizer.
@@ -221,7 +224,10 @@ class Translator(Injectable):
 
     @staticmethod
     def input_ids_to_hidden_states(input_ids, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
-        inputs = {"input_ids": input_ids}
+        inputs = {
+            "input_ids": input_ids,
+        }
+
         # Forward pass through the model, providing decoder input ids
         outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, attention_mask=attention_mask)
 

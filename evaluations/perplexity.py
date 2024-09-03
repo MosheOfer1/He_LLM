@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from my_datasets.create_datasets import read_file_lines
 
+
 def calculate_perplexity(model, tokenizer, texts, batch_size=8, max_length=512):
     model.eval()
     total_loss = 0.0
@@ -58,7 +59,10 @@ tokenizer = AutoTokenizer.from_pretrained(model_path, legacy=False, use_fast=Fal
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token  # Use eos_token as pad_token
 
-model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto", trust_remote_code=True, offload_folder="offload_folder").to(device)
+
+model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto", trust_remote_code=True,
+                                             offload_folder="offload_folder")
+
 model.eval()
 
 texts = read_file_lines('my_datasets/He-En_1000_each.txt')
