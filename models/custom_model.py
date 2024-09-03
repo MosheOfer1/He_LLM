@@ -49,10 +49,6 @@ class MyCustomModel(nn.Module, BestHyper):
         self.llm.set_requires_grad(False)
 
     def forward(self, input_ids, text=None, attention_mask=None, labels=None) -> torch.Tensor:
-
-        # Remove batch if batch_size=1
-        input_ids = input_ids.squeeze(0)
-
         if attention_mask is not None:
             attention_mask = attention_mask.squeeze(0)
 

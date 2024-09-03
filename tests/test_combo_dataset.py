@@ -24,7 +24,7 @@ class TestComboModelDataset(unittest.TestCase):
 
     def test_len(self):
         # Check if the length of the dataset is correct
-        expected_length = len(self.input_tokenizer.encode(self.text, add_special_tokens=True)) - 5
+        expected_length = len(self.input_tokenizer.encode(self.text, add_special_tokens=False)) - 5
         self.assertEqual(len(self.dataset), expected_length)
 
     def test_getitem(self):
