@@ -1,25 +1,12 @@
 import os
 import sys
+import torch
+import math
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from my_datasets.create_datasets import read_file_lines
-
-"""
-results:
-English wikitext-2-raw-v1 len(dataset[i]['text']) > 50 1962 sentences
-Perplexity for OPT-125M: 51.94367612955789
-Perplexity for OPT-350M: 40.732918062992304
-
-Hebrew SVLM_Hebrew_Wikipedia_Corpus.txt 1000 sentences
-Perplexity for OPT-125M: 9.923426167073405
-Perplexity for OPT-350M: 8.272500443599894
-
-"""
-
-import torch
-import math
-from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
 def calculate_perplexity(model, tokenizer, texts, batch_size=8, max_length=512):
@@ -55,6 +42,14 @@ def calculate_perplexity(model, tokenizer, texts, batch_size=8, max_length=512):
     return perplexity
 
 
+# Ensure GPU is available
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+    print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+else:
+    device = torch.device("cpu")
+    print("GPU not available, using CPU instead.")
+
 # Initialize tokenizer and model
 model_path = "DAMO-NLP-MT/polylm-1.7b"
 
@@ -64,8 +59,10 @@ tokenizer = AutoTokenizer.from_pretrained(model_path, legacy=False, use_fast=Fal
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token  # Use eos_token as pad_token
 
+
 model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto", trust_remote_code=True,
                                              offload_folder="offload_folder")
+
 model.eval()
 
 texts = read_file_lines('my_datasets/He-En_1000_each.txt')

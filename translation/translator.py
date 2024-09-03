@@ -119,7 +119,7 @@ class Translator(Injectable):
             model = self.target_to_src_model
 
         # Use the static method to process inputs and get the final outputs
-        self.outputs = self.process_outputs(self.inputs, model, tokenizer)
+        self.outputs = self.process_outputs(inputs=self.inputs, model=model, tokenizer=tokenizer)
 
         # Extract the logits from the outputs
         final_logits = self.outputs.logits
@@ -130,7 +130,7 @@ class Translator(Injectable):
         return generated_sentence
 
     @staticmethod
-    def process_outputs(inputs, model, tokenizer):
+    def process_outputs(inputs, model, tokenizer, max_len=20, attention_mask=None):
         """
         Processes the model to generate outputs, including logits and hidden states.
 
@@ -141,15 +141,25 @@ class Translator(Injectable):
         """
         # Initialize decoder input IDs with the start token ID
         decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]])
-
-        while True:
+        # decoder_input_ids = torch.tensor([[tokenizer.bos_token_id]])
+        
+        counter = 0
+        while counter < max_len:
+            
             # Run the model with the current decoder input IDs to get the outputs
-            outputs = model(
-                **inputs,
-                decoder_input_ids=decoder_input_ids,
-                output_hidden_states=True
-            )
-
+            if attention_mask != None:
+                outputs = model(
+                    **inputs,
+                    decoder_input_ids=decoder_input_ids,
+                    attention_mask=attention_mask,
+                    output_hidden_states=True
+                )
+            else:
+                outputs = model(
+                    **inputs,
+                    decoder_input_ids=decoder_input_ids,
+                    output_hidden_states=True
+                )
             # Get the token ID for the current timestep (take argmax over the vocabulary dimension)
             token_id = torch.argmax(outputs.logits[:, -1, :], dim=-1).item()
 
@@ -160,6 +170,7 @@ class Translator(Injectable):
             # Update the decoder input IDs with the newly generated token
             decoder_input_ids = torch.cat([decoder_input_ids, torch.tensor([[token_id]])], dim=-1)
 
+            counter += 1
         return outputs
 
     @staticmethod
@@ -185,7 +196,7 @@ class Translator(Injectable):
         return generated_text
 
     @staticmethod
-    def text_to_hidden_states(text, layer_num, tokenizer, model, from_encoder=True):
+    def text_to_hidden_states(text, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
         """
         Extracts hidden states from the specified layer in either the encoder or decoder.
 
@@ -200,7 +211,7 @@ class Translator(Injectable):
         inputs = tokenizer(text, return_tensors="pt")
 
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs, model, tokenizer)
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, attention_mask=attention_mask)
 
         # Return the hidden states of the specified layer
         if from_encoder:

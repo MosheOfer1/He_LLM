@@ -1,13 +1,7 @@
 import torch
 import torch.nn as nn
-from datasets import Dataset
-from sklearn.model_selection import train_test_split
-import pandas as pd
-from sklearn.metrics import f1_score
-
 import os
 import sys
-
 from my_datasets.combo_model_dataset import ComboModelDataset
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -22,9 +16,11 @@ from custom_transformers.transformer import Transformer
 from translation.helsinki_translator import HelsinkiTranslator
 from llm.facebook_llm import FacebookLLM
 
+# Optuna best hypers finder
+from utilty.BestHyper import BestHyper
 
-class MyCustomModel(nn.Module):
 
+class MyCustomModel(nn.Module, BestHyper):
     def __init__(self,
                  src_to_target_translator_model_name,
                  target_to_src_translator_model_name,
@@ -32,7 +28,7 @@ class MyCustomModel(nn.Module):
                  pretrained_transformer1_path: str = None,
                  pretrained_transformer2_path: str = None):
 
-        super(MyCustomModel, self).__init__()
+        nn.Module.__init__(self)
 
         # Custom Translator
         self.translator = HelsinkiTranslator(src_to_target_translator_model_name,
@@ -52,19 +48,20 @@ class MyCustomModel(nn.Module):
         # Freeze LLM parameters
         self.llm.set_requires_grad(False)
 
-    def forward(self, input_ids=None, text=None, attention_mask=None, labels=None, class_weights=None) -> torch.Tensor:
+    def forward(self, input_ids, text=None, attention_mask=None, labels=None) -> torch.Tensor:
 
         # Remove batch if batch_size=1
         input_ids = input_ids.squeeze(0)
 
-        # print(f"input_ids shape: {input_ids.shape}")
-        # print(f"attention_mask shape: {attention_mask.shape}")
+        if attention_mask is not None:
+            attention_mask = attention_mask.squeeze(0)
 
         if text:
             # Get hidden states from text
             translator_last_hs = self.translator.text_to_hidden_states(text, -1,
                                                                        self.translator.src_to_target_tokenizer,
-                                                                       self.translator.src_to_target_model, False)
+                                                                       self.translator.src_to_target_model, False,
+                                                                       attention_mask=attention_mask)
         else:
             translator_last_hs = self.translator.input_ids_to_hidden_states(input_ids, -1,
                                                                             self.translator.src_to_target_tokenizer,
@@ -79,42 +76,24 @@ class MyCustomModel(nn.Module):
 
         token_num = transformed_to_llm_hs.shape[1]
 
-        # print(f"\n\n transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}, token_num = {token_num}\n\n")
-
         # Input dummy text but the it is ignored and uses the injected 
         llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num)
 
         # Extract the last hidden states
         llm_last_hidden_state = llm_outputs.hidden_states[-1]
-        # llm_last_hidden_state = llm_outputs.hidden_states[-1][:,-1,:].unsqueeze(0)
-
-        # print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
 
         # Transform to translator first hidden states
         transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state)
-
-        # print(f"transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
 
         # Inject the new hidden states to translator2 first layer
         self.translator.inject_hidden_states(transformed_to_translator_hs)
 
         token_num = transformed_to_translator_hs.shape[1]
 
-        # print(f"\n\n transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}, token_num2 = {token_num}\n\n")
-
         # Input dummy text but the it is ignored and uses the injected 
         translator_outputs = self.translator.get_output_by_using_dummy(token_num=token_num)
 
-        # print(f"translator_outputs = {translator_outputs}")
-
         return translator_outputs
-
-    def compute_metrics(pred):
-        labels = pred.label_ids
-        preds = pred.predictions.argmax(-1)
-        f1 = f1_score(labels, preds, average="weighted")
-
-        return {"f1": f1}
 
     def create_trainer(
             self, train_dataset: ComboModelDataset, eval_dataset: ComboModelDataset,
@@ -146,7 +125,7 @@ class MyCustomModel(nn.Module):
             learning_rate=lr,
             log_level="info",
             max_grad_norm=max_grad_norm,
-            fp16=True,  # nable mixed precision training
+            fp16=True,  # Enable mixed precision training
         )
 
         trainer = CombinedTrainer(
@@ -190,11 +169,33 @@ class MyCustomModel(nn.Module):
 
         return trainer
 
-    def train_and_evaluate(self, lr, weight_decay, batch_size, epochs):
-        """Subclasses should implement this method to define how to train and evaluate the model using transformers.Trainer."""
-        pass
-
-    def save_model(trainer, output_dir):
+    def save_model(self, trainer, output_dir):
         # Save the finetuned model and tokenizer with a new name
         pretrained_model_dir = f"./pretrained_models/end_to_end_model/{output_dir}"
         trainer.save_model(pretrained_model_dir)
+
+    # Overrides BestHyper func
+    def train_and_evaluate(self, train_dataset, eval_dataset, lr, weight_decay, batch_size, epochs, output_dir,
+                           logging_dir):
+        """Subclasses should implement this method to define how to train and evaluate the model using transformers.Trainer."""
+        trainer = self.create_trainer(train_dataset=train_dataset,
+                                      eval_dataset=eval_dataset,
+                                      output_dir=output_dir,
+                                      logging_dir=logging_dir,
+                                      epochs=epochs,
+                                      batch_size=batch_size,
+                                      lr=lr,
+                                      weight_decay=weight_decay)
+        # Train the model
+        trainer.train()
+
+        # Results
+        eval_results = trainer.evaluate()
+
+        return eval_results['eval_loss']
+
+    def printTrainableParams(self):
+        # Print the parameter names for the model customLLM
+        for name, param in self.parameters():
+            if param.requires_grad:
+                print(name)
