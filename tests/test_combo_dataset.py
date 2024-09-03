@@ -54,7 +54,7 @@ class TestComboModelDataset(unittest.TestCase):
         for batch in dataloader:
             self.assertIn('input_ids', batch)
             self.assertIn('labels', batch)
-            self.assertEqual(len(batch['input_ids']), 2)
+            self.assertEqual(len(batch['input_ids'][0]), 2)
             self.assertEqual(len(batch['labels']), 2)
             break  # Only check the first batch
 

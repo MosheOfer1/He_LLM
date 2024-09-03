@@ -1,5 +1,4 @@
 from torch import nn
-import torch
 from transformers import Trainer, get_linear_schedule_with_warmup
 from torch.optim import Adam
 
@@ -43,38 +42,19 @@ class CombinedTrainer(Trainer):
         """
         Overrides the Trainer lib default loss computation
         """
-
-        # print(f"inputs.keys() = {inputs.keys()}")
-
         # Extract labels
-        labels = inputs.get("labels")
         input_ids = inputs.get("input_ids")
-        attention_mask = inputs.get("attention_mask")
-
-        # print(f"\n\n labels.shape = {labels.shape}, labels = {labels}\n\n")
 
         # Feed inputs to model and extract logits
         outputs = model(
             input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=labels
         )
 
         logits = outputs.get("logits")
+        labels = inputs.get("labels")
 
-        # print(f"\n\n logits.shape = {logits.shape}")
-        # print(f"\n\n class_weights = {class_weights}")
-
-        stop_learning_index = min(logits.shape[1], labels.shape[1])
-
-        # print(f"stop_learning_index = {stop_learning_index}")
-
-        # Compute loss
-        # loss_func = nn.CrossEntropyLoss(weight=class_weights)
         loss_func = nn.CrossEntropyLoss()
-
-        # print(f"logits.shape = {logits.shape}")
-        loss = loss_func(logits[-1, :stop_learning_index, :], labels.squeeze(0)[:stop_learning_index])
+        loss = loss_func(logits, labels)
 
         return (loss, outputs) if return_outputs else loss
 

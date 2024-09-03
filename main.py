@@ -26,14 +26,12 @@ train_dataset = ComboModelDataset(
     text=train_data,
     input_tokenizer=customLLM.translator.src_to_target_tokenizer,
     output_tokenizer=customLLM.translator.target_to_src_tokenizer,
-    max_length=20
 )
 
 eval_dataset = ComboModelDataset(
     text=eval_data,
     input_tokenizer=customLLM.translator.src_to_target_tokenizer,
     output_tokenizer=customLLM.translator.target_to_src_tokenizer,
-    max_length=20
 )
 
 trainer: CombinedTrainer = customLLM.create_trainer(train_dataset=train_dataset,

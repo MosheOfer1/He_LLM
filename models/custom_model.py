@@ -8,6 +8,8 @@ from sklearn.metrics import f1_score
 import os
 import sys
 
+from my_datasets.combo_model_dataset import ComboModelDataset
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from transformers import TrainingArguments
@@ -54,7 +56,6 @@ class MyCustomModel(nn.Module):
 
         # Remove batch if batch_size=1
         input_ids = input_ids.squeeze(0)
-        attention_mask = attention_mask.squeeze(0)
 
         # print(f"input_ids shape: {input_ids.shape}")
         # print(f"attention_mask shape: {attention_mask.shape}")
@@ -116,7 +117,7 @@ class MyCustomModel(nn.Module):
         return {"f1": f1}
 
     def create_trainer(
-            self, train_dataset: Dataset, eval_dataset: Dataset,
+            self, train_dataset: ComboModelDataset, eval_dataset: ComboModelDataset,
             output_dir: str, logging_dir: str, epochs: int = 5,
             batch_size: int = 1, weight_decay: float = 0.01,
             logging_steps: int = 1000, evaluation_strategy: str = "steps",
@@ -161,7 +162,7 @@ class MyCustomModel(nn.Module):
         return trainer
 
     def train_model(
-            self, train_dataset: Dataset, eval_dataset: Dataset,
+            self, train_dataset: ComboModelDataset, eval_dataset: ComboModelDataset,
             output_dir: str, logging_dir: str, epochs: int = 5,
             batch_size: int = 1, weight_decay: float = 0.01,
             logging_steps: int = 1000, evaluation_strategy: str = "steps",
