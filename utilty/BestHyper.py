@@ -4,8 +4,9 @@ import torch
 
 class BestHyper(ABC):
     
-    @abstractmethod
-    def find_best_hyper_params(self, model_path, dataloader, n_trials=50):
+    def find_best_hyper_params(self, train_dataset, eval_dataset, batch_size = 1, 
+                               epochs = 5, output_dir = "optuna_results", 
+                               logging_dir = "optuna_loggings", n_trials=50):
         
         # Save the initial state of the model
         torch.save(self.state_dict(), 'initial_state.pth')  
@@ -13,17 +14,23 @@ class BestHyper(ABC):
    
         def objective(trial):
             # Suggest hyperparameters
-            lr = trial.suggest_loguniform('lr', 1e-5, 1e-1)
+            lr = trial.suggest_loguniform('lr', 1e-7, 1e-2)
             weight_decay = trial.suggest_loguniform('weight_decay', 1e-5, 1e-2)
-            batch_size = trial.suggest_categorical('batch_size', [1, 2, 4, 8, 16])
-            epochs = trial.suggest_int('epochs', 3, 10)
 
             # Load the initial state of the model
             self.load_state_dict(torch.load('initial_state.pth'))
-
+                
             # Train and evaluate the model
-            eval_loss = self.train_and_evaluate(lr, weight_decay, batch_size, epochs)
-
+            eval_loss = self.train_and_evaluate(
+                train_dataset=train_dataset,
+                eval_dataset=eval_dataset,
+                lr=lr,
+                weight_decay=weight_decay,
+                batch_size=batch_size,
+                epochs=epochs,
+                output_dir=output_dir,
+                logging_dir=logging_dir)
+            
             # Return evaluation loss
             return eval_loss
              
@@ -35,6 +42,6 @@ class BestHyper(ABC):
         print("Best hyperparameters: ", study.best_params)
 
     @abstractmethod
-    def train_and_evaluate(self, lr, weight_decay, batch_size, epochs):
+    def train_and_evaluate(self, train_dataset, eval_dataset, lr, weight_decay, batch_size, epochs, output_dir, logging_dir):
         """Subclasses should implement this method to define how to train and evaluate the model using transformers.Trainer."""
         pass

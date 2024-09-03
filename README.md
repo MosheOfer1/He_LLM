@@ -95,10 +95,20 @@ This document provides an overview of the project's structure, outlining the pur
 
 ### Using the Virtual Environment
 
+Installation:
+
+```bash
+conda create -n myenv python=3.10
+conda activate myenv
+conda install pytorch torchvision torchaudio pytorch-cuda=12.6 -c pytorch -c nvidia
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+
+
 To activate the virtual environment and run the project, follow these ***example*** steps:
 
 ```bash
-source ~/Documents/GitHub/He_LLM/venv/bin/activate
+conda activate myenv
 ```
 
 Once activated, you can execute your scripts or commands within this environment. When you're finished, deactivate the environment with:

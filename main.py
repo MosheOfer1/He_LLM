@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from custom_model import MyCustomModel
+from models.custom_model import MyCustomModel
 from custom_trainers.combined_model_trainer import CombinedTrainer
 
 # Dataset
@@ -51,16 +51,16 @@ eval_dataset = HebrewDataset(data=eval_data,
                              max_length=20)
 
 
-trainer: CombinedTrainer = customLLM.create_trainer(train_dataset=train_dataset, 
-                      eval_dataset=eval_dataset, 
-                      output_dir="results", 
-                      logging_dir="loggings",
-                      epochs= 5,
-                      batch_size=1,
-                      weight_decay=0.01,
-                      logging_steps=1000,
-                      evaluation_strategy="steps",
-                      lr=0.006334926670051613)
+# trainer: CombinedTrainer = customLLM.create_trainer(train_dataset=train_dataset, 
+#                       eval_dataset=eval_dataset, 
+#                       output_dir="results", 
+#                       logging_dir="loggings",
+#                       epochs= 5,
+#                       batch_size=1,
+#                       weight_decay=0.01,
+#                       logging_steps=1000,
+#                       evaluation_strategy="steps",
+#                       lr=0.006334926670051613)
 
 # Train the model
 customLLM.train_model(train_dataset=train_dataset, 
@@ -70,9 +70,9 @@ customLLM.train_model(train_dataset=train_dataset,
                       epochs= 5,
                       batch_size=1,
                       weight_decay=0.01,
-                      logging_steps=1000,
+                      logging_steps=10,
                       evaluation_strategy="steps",
-                      lr=0.00001)
+                      lr=0.006334926670051613)
 
 # {'loss': 6.314, 'grad_norm': 0.19041453301906586, 'learning_rate': 0.004873020515424318, 'epoch': 1.25}
 # {'loss': 6.2977, 'grad_norm': 0.3401281535625458, 'learning_rate': 0.0032486803436162118, 'epoch': 2.5}

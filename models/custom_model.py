@@ -22,8 +22,11 @@ from llm.facebook_llm import FacebookLLM
 # Dataset
 from my_datasets.hebrew_dataset_wiki import HebrewDataset
 
+# Optuna best hypers finder
+from utilty.BestHyper import BestHyper
 
-class MyCustomModel(nn.Module):
+
+class MyCustomModel(nn.Module, BestHyper):
 
     def __init__(self,
                 src_to_target_translator_model_name,
@@ -32,7 +35,7 @@ class MyCustomModel(nn.Module):
                 pretrained_transformer1_path: str = None,
                 pretrained_transformer2_path: str = None):
         
-        super(MyCustomModel, self).__init__()
+        nn.Module.__init__(self)
 
         # Custom Translator
         self.translator = HelsinkiTranslator(src_to_target_translator_model_name,
@@ -52,12 +55,14 @@ class MyCustomModel(nn.Module):
         # Freeze LLM parameters
         self.llm.set_requires_grad(False)
 
-    def forward(self, input_ids = None, text = None, attention_mask=None, labels = None, class_weights = None) -> torch.Tensor:
+    def forward(self, input_ids, text = None, attention_mask=None, labels = None, class_weights = None) -> torch.Tensor:
                 
         
         # Remove batch if batch_size=1
         input_ids = input_ids.squeeze(0)
-        attention_mask = attention_mask.squeeze(0)
+        
+        if attention_mask != None:
+            attention_mask = attention_mask.squeeze(0)
         
         # print(f"input_ids shape: {input_ids.shape}")
         # print(f"attention_mask shape: {attention_mask.shape}")
@@ -65,7 +70,7 @@ class MyCustomModel(nn.Module):
         if text:
             # Get hidden states from text
             translator_last_hs = self.translator.text_to_hidden_states(text, -1, self.translator.src_to_target_tokenizer,
-                                                                    self.translator.src_to_target_model, False)
+                                                                    self.translator.src_to_target_model, False, attention_mask=attention_mask)
         else:                    
             translator_last_hs = self.translator.input_ids_to_hidden_states(input_ids, -1, self.translator.src_to_target_tokenizer,
                                                                    self.translator.src_to_target_model, False, attention_mask=attention_mask)
@@ -115,8 +120,8 @@ class MyCustomModel(nn.Module):
         
         return {"f1": f1}
         
-    def create_trainer(
-        self, train_dataset: Dataset, eval_dataset: Dataset,
+    def create_trainer(self, 
+        train_dataset: Dataset, eval_dataset: Dataset,
         output_dir: str, logging_dir: str, epochs: int = 5, 
         batch_size: int = 1, weight_decay: float = 0.01,
         logging_steps: int = 1000, evaluation_strategy: str = "steps",
@@ -191,12 +196,33 @@ class MyCustomModel(nn.Module):
 
         return trainer
     
-    def train_and_evaluate(self, lr, weight_decay, batch_size, epochs):
-        """Subclasses should implement this method to define how to train and evaluate the model using transformers.Trainer."""
-        pass
-    
     def save_model(trainer, output_dir):
         # Save the finetuned model and tokenizer with a new name
         pretrained_model_dir = f"./pretrained_models/end_to_end_model/{output_dir}"
         trainer.save_model(pretrained_model_dir)
+    
+    # Overrides BestHyper func
+    def train_and_evaluate(self, train_dataset, eval_dataset, lr, weight_decay, batch_size, epochs, output_dir, logging_dir):
+        """Subclasses should implement this method to define how to train and evaluate the model using transformers.Trainer."""
+
+        trainer = self.create_trainer(train_dataset=train_dataset,
+                                      eval_dataset=eval_dataset,
+                                      output_dir=output_dir,
+                                      logging_dir=logging_dir,
+                                      epochs=epochs,
+                                      batch_size=batch_size,
+                                      lr=lr,
+                                      weight_decay=weight_decay)
+        # Train the model
+        trainer.train()
         
+        # Results
+        eval_results = trainer.evaluate()
+            
+        return eval_results['eval_loss']
+
+    def printTrainableParams(self):
+        # Print the parameter names for the model customLLM
+        for name, param in self.parameters():
+            if param.requires_grad:
+                print(name)
