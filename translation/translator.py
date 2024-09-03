@@ -119,7 +119,7 @@ class Translator(Injectable):
             model = self.target_to_src_model
 
         # Use the static method to process inputs and get the final outputs
-        self.outputs = self.process_outputs(self.inputs, model, tokenizer)
+        self.outputs = self.process_outputs(inputs=self.inputs, model=model, tokenizer=tokenizer)
 
         # Extract the logits from the outputs
         final_logits = self.outputs.logits
@@ -145,14 +145,21 @@ class Translator(Injectable):
         
         counter = 0
         while counter < max_len:
+            
             # Run the model with the current decoder input IDs to get the outputs
-            outputs = model(
-                **inputs,
-                decoder_input_ids=decoder_input_ids,
-                attention_mask=attention_mask,
-                output_hidden_states=True
-            )
-
+            if attention_mask != None:
+                outputs = model(
+                    **inputs,
+                    decoder_input_ids=decoder_input_ids,
+                    attention_mask=attention_mask,
+                    output_hidden_states=True
+                )
+            else:
+                outputs = model(
+                    **inputs,
+                    decoder_input_ids=decoder_input_ids,
+                    output_hidden_states=True
+                )
             # Get the token ID for the current timestep (take argmax over the vocabulary dimension)
             token_id = torch.argmax(outputs.logits[:, -1, :], dim=-1).item()
 
