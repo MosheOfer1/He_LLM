@@ -54,7 +54,7 @@ class CombinedTrainer(Trainer):
         labels = inputs.get("labels")
 
         loss_func = nn.CrossEntropyLoss()
-        loss = loss_func(logits, labels)
+        loss = loss_func(logits[:, 0, :], labels)
 
         return (loss, outputs) if return_outputs else loss
 
