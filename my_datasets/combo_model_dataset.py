@@ -2,14 +2,20 @@ from torch.utils.data import Dataset
 
 
 class ComboModelDataset(Dataset):
-    def __init__(self, text: str, input_tokenizer, output_tokenizer, window_size=5):
+    def __init__(self, text: str, input_tokenizer, output_tokenizer, window_size=5, device='cpu'):
+        
+        self.device = device
+        
         self.data = input_tokenizer.encode(text, add_special_tokens=False)
         self.input_tokenizer = input_tokenizer
         self.output_tokenizer = output_tokenizer
         self.window_size = window_size
 
     def __len__(self):
-        return len(self.data) - self.window_size
+        length = len(self.data) - self.window_size
+        if length <= 0:
+            raise ValueError(f"Your ComboModelDataset.__len__ <= 0. Check if your window_size is greater then you data size. data_len = {len(self.data)}, window_len = {self.window_size}")
+        return length
 
     def __getitem__(self, idx):
         """

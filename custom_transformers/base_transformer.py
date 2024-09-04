@@ -8,7 +8,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 class BaseTransformer(nn.Module, ABC):
     def __init__(self, model_name: str,
-                 translator=None, llm=None):
+                 translator=None, 
+                 llm=None):
 
         super(BaseTransformer, self).__init__()
         self.model_name = model_name

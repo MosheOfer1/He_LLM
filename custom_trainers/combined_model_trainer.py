@@ -22,8 +22,15 @@ class CombinedTrainer(Trainer):
                  eval_dataset,
                  optimizer,
                  scheduler,
-                 total_steps):
+                 total_steps,
+                 device='cpu'):
+        
+        print(f"CombinedTrainer.__init__ - uses: {device}")
 
+        self.device = device
+        
+        model = model.to(device)
+        
         if not optimizer or not scheduler:
             # Initialize the optimizer and learning rate scheduler
             optimizer = Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
@@ -43,15 +50,15 @@ class CombinedTrainer(Trainer):
         Overrides the Trainer lib default loss computation
         """
         # Extract labels
-        input_ids = inputs.get("input_ids")
+        input_ids = inputs.get("input_ids").to(self.device)
 
         # Feed inputs to model and extract logits
         outputs = model(
             input_ids=input_ids,
         )
 
-        logits = outputs.get("logits")
-        labels = inputs.get("labels")
+        logits = outputs.get("logits").to(self.device)
+        labels = inputs.get("labels").to(self.device)
 
         loss_func = nn.CrossEntropyLoss()
         loss = loss_func(logits[:, 0, :], labels)
@@ -97,6 +104,8 @@ class CombinedTrainer(Trainer):
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = lr
 
+            # batch = {k: v.to(self.device) for k, v in batch.items()}
+            
             # Call the training_step method with the model and inputs
             loss = self.training_step(model=self.model, inputs=batch)
 

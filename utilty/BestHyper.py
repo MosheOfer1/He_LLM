@@ -7,17 +7,17 @@ class BestHyper(ABC):
 
     def find_best_hyper_params(self, train_dataset, eval_dataset, batch_size=1,
                                epochs=5, output_dir="optuna_results",
-                               logging_dir="optuna_loggings", n_trials=50):
+                               logging_dir="optuna_loggings", n_trials=100):
         # Save the initial state of the model
         torch.save(self.state_dict(), 'initial_state.pth')
 
         def objective(trial):
             # Suggest hyperparameters
             lr = trial.suggest_loguniform('lr', 1e-7, 1e-2)
-            weight_decay = trial.suggest_loguniform('weight_decay', 1e-5, 1e-2)
+            weight_decay = trial.suggest_loguniform('weight_decay', 1e-7, 1e-2)
 
             # Load the initial state of the model
-            self.load_state_dict(torch.load('initial_state.pth'))
+            self.load_state_dict(torch.load('initial_state.pth', weights_only=True))
 
             # Train and evaluate the model
             eval_loss = self.train_and_evaluate(
