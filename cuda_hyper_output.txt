@@ -1,4 +1,4 @@
-A new study created in memory with name: no-name-b618bfcf-7f7a-4db6-9c06-c12e5cd4ff53
+A new study created in memory with name: no-name-7c975ca1-6f99-4d51-8193-f1a22e96c5b4
 Im using: cuda
 MyCustomModel.__init__ - uses: cuda
 HelsinkiTranslator.__init__ - uses: cuda
@@ -9,8 +9,12 @@ Transformer1.__init__ - uses: cuda
 Transformer2.__init__ - uses: cuda
 split_index = 1638379
 
+ original data size: 349042, clean: 346823
 
- epoch = 349037, total = 1745185, warmup = 174518 
+ original data size: 93171, clean: 92630
+
+
+ epoch = 346818, total = 1734090, warmup = 173409 
 
 
 CombinedTrainer.__init__ - uses: cuda
