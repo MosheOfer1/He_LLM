@@ -1,0 +1,16 @@
+A new study created in memory with name: no-name-b618bfcf-7f7a-4db6-9c06-c12e5cd4ff53
+Im using: cuda
+MyCustomModel.__init__ - uses: cuda
+HelsinkiTranslator.__init__ - uses: cuda
+Translator.__init__ - uses: cuda
+FacebookLLM.__init__ - uses: cuda
+Transformer.__init__ - uses: cuda
+Transformer1.__init__ - uses: cuda
+Transformer2.__init__ - uses: cuda
+split_index = 1638379
+
+
+ epoch = 349037, total = 1745185, warmup = 174518 
+
+
+CombinedTrainer.__init__ - uses: cuda

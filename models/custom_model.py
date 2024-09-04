@@ -110,7 +110,8 @@ class MyCustomModel(nn.Module, BestHyper):
             batch_size: int = 1, weight_decay: float = 0.01,
             logging_steps: int = 1000, evaluation_strategy: str = "steps",
             lr=0.006334926670051613, max_grad_norm: float = 1.0,
-            optimizer=None, scheduler=None, device='cpu'
+            optimizer=None, scheduler=None, device='cpu', save_strategy = "no",
+            save_steps = 0, save_total_limit = 0
     ) -> CombinedTrainer:
 
         # Move datasets to 'coda' device
@@ -139,6 +140,11 @@ class MyCustomModel(nn.Module, BestHyper):
             log_level="info",
             max_grad_norm=max_grad_norm,
             fp16=True,  # Enable mixed precision training
+            
+            # Saving-related parameters:
+            save_strategy=save_strategy,  # Save every X steps
+            save_steps=save_steps,  # Save a checkpoint every 500 steps
+            save_total_limit=save_total_limit  # Keep only the last 3 checkpoints
         )
 
         trainer = CombinedTrainer(

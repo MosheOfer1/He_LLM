@@ -17,7 +17,8 @@ translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
 llm_model_name = "facebook/opt-125m"
 
-text_file_path = "my_datasets/hebrew_text_for_tests.txt"
+# text_file_path = "my_datasets/hebrew_text_for_tests.txt"
+text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
 
 customLLM = MyCustomModel(translator1_model_name,
                           translator2_model_name,
@@ -50,4 +51,5 @@ eval_dataset = ComboModelDataset(
 )
 
 customLLM.find_best_hyper_params(train_dataset=train_dataset,
-                                 eval_dataset=eval_dataset)
+                                 eval_dataset=eval_dataset,
+                                 report_file_path='cuda_hyper_output.txt')
