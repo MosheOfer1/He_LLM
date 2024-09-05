@@ -47,3 +47,86 @@ CombinedTrainer.__init__ - uses: cuda
 {'loss': 8.6367, 'grad_norm': 12.483989715576172, 'learning_rate': 2.9766479855482483e-05, 'epoch': 2.69}
 {'loss': 8.533, 'grad_norm': 16.432575225830078, 'learning_rate': 2.8381090306218664e-05, 'epoch': 2.8}
 {'loss': 8.6033, 'grad_norm': 10.42906665802002, 'learning_rate': 2.699570075695484e-05, 'epoch': 2.91}
+{'eval_loss': 8.664868354797363, 'eval_runtime': 2486.3064, 'eval_samples_per_second': 0.936, 'eval_steps_per_second': 0.936, 'epoch': 3.0}
+{'loss': 8.7751, 'grad_norm': 15.237533569335938, 'learning_rate': 2.5610311207691016e-05, 'epoch': 3.01}
+{'loss': 8.7172, 'grad_norm': 28.04095458984375, 'learning_rate': 2.4224921658427194e-05, 'epoch': 3.12}
+{'loss': 8.5154, 'grad_norm': 20.967199325561523, 'learning_rate': 2.283953210916337e-05, 'epoch': 3.23}
+{'loss': 8.458, 'grad_norm': 28.22001838684082, 'learning_rate': 2.1455527949448814e-05, 'epoch': 3.34}
+{'loss': 8.5445, 'grad_norm': 16.431575775146484, 'learning_rate': 2.0071523789734254e-05, 'epoch': 3.44}
+{'loss': 8.7085, 'grad_norm': 18.289470672607422, 'learning_rate': 1.868613424047043e-05, 'epoch': 3.55}
+{'loss': 8.4557, 'grad_norm': 18.22226905822754, 'learning_rate': 1.7302130080755878e-05, 'epoch': 3.66}
+{'loss': 8.6334, 'grad_norm': 11.276032447814941, 'learning_rate': 1.5918125921041317e-05, 'epoch': 3.77}
+{'loss': 8.5052, 'grad_norm': 10.762508392333984, 'learning_rate': 1.4532736371777496e-05, 'epoch': 3.87}
+{'loss': 8.6264, 'grad_norm': 22.148643493652344, 'learning_rate': 1.3147346822513672e-05, 'epoch': 3.98}
+Trial 0 failed with parameters: {'lr': 5.7941147118860835e-05, 'weight_decay': 6.80970791918829e-05} because of the following error: KeyboardInterrupt().
+Traceback (most recent call last):
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/optuna/study/_optimize.py", line 197, in _run_trial
+    value_or_values = func(trial)
+  File "/home/ddn1/Documents/GitHub/He_LLM/utilty/BestHyper.py", line 35, in objective
+    eval_loss = self.train_and_evaluate(
+  File "/home/ddn1/Documents/GitHub/He_LLM/models/custom_model.py", line 212, in train_and_evaluate
+    batch_size=batch_size,
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/transformers/trainer.py", line 1948, in train
+    return inner_training_loop(
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/transformers/trainer.py", line 2289, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/transformers/trainer.py", line 3328, in training_step
+    loss = self.compute_loss(model, inputs)
+  File "/home/ddn1/Documents/GitHub/He_LLM/custom_trainers/combined_model_trainer.py", line 56, in compute_loss
+    outputs = model(
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/accelerate/utils/operations.py", line 820, in forward
+    return model_forward(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/accelerate/utils/operations.py", line 808, in __call__
+    return convert_to_fp32(self.model_forward(*args, **kwargs))
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/amp/autocast_mode.py", line 43, in decorate_autocast
+    return func(*args, **kwargs)
+  File "/home/ddn1/Documents/GitHub/He_LLM/models/custom_model.py", line 103, in forward
+  File "/home/ddn1/Documents/GitHub/He_LLM/translation/translator.py", line 75, in get_output_by_using_dummy
+  File "/home/ddn1/Documents/GitHub/He_LLM/translation/translator.py", line 129, in generate_sentence_from_outputs
+    else:
+  File "/home/ddn1/Documents/GitHub/He_LLM/translation/translator.py", line 168, in process_outputs
+    decoder_input_ids=decoder_input_ids,
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/transformers/models/marian/modeling_marian.py", line 1399, in forward
+    outputs = self.model(
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/transformers/models/marian/modeling_marian.py", line 1194, in forward
+    decoder_outputs = self.decoder(
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/transformers/models/marian/modeling_marian.py", line 994, in forward
+    layer_outputs = decoder_layer(
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/transformers/models/marian/modeling_marian.py", line 404, in forward
+    hidden_states, self_attn_weights, present_key_value = self.self_attn(
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/transformers/models/marian/modeling_marian.py", line 186, in forward
+    value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ddn1/anaconda3/envs/myenv/lib/python3.10/site-packages/torch/nn/modules/linear.py", line 117, in forward
+    return F.linear(input, self.weight, self.bias)
+KeyboardInterrupt
+Trial 0 failed with value None.
+{'eval_loss': 8.637125968933105, 'eval_runtime': 2529.0026, 'eval_samples_per_second': 0.92, 'eval_steps_per_second': 0.92, 'epoch': 4.0}
+{'loss': 8.4463, 'grad_norm': 24.22269058227539, 'learning_rate': 1.1763342662799115e-05, 'epoch': 4.09}

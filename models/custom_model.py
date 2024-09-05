@@ -182,7 +182,7 @@ class MyCustomModel(nn.Module, BestHyper):
             batch_size=batch_size,
             weight_decay=weight_decay,
             logging_steps=logging_steps,
-            eval_strategy=evaluation_strategy,
+            evaluation_strategy=evaluation_strategy,
             lr=lr,
             max_grad_norm=max_grad_norm,
             optimizer=optimizer,
@@ -225,4 +225,4 @@ class MyCustomModel(nn.Module, BestHyper):
         # Print the parameter names for the model customLLM
         for name, param in self.named_parameters():
             if param.requires_grad:
-                print(name, param)
+                print(name)

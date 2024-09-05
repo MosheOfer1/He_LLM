@@ -13,3 +13,4 @@ tests/__pycache__/
 *.safetensors
 optuna_loggings
 optuna_results
+loggings/

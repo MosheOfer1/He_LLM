@@ -71,7 +71,7 @@ class Translator(Injectable):
         # Directly set self.inputs to the dummy input tensor
         self.inputs = {"input_ids": dummy_input}
 
-        decoder_input_ids = torch.tensor([[self.target_to_src_tokenizer.pad_token_id]])
+        decoder_input_ids = torch.tensor([[self.target_to_src_tokenizer.pad_token_id]]).to(self.device)
 
         self.outputs = self.target_to_src_model(
             **self.inputs,
@@ -228,7 +228,7 @@ class Translator(Injectable):
         inputs = tokenizer(text, return_tensors="pt").to(model.device)
 
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, attention_mask=attention_mask).to(model.device)
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, attention_mask=attention_mask)
 
         # Return the hidden states of the specified layer
         if from_encoder:

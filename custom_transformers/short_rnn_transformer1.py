@@ -145,7 +145,6 @@ class RNNEncoder(nn.Module):
         self.rnn = nn.LSTM(input_dim, hidden_dim, num_layers=num_layers, batch_first=True)
 
     def forward(self, x):
-        x = x.to(self.device)
         outputs, hidden = self.rnn(x)
         return outputs, hidden
 
@@ -157,7 +156,6 @@ class RNNDecoder(nn.Module):
         self.fc = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x, hidden):
-        x = x.to(hidden.device)
         outputs, hidden = self.rnn(x, hidden)
         predictions = self.fc(outputs)
         return predictions, hidden

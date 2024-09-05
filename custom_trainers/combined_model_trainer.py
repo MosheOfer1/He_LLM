@@ -45,7 +45,7 @@ class CombinedTrainer(Trainer):
                          eval_dataset=eval_dataset,
                          optimizers=(optimizer, scheduler))
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False):        
         """
         Overrides the Trainer lib default loss computation
         """
