@@ -65,11 +65,28 @@ class MyCustomModel(nn.Module, BestHyper):
         # Input dummy text but the it is ignored and uses the injected 
         llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num)
 
-        # Extract the last hidden states and the last token (the prediction)
+        # Extract the last hidden states and the last token (the prediction) shape: [1, 1, dim]
         llm_last_hidden_state = llm_outputs.hidden_states[-1][:, -1, :].unsqueeze(0)
 
         # Transform to translator first hidden states
         transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state)
+
+        # Get hidden states of the EOS token
+        with torch.no_grad():
+            self.translator.target_to_src_model.base_model.encoder.layers[self.translator.injected_layer_num].set_injection_state(False)
+            eos_embedding = self.translator.text_to_hidden_states(
+                "n",
+                0,
+                self.translator.target_to_src_tokenizer,
+                self.translator.target_to_src_model,
+                True
+            )  # Shape: [1, 1, dim]
+            self.translator.target_to_src_model.base_model.encoder.layers[self.translator.injected_layer_num].set_injection_state(True)
+
+            eos_embedding = eos_embedding[:, -1, :].unsqueeze(0)
+
+        # Concatenate llm_last_hidden_state with eos_embedding along the token dimension
+        transformed_to_translator_hs = torch.cat((transformed_to_translator_hs, eos_embedding), dim=1)  # Shape: [1, 2, dim]
 
         # Inject the new hidden states to translator2 first layer
         self.translator.inject_hidden_states(transformed_to_translator_hs)
