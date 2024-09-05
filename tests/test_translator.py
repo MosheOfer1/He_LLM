@@ -50,6 +50,41 @@ class TestTranslator(unittest.TestCase):
         self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
         print(translated_text)
 
+    def test_injection_second_translator_model_input_ids(self):
+        """Test the Second translator injection using input_ids_to_hidden_states"""
+        # Load the tokenizer and model
+        tokenizer = MarianTokenizer.from_pretrained(self.target_to_src_translator_model_name)
+        model = MarianMTModel.from_pretrained(self.target_to_src_translator_model_name, output_hidden_states=True)
+        translator2 = HelsinkiTranslator(self.src_to_target_translator_model_name,
+                                         self.target_to_src_translator_model_name)
+
+        # Step 1: Tokenize the input text to get input_ids
+        inputs = tokenizer(self.sample_text_en, return_tensors="pt")
+        input_ids = inputs["input_ids"]
+
+        # Step 2: Get the hidden states from the first layer of the second translator model using input_ids
+        translator_first_hs = translator2.input_ids_to_hidden_states(
+            input_ids,
+            layer_num=0,  # The layer number to extract the hidden states from
+            tokenizer=tokenizer,
+            model=model
+        )
+
+        # Step 3: Inject these hidden states into the model
+        self.translator.inject_hidden_states(translator_first_hs)
+
+        # Step 4: Generate logits using a dummy input
+        translator_output = self.translator.get_output_by_using_dummy(translator_first_hs.shape[1])
+
+        # Step 5: Decode the logits into text
+        translated_text = self.translator.decode_logits(tokenizer=self.translator.target_to_src_tokenizer,
+                                                        logits=translator_output.logits)
+
+        # Step 6: Validate and print the output
+        self.assertIsInstance(translated_text, str)
+        self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
+        print(translated_text)
+
     def test_get_output_from_first(self):
         """Test the get_output method when using the first translator."""
         output = self.translator.get_output(from_first=True, text=self.sample_text_he)

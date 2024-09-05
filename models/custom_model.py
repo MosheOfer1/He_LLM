@@ -48,21 +48,11 @@ class MyCustomModel(nn.Module, BestHyper):
         # Freeze LLM parameters
         self.llm.set_requires_grad(False)
 
-    def forward(self, input_ids, text=None, attention_mask=None, labels=None) -> torch.Tensor:
-        if attention_mask is not None:
-            attention_mask = attention_mask.squeeze(0)
-
-        if text:
-            # Get hidden states from text
-            translator_last_hs = self.translator.text_to_hidden_states(text, -1,
-                                                                       self.translator.src_to_target_tokenizer,
-                                                                       self.translator.src_to_target_model, False,
-                                                                       attention_mask=attention_mask)
-        else:
-            translator_last_hs = self.translator.input_ids_to_hidden_states(input_ids, -1,
-                                                                            self.translator.src_to_target_tokenizer,
-                                                                            self.translator.src_to_target_model, False,
-                                                                            attention_mask=attention_mask)
+    def forward(self, input_ids, attention_mask=None, labels=None) -> torch.Tensor:
+        translator_last_hs = self.translator.input_ids_to_hidden_states(input_ids, -1,
+                                                                        self.translator.src_to_target_tokenizer,
+                                                                        self.translator.src_to_target_model, False,
+                                                                        attention_mask=attention_mask)
 
         # Transform to llm first hidden states
         transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs)
@@ -75,8 +65,8 @@ class MyCustomModel(nn.Module, BestHyper):
         # Input dummy text but the it is ignored and uses the injected 
         llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num)
 
-        # Extract the last hidden states
-        llm_last_hidden_state = llm_outputs.hidden_states[-1]
+        # Extract the last hidden states and the last token (the prediction)
+        llm_last_hidden_state = llm_outputs.hidden_states[-1][:, -1, :].unsqueeze(0)
 
         # Transform to translator first hidden states
         transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state)
@@ -161,6 +151,7 @@ class MyCustomModel(nn.Module, BestHyper):
             scheduler=scheduler
         )
 
+        self.printTrainableParams()
         trainer.train()
 
         return trainer
@@ -192,6 +183,6 @@ class MyCustomModel(nn.Module, BestHyper):
 
     def printTrainableParams(self):
         # Print the parameter names for the model customLLM
-        for name, param in self.parameters():
+        for name, param in self.named_parameters():
             if param.requires_grad:
-                print(name)
+                print(name, param)

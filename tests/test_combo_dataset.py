@@ -1,5 +1,7 @@
 import unittest
-from transformers import MarianTokenizer
+
+import torch
+from transformers import MarianTokenizer, MarianMTModel
 from torch.utils.data import DataLoader, RandomSampler
 from my_datasets.combo_model_dataset import ComboModelDataset
 
@@ -8,16 +10,19 @@ class TestComboModelDataset(unittest.TestCase):
 
     def setUp(self):
         # Initialize the tokenizers
-        self.input_tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-tc-big-he-en")
-        self.output_tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-he")
+        src_to_target_translator_model_name = 'Helsinki-NLP/opus-mt-tc-big-he-en'
+        target_to_src_translator_model_name = 'Helsinki-NLP/opus-mt-en-he'
+        self.input_tokenizer = MarianTokenizer.from_pretrained(src_to_target_translator_model_name)
+        self.output_tokenizer = MarianTokenizer.from_pretrained(target_to_src_translator_model_name)
+
+        # Initialize the models correctly
+        self.first_model = MarianMTModel.from_pretrained(src_to_target_translator_model_name,
+                                                         output_hidden_states=True)
+        self.second_model = MarianMTModel.from_pretrained(target_to_src_translator_model_name,
+                                                          output_hidden_states=True)
 
         # Example text in Hebrew
-        self.text = """במהלך מלחמת העולם השנייה עבד במחלקה למחקר צבאי באוניברסיטת קולומביה
-למד צרפתית וספרות בבודפשט ולבסוף הוסמך בלימודים גרמניים באוניברסיטת בלגרד
-פרסומים עיקריים מקורות המחשבה הצבאית המודרנית משרד הביטחון ההוצאה לאור
-קישורים חיצוניים אתר האינטרנט של המרכז הירושלמי לענייני ציבור ומדינה
-אם התכוונתם למושבה האמריקנית שקדמה למדינה ראו הפרובינציה של פנסילבניה
-        """
+        self.text = "לא משנה עם מי תלך לעולם לא"
 
         # Initialize the dataset
         self.dataset = ComboModelDataset(
@@ -26,6 +31,58 @@ class TestComboModelDataset(unittest.TestCase):
             output_tokenizer=self.output_tokenizer,
             window_size=5
         )
+
+    def test_dataloader(self):
+        # Create a RandomSampler for shuffling and getting indices
+        sampler = RandomSampler(self.dataset)
+
+        # Create the DataLoader with the sampler
+        dataloader = DataLoader(self.dataset, batch_size=2, sampler=sampler)
+
+        # Iterate through the batches
+        for batch_idx, (indices, batch) in enumerate(zip(sampler, dataloader)):
+            self.assertIn('input_ids', batch)
+            self.assertIn('labels', batch)
+
+            # Print the batch index and shuffled indices
+            print(f"Batch index: {batch_idx}, Shuffled indices: {indices}")
+
+            # Translate each input_ids in the batch to English using the first model
+            input_ids_list = batch['input_ids']
+            for input_ids in input_ids_list:
+                # Step 1: Convert input_ids back to Hebrew text using input_tokenizer
+                hebrew_text = self.input_tokenizer.decode(input_ids, skip_special_tokens=True)
+                print(f"Original Hebrew sentence: {hebrew_text}")
+
+                # Step 2: Tokenize the Hebrew text for the second translation process
+                hebrew_tokenized_input = self.input_tokenizer(hebrew_text, return_tensors="pt")
+                print("**hebrew_tokenized_input", hebrew_tokenized_input)
+
+                # Step 3: Run the tokenized Hebrew text through the model to get translated output (English)
+                with torch.no_grad():
+                    outputs = self.first_model.generate(**hebrew_tokenized_input,
+                                                        max_length=50)  # Increase max_length
+
+                # Step 4: Decode the translated output (in English)
+                translated_sentence1 = self.input_tokenizer.decode(outputs[0], skip_special_tokens=True)
+                print(f"Translated sentence (to English): {translated_sentence1}")
+
+                # Simulate the batch structure
+                batch_artificial = {
+                    'input_ids': input_ids.unsqueeze(0),  # Add batch dimension
+                }
+
+                with torch.no_grad():
+                    outputs = self.first_model.generate(**batch_artificial,
+                                                        max_length=50)  # Increase max_length
+
+                # Step 4: Decode the translated output (in English)
+                translated_sentence2 = self.input_tokenizer.decode(outputs[0], skip_special_tokens=True)
+                print(f"Translated sentence (to English) with batch_artificial: {translated_sentence2}")
+                self.assertEqual(translated_sentence1, translated_sentence2)
+
+            # Print the entire batch for reference
+            print(batch)
 
     def test_getitem(self):
         # Check the output of __getitem__
@@ -36,7 +93,7 @@ class TestComboModelDataset(unittest.TestCase):
 
         # Validate that input_ids and labels are not empty
         self.assertTrue(len(first_item['input_ids']) > 0)
-        self.assertTrue(isinstance(first_item['labels'], int))
+        self.assertTrue(isinstance(first_item['labels'], torch.Tensor))
 
         # Additional checks can be done to ensure correctness
         expected_next_token = self.dataset.token_pairs[16][1][0]
@@ -53,20 +110,6 @@ class TestComboModelDataset(unittest.TestCase):
 
         self.assertEqual(a, expected_label)
         self.assertEqual(first_item['labels'], expected_label)
-
-    def test_dataloader(self):
-        # Create a RandomSampler for shuffling and getting indices
-        sampler = RandomSampler(self.dataset)
-
-        # Create the DataLoader with the sampler
-        dataloader = DataLoader(self.dataset, batch_size=2, sampler=sampler)
-
-        # Iterate through the batches
-        for batch_idx, (indices, batch) in enumerate(zip(sampler, dataloader)):
-            self.assertIn('input_ids', batch)
-            self.assertIn('labels', batch)
-            print(f"Batch index: {batch_idx}, Shuffled indices: {indices}")
-            print(batch)
 
 
 if __name__ == '__main__':

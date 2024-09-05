@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import Dataset
 
 
@@ -26,8 +27,8 @@ class ComboModelDataset(Dataset):
         )["input_ids"][0]
 
         return {
-            'input_ids': input_ids,
-            'labels': label,
+            'input_ids': torch.tensor(input_ids, dtype=torch.long),
+            'labels': torch.tensor(label, dtype=torch.long),
         }
 
     def _get_input_ids(self, idx):
@@ -43,8 +44,9 @@ class ComboModelDataset(Dataset):
                 tokens.append(token)
 
             input_ids.extend(self.input_tokenizer.encode(tokens, add_special_tokens=False))
-
-        return input_ids[(len(input_ids) - self.window_size):len(input_ids)]
+        input_ids = input_ids[(len(input_ids) - self.window_size):len(input_ids)]
+        input_ids.append(self.input_tokenizer.eos_token_id)
+        return input_ids
 
 
 def align_tokens(tokenizer1, tokenizer2, text):
