@@ -26,7 +26,7 @@ class BestHyper(ABC):
         def objective(trial):
             # Suggest hyperparameters
             lr = trial.suggest_loguniform('lr', 1e-7, 1e-2)
-            weight_decay = trial.suggest_loguniform('weight_decay', 1e-7, 1e-2)
+            weight_decay = trial.suggest_loguniform('weight_decay', 1e-7, 1e-3)
 
             # Load the initial state of the model
             self.load_state_dict(torch.load('initial_state.pth', weights_only=True))

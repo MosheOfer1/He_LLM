@@ -245,3 +245,6 @@ class Translator(Injectable):
             return outputs.encoder_hidden_states[layer_num]
         else:
             return outputs.decoder_hidden_states[layer_num]
+        
+    def test_translator2(self):
+        pass

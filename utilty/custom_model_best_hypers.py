@@ -17,8 +17,9 @@ translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
 llm_model_name = "facebook/opt-125m"
 
+text_file_path = "my_datasets/small_hebrew_text_for_optuna_check.txt"
 # text_file_path = "my_datasets/hebrew_text_for_tests.txt"
-text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
+# text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
 
 customLLM = MyCustomModel(translator1_model_name,
                           translator2_model_name,
