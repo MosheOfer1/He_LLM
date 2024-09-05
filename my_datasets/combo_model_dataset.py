@@ -1,24 +1,22 @@
+import torch
 from torch.utils.data import Dataset
 
 
 class ComboModelDataset(Dataset):
-    def __init__(self, text: str, input_tokenizer, output_tokenizer, window_size=5, device='cpu'):
-        
-        self.device = device
-        
-        self.data = input_tokenizer.encode(text, add_special_tokens=False)
+    def __init__(self, text: str, input_tokenizer, output_tokenizer, window_size=10, device='cpu'):
+        self.token_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
         self.input_tokenizer = input_tokenizer
         self.output_tokenizer = output_tokenizer
         self.window_size = window_size
 
-        self.valid_data = self._filter_data()
+        # self.valid_data = self._filter_data()
         
         print(f"\n original data size: {len(self.data)}, clean: {len(self.valid_data)}")
         
     def __len__(self):
-        length = len(self.valid_data) - self.window_size
+        length = len(self.token_pairs) - self.window_size - 1
         if length <= 0:
-            raise ValueError(f"Your ComboModelDataset.__len__ <= 0. Check if your window_size is greater then you data size (clean data). data_len = {len(self.valid_data)}, window_len = {self.window_size}")
+            raise ValueError(f"Your ComboModelDataset.__len__ <= 0. Check if your window_size is greater then you data size (clean data)")
         return length
 
     def __getitem__(self, idx):
@@ -27,27 +25,66 @@ class ComboModelDataset(Dataset):
             dict: A dictionary with 'input_ids' containing the tokenized Hebrew sentence and 
                   'labels' containing the associated label.
         """
-        input_ids = self.valid_data[idx:idx+self.window_size]
-        next_token_id = self.valid_data[idx+self.window_size]
-        next_token = self.input_tokenizer.decode([next_token_id], skip_special_tokens=True)
+        input_ids = self._get_input_ids(idx)
+        next_token = self.token_pairs[idx + self.window_size][1][0]
 
-        with self.output_tokenizer.as_target_tokenizer():
-            label = self.output_tokenizer.encode(next_token, add_special_tokens=False)[0]
+        label = self.output_tokenizer(
+            text_target=next_token,
+            add_special_tokens=False
+        )["input_ids"][0]
 
         return {
-            'input_ids': input_ids,
-            'labels': label,
+            'input_ids': torch.tensor(input_ids, dtype=torch.long),
+            'labels': torch.tensor(label, dtype=torch.long),
         }
+    
+    def _get_input_ids(self, idx):
+        input_ids = []
 
-    def _filter_data(self):
-        clean_data = []
-        for idx in range(len(self.data)):
-            current_token_id = self.data[idx]
-            current_token = self.input_tokenizer.decode([current_token_id], skip_special_tokens=True)
+        # Limit the range of token pairs based on idx and window_size
+        for i in range(idx, min(idx + self.window_size, len(self.token_pairs))):
+            pair = self.token_pairs[i]
+            first_tuple_tokens = pair[0]
 
-            with self.output_tokenizer.as_target_tokenizer():
-                encoded_label = self.output_tokenizer.encode(current_token, add_special_tokens=False)
+            tokens = []
+            for token in first_tuple_tokens:
+                tokens.append(token)
 
-            if encoded_label is not None and len(encoded_label) > 0:
-                clean_data.append(current_token_id)
-        return clean_data
+            encoded = self.input_tokenizer.encode(tokens, add_special_tokens=False)
+            # Maybe Bug
+            input_ids.extend(encoded)
+        input_ids = input_ids[(len(input_ids) - self.window_size):len(input_ids)]
+        input_ids.append(self.input_tokenizer.eos_token_id)
+        return input_ids
+
+
+def align_tokens(tokenizer1, tokenizer2, text):
+    # Tokenize the text using both tokenizers
+    tokens1 = tokenizer1.tokenize(text)
+    with tokenizer2.as_target_tokenizer():
+        tokens2 = tokenizer2.tokenize(text)
+
+    aligned_pairs = []
+    i, j = 0, 0
+
+    while i < len(tokens1) and j < len(tokens2):
+        token_group_1 = [tokens1[i]]
+        token_group_2 = [tokens2[j]]
+
+        # Collect tokens from the first list until they match the beginning of the next token in the second list
+        while not ''.join(token_group_1) == ''.join(token_group_2):
+            if len(''.join(token_group_1)) < len(''.join(token_group_2)):
+                i += 1
+                token_group_1.append(tokens1[i])
+            else:
+                j += 1
+                token_group_2.append(tokens2[j])
+
+        # Add the aligned pair of groups to the result
+        aligned_pairs.append((tuple(token_group_1), tuple(token_group_2)))
+
+        i += 1
+        j += 1
+
+    return aligned_pairs
+

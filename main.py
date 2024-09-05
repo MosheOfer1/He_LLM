@@ -65,8 +65,3 @@ customLLM.train_model(train_dataset=train_dataset,
                       logging_steps=10,
                       evaluation_strategy="steps",
                       lr=0.006334926670051613)
-
-# {'loss': 6.314, 'grad_norm': 0.19041453301906586, 'learning_rate': 0.004873020515424318, 'epoch': 1.25}
-# {'loss': 6.2977, 'grad_norm': 0.3401281535625458, 'learning_rate': 0.0032486803436162118, 'epoch': 2.5}
-# {'loss': 6.6034, 'grad_norm': 0.16888704895973206, 'learning_rate': 0.0016243401718081059, 'epoch': 3.75}
-# {'loss': 6.2835, 'grad_norm': 0.39941009879112244, 'learning_rate': 0.0, 'epoch': 5.0}
