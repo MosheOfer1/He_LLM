@@ -10,7 +10,8 @@ from translation.translator import Translator
 
 class HelsinkiTranslator(nn.Module, Translator):
     def __init__(self, src_to_target_translator_model_name,
-                 target_to_src_translator_model_name):
+                 target_to_src_translator_model_name,
+                 device = 'cpu'):
         """
         Initializes the HelsinkiTranslator with pretrained MarianMT models and tokenizers
         for translating between Hebrew and English.
@@ -19,6 +20,10 @@ class HelsinkiTranslator(nn.Module, Translator):
         from Hebrew to English and from English to Hebrew.
         """
 
+        print(f"HelsinkiTranslator.__init__ - uses: {device}")
+        
+        self.device = device
+        
         # Initialize nn.Module
         nn.Module.__init__(self)
 
@@ -31,5 +36,5 @@ class HelsinkiTranslator(nn.Module, Translator):
                             MarianMTModel.from_pretrained(target_to_src_translator_model_name,
                                                           output_hidden_states=True),
                             MarianTokenizer.from_pretrained(src_to_target_translator_model_name),
-                            MarianTokenizer.from_pretrained(target_to_src_translator_model_name)
-                            )
+                            MarianTokenizer.from_pretrained(target_to_src_translator_model_name),
+                            device=device)

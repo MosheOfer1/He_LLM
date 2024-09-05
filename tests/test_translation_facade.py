@@ -48,12 +48,12 @@ class TestCustomModel(unittest.TestCase):
         self.train_dataset = ComboModelDataset(text=train_data,
                                                input_tokenizer=self.customLLM.translator.src_to_target_tokenizer,
                                                output_tokenizer=self.customLLM.translator.target_to_src_tokenizer,
-                                               max_length=20)
+                                               )
 
         self.eval_dataset = ComboModelDataset(text=eval_data,
                                               input_tokenizer=self.customLLM.translator.src_to_target_tokenizer,
                                               output_tokenizer=self.customLLM.translator.target_to_src_tokenizer,
-                                              max_length=20)
+                                              )
 
         self.he_text = "אבא בא לגן"
 

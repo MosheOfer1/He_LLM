@@ -17,14 +17,27 @@ from translation.translator import Translator
 
 
 class Transformer1(BaseTransformer):
-    def __init__(self, translator: Translator, llm: LLMWrapper, model_name=None, nhead=8, num_layers=6,
-                 max_seq_len=512):
+    def __init__(self, translator: Translator,
+                 llm: LLMWrapper, 
+                 model_name=None, 
+                 nhead=8, 
+                 num_layers=6,
+                 max_seq_len=512,
+                 device='cpu'):
         """
         Initialize the Transformer1 model.
 
         :param translator: The translator instance used.
         :param llm: The LLM instance used.
         """
+        
+        print(f"Transformer1.__init__ - uses: {device}")
+        
+        self.device = device
+        
+        llm = llm.to(device)
+        translator = translator.to(device)
+
         # Determine input and output dimensions based on the translator and LLM
         self.input_dim = translator.src_to_target_model.config.hidden_size
         self.output_dim = llm.model.config.hidden_size
@@ -33,25 +46,27 @@ class Transformer1(BaseTransformer):
         if not model_name:
             model_name = f"transformer_1_{translator.src_to_target_translator_model_name.replace('/', '_')}_to_{llm.model.config.name_or_path.replace('/', '_')}"
 
-        super(Transformer1, self).__init__(model_name=model_name, translator=translator, llm=llm)
+        super(Transformer1, self).__init__(model_name=model_name, 
+                                           translator=translator, 
+                                           llm=llm)
 
         """ Define the layers of the transformer model  """
         # Input projection to align translator's hidden states to the model's hidden dimension
-        self.input_projection = nn.Linear(self.input_dim, hidden_dim)
+        self.input_projection = nn.Linear(self.input_dim, hidden_dim).to(device)
         # Initializing the positional encoding as a learnable parameter in the model max seq len is 512
-        self.positional_encoding = nn.Parameter(torch.zeros(1, max_seq_len, hidden_dim))
+        self.positional_encoding = nn.Parameter(torch.zeros(1, max_seq_len, hidden_dim)).to(device)
         # Transformer Encoder Layer
-        encoder_layers = TransformerEncoderLayer(d_model=hidden_dim, nhead=nhead)
-        self.encoder = TransformerEncoder(encoder_layers, num_layers=num_layers)
+        encoder_layers = TransformerEncoderLayer(d_model=hidden_dim, nhead=nhead).to(device)
+        self.encoder = TransformerEncoder(encoder_layers, num_layers=num_layers).to(device)
         # Transformer Decoder Layer
-        decoder_layers = TransformerDecoderLayer(d_model=hidden_dim, nhead=nhead, batch_first=True)
-        self.decoder = TransformerDecoder(decoder_layers, num_layers=num_layers)
+        decoder_layers = TransformerDecoderLayer(d_model=hidden_dim, nhead=nhead, batch_first=True).to(device)
+        self.decoder = TransformerDecoder(decoder_layers, num_layers=num_layers).to(device)
         # Output projection to align model's output to the LLM's required hidden dimension
-        self.output_projection = nn.Linear(hidden_dim, self.output_dim)
+        self.output_projection = nn.Linear(hidden_dim, self.output_dim).to(device)
 
         # Define the EOS vector (e.g., a vector of zeros or a specific learned vector)
-        self.eos_vector_input = torch.zeros(translator.src_to_target_model.config.hidden_size)
-        self.eos_vector_output = torch.zeros(llm.model.config.hidden_size)
+        self.eos_vector_input = torch.zeros(translator.src_to_target_model.config.hidden_size).to(device)
+        self.eos_vector_output = torch.zeros(llm.model.config.hidden_size).to(device)
 
     def encode(self, input_seq):
         input_seq = self.input_projection(input_seq)
@@ -82,6 +97,10 @@ class Transformer1(BaseTransformer):
         :param labels: Target tensor of shape (batch_size, seq_len, output_dim), optional.
         :return: The output of the model.
         """
+        input_ids = input_ids.to(self.device)
+        if labels is not None:
+            labels = labels.to(self.device)
+            
         max_length = input_ids.size(1) + 5
 
         # Encode the input sequence using the encoder
@@ -103,8 +122,8 @@ class Transformer1(BaseTransformer):
             batch_size = input_ids.size(0)
             # Initialize the decoder input with a start token (or a tensor of zeros)
             # Assuming the first token in the sequence as a start token.
-            start_tokens = torch.zeros((batch_size, 1, self.output_dim), device=input_ids.device)
-            generated_seq = start_tokens
+            start_tokens = torch.zeros((batch_size, 1, self.output_dim))#, device=self.device)
+            generated_seq = start_tokens.to(self.device)
 
             for _ in range(max_length):
                 # Decode the current sequence
@@ -112,7 +131,7 @@ class Transformer1(BaseTransformer):
                 # Project the decoder output to get the logits
                 logits = self.output_projection(decoder_output)
                 # Get the predicted token by taking the argmax of the logits (greedy decoding)
-                next_token = logits[:, -1, :]  # Take the last time step's output
+                next_token = logits[:, -1, :].to(self.device)  # Take the last time step's output
                 # Calculate MSE with the EOS vector
                 mse_loss = torch.nn.MSELoss()
                 mse = mse_loss(next_token, self.eos_vector_output)
@@ -156,7 +175,7 @@ class Transformer1(BaseTransformer):
 
         # Initialize the Seq2SeqTrainer
         trainer = Seq2SeqTrainer(
-            model=self,  # Pass the current model instance
+            model=self.to(self.device),  # Pass the current model instance
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=test_dataset,
@@ -222,7 +241,7 @@ class Transformer1(BaseTransformer):
         model = Transformer1(translator=translator, llm=llm)
 
         # Load the model state dictionary from the saved file
-        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        model.load_state_dict(torch.load(model_path, map_location=torch.device(model.device)))
 
         # Set the model to evaluation mode
         model.eval()

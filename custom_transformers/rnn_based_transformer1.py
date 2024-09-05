@@ -13,13 +13,25 @@ from my_datasets.create_datasets import create_transformer1_dataset
 
 
 class Transformer1(BaseTransformer):
-    def __init__(self, translator, llm, model_name=None, hidden_dim=256, num_layers=1):
+    def __init__(self, 
+                 translator, 
+                 llm, 
+                 model_name=None, 
+                 hidden_dim=256, 
+                 num_layers=1,
+                 device='cpu'):
         """
         Initialize the Transformer1 RNN-based model.
 
         :param translator: The translator instance used.
         :param llm: The LLM instance used.
         """
+        
+        self.device = device
+        
+        llm = llm.to(device)
+        translator = translator.to(device)
+        
         # Determine input and output dimensions based on the translator and LLM
         self.input_dim = translator.src_to_target_model.config.hidden_size
         self.output_dim = llm.model.config.hidden_size
@@ -31,8 +43,8 @@ class Transformer1(BaseTransformer):
         super(Transformer1, self).__init__(model_name=model_name, translator=translator, llm=llm)
 
         # Define the encoder and decoder
-        self.encoder = RNNEncoder(input_dim=self.input_dim, hidden_dim=hidden_dim, num_layers=num_layers)
-        self.decoder = RNNDecoder(output_dim=self.output_dim, hidden_dim=hidden_dim, num_layers=num_layers)
+        self.encoder = RNNEncoder(input_dim=self.input_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
+        self.decoder = RNNDecoder(output_dim=self.output_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
 
     def train_model(self, train_dataset=None, test_dataset=None, epochs=8):
         if not train_dataset:
@@ -63,12 +75,14 @@ class Transformer1(BaseTransformer):
         torch.save(self.state_dict(), self.model_path)
 
     def forward(self, input_ids, labels=None, teacher_forcing_ratio=0.5):
+        input_ids = input_ids.to(self.device)
+        
         batch_size, src_len, _ = input_ids.size()
         tgt_len = labels.size(1) if labels is not None else src_len
-        outputs = torch.zeros(batch_size, tgt_len, self.output_dim).to(input_ids.device)
+        outputs = torch.zeros(batch_size, tgt_len, self.output_dim).to(self.device)
 
         encoder_outputs, hidden = self.encoder(input_ids)
-        input = labels[:, 0, :] if labels is not None else torch.zeros(batch_size, self.output_dim).to(input_ids.device)
+        input = labels[:, 0, :] if labels is not None else torch.zeros(batch_size, self.output_dim).to(self.device)
 
         for t in range(1, tgt_len):
             input = input.clone().detach()
@@ -90,10 +104,12 @@ class Transformer1(BaseTransformer):
         :return: The generated sequence.
         """
         self.eval()
+        src = src.to(self.device)
+        
         batch_size = src.size(0)
-        inputs = torch.zeros(batch_size, 1, self.output_dim).to(src.device)  # Initialize with start token if available
+        inputs = torch.zeros(batch_size, 1, self.output_dim).to(self.device)  # Initialize with start token if available
         if start_token is not None:
-            inputs[:, 0, :] = start_token
+            inputs[:, 0, :] = start_token.to(self.device)
 
         # Pass the source sequence through the encoder
         encoder_outputs, hidden = self.encoder(src)

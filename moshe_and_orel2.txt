@@ -1,0 +1,40 @@
+Im working with: cuda
+MyCustomModel.__init__ - uses: cuda
+HelsinkiTranslator.__init__ - uses: cuda
+Translator.__init__ - uses: cuda
+FacebookLLM.__init__ - uses: cuda
+Transformer.__init__ - uses: cuda
+Transformer2.__init__ - uses: cuda
+len(text) = 383346
+len(data) = 2, len(clean_data) = 306676
+len(data) = 2, len(clean_data) = 306668
+len(data) = 2, len(clean_data) = 76670
+len(data) = 2, len(clean_data) = 76670
+
+
+ epoch = 58580, total = 292900, warmup = 29290 
+
+
+CombinedTrainer.__init__ - uses: cuda
+transformer.transformer1.encoder.rnn.weight_ih_l0
+transformer.transformer1.encoder.rnn.weight_hh_l0
+transformer.transformer1.encoder.rnn.bias_ih_l0
+transformer.transformer1.encoder.rnn.bias_hh_l0
+transformer.transformer1.encoder.rnn.weight_ih_l1
+transformer.transformer1.encoder.rnn.weight_hh_l1
+transformer.transformer1.encoder.rnn.bias_ih_l1
+transformer.transformer1.encoder.rnn.bias_hh_l1
+transformer.transformer1.decoder.rnn.weight_ih_l0
+transformer.transformer1.decoder.rnn.weight_hh_l0
+transformer.transformer1.decoder.rnn.bias_ih_l0
+transformer.transformer1.decoder.rnn.bias_hh_l0
+transformer.transformer1.decoder.rnn.weight_ih_l1
+transformer.transformer1.decoder.rnn.weight_hh_l1
+transformer.transformer1.decoder.rnn.bias_ih_l1
+transformer.transformer1.decoder.rnn.bias_hh_l1
+transformer.transformer1.decoder.fc.weight
+transformer.transformer1.decoder.fc.bias
+transformer.transformer2.layer1.weight
+transformer.transformer2.layer1.bias
+transformer.transformer2.layer2.weight
+transformer.transformer2.layer2.bias

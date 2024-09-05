@@ -4,10 +4,15 @@ from utilty.injectable import CustomLayerWrapper, Injectable
 
 
 class LLMWrapper(Injectable):
-    def __init__(self, model_name, tokenizer, llm_model):
+    def __init__(self, model_name, tokenizer, llm_model, device='cpu'):
         """
         Initialize the LLMIntegration with a specific OPT model.0
         """
+        
+        self.device = device
+        
+        llm_model = llm_model.to(device)
+        
         self.outputs = None
         self.tokenizer = tokenizer
         self.model: OPTForCausalLM = llm_model
@@ -34,11 +39,12 @@ class LLMWrapper(Injectable):
 
         :param injected_hidden_state: The injected hidden states
         """
+        injected_hidden_state = injected_hidden_state
         self.model.base_model.decoder.layers[self.injected_layer_num].injected_hidden_state = injected_hidden_state
 
     def get_output_by_using_dummy(self, token_num):
         # Generate a dummy input for letting the model output the desired result of the injected layer
-        dummy_input = torch.zeros((1, token_num), dtype=torch.long)  # dtype=torch.long for token IDs
+        dummy_input = torch.zeros((1, token_num), dtype=torch.long).to(self.device)  # dtype=torch.long for token IDs
 
         self.outputs = self.model(input_ids=dummy_input, output_hidden_states=True)
 
@@ -52,7 +58,7 @@ class LLMWrapper(Injectable):
         :return: The last hidden state layer from the LLM.
         """
         # Tokenize the text input
-        inputs = self.tokenizer(text, return_tensors="pt")
+        inputs = self.tokenizer(text, return_tensors="pt").to(self.device)
         outputs = self.model(inputs.input_ids)
         return outputs.logits
 
@@ -63,6 +69,8 @@ class LLMWrapper(Injectable):
         :param logits: The logits tensor output from the LLM.
         :return: The decoded text.
         """
+        logits = logits.to(self.device) 
+        
         # Get the token IDs by taking the argmax over the vocabulary dimension (dim=-1)
         token_ids = torch.argmax(logits, dim=-1)
 
@@ -73,7 +81,7 @@ class LLMWrapper(Injectable):
 
     @staticmethod
     def text_to_hidden_states(tokenizer, model, text, layer_num):
-        inputs = tokenizer(text, return_tensors="pt")
+        inputs = tokenizer(text, return_tensors="pt").to(model.device)
         outputs = model(**inputs, output_hidden_states=True)
 
         return outputs.hidden_states[layer_num]

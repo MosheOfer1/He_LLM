@@ -14,13 +14,19 @@ class Translator(Injectable):
                  src_to_target_model,
                  target_to_src_model,
                  src_to_target_tokenizer,
-                 target_to_src_tokenizer):
+                 target_to_src_tokenizer,
+                 device = 'cpu'):
 
+        print(f"Translator.__init__ - uses: {device}")
+
+        self.device = device
+
+        
         self.src_to_target_translator_model_name = src_to_target_translator_model_name
         self.target_to_src_translator_model_name = target_to_src_translator_model_name
 
-        self.src_to_target_model = src_to_target_model
-        self.target_to_src_model = target_to_src_model
+        self.src_to_target_model = src_to_target_model.to(self.device)
+        self.target_to_src_model = target_to_src_model.to(self.device)
         self.src_to_target_tokenizer = src_to_target_tokenizer
         self.target_to_src_tokenizer = target_to_src_tokenizer
 
@@ -29,8 +35,8 @@ class Translator(Injectable):
 
         # Let the Second translator be Injectable by replacing his first block
         self.injected_layer_num = 0
-        original_layer = self.target_to_src_model.base_model.encoder.layers[self.injected_layer_num]
-        wrapped_layer = CustomLayerWrapper(original_layer, None)
+        original_layer = self.target_to_src_model.base_model.encoder.layers[self.injected_layer_num].to(self.device)
+        wrapped_layer = CustomLayerWrapper(original_layer, None).to(self.device)
         self.target_to_src_model.base_model.encoder.layers[self.injected_layer_num] = wrapped_layer
 
     def set_requires_grad(self, requires_grad: bool):
@@ -60,12 +66,12 @@ class Translator(Injectable):
         :param token_num: The number of tokens to create the dummy
         :return: The outputs of the model after passing it through
         """
-        dummy_input = torch.zeros((1, token_num), dtype=torch.long)  # dtype=torch.long for token IDs
+        dummy_input = torch.zeros((1, token_num), dtype=torch.long).to(self.device)  # dtype=torch.long for token IDs
 
         # Directly set self.inputs to the dummy input tensor
         self.inputs = {"input_ids": dummy_input}
 
-        decoder_input_ids = torch.tensor([[self.target_to_src_tokenizer.pad_token_id]])
+        decoder_input_ids = torch.tensor([[self.target_to_src_tokenizer.pad_token_id]]).to(self.device)
 
         self.outputs = self.target_to_src_model(
             **self.inputs,
@@ -87,7 +93,7 @@ class Translator(Injectable):
             use_first_translator = False
 
         # Regular insertion
-        self.inputs = tokenizer(text, return_tensors="pt")
+        self.inputs = tokenizer(text, return_tensors="pt").to(self.device)
         # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
         self.generate_sentence_from_outputs(use_first_translator=use_first_translator)
         # Put it back as injectable
@@ -99,7 +105,8 @@ class Translator(Injectable):
         output = self.get_output(
             from_first=from_first,
             text=text
-        )
+        ).to(self.device)
+        
         tokenizer = self.src_to_target_tokenizer if from_first else self.target_to_src_tokenizer
         translated_text = self.decode_logits(
             tokenizer=tokenizer,
@@ -118,10 +125,10 @@ class Translator(Injectable):
         # Choose the appropriate tokenizer and model based on the flag
         if use_first_translator:
             tokenizer = self.src_to_target_tokenizer
-            model = self.src_to_target_model
+            model = self.src_to_target_model.to(self.device)
         else:
             tokenizer = self.target_to_src_tokenizer
-            model = self.target_to_src_model
+            model = self.target_to_src_model.to(self.device)
 
         # Use the static method to process inputs and get the final outputs
         self.outputs = self.process_outputs(inputs=self.inputs, model=model, tokenizer=tokenizer)
@@ -146,9 +153,11 @@ class Translator(Injectable):
         :param tokenizer: The tokenizer to use for decoding.
         :return: The final outputs after processing all tokens.
         """
+                
         # Initialize decoder input IDs with the start token ID
-        decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]])
-
+        decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]]).to(model.device)
+        # decoder_input_ids = torch.tensor([[tokenizer.bos_token_id]])
+        
         counter = 0
         while counter < max_len:
             
@@ -174,7 +183,8 @@ class Translator(Injectable):
                 break
 
             # Update the decoder input IDs with the newly generated token
-            decoder_input_ids = torch.cat([decoder_input_ids, torch.tensor([[token_id]])], dim=-1)
+            new_token_tensor = torch.tensor([[token_id]]).to(model.device)  # Move the new token to the correct device
+            decoder_input_ids = torch.cat([decoder_input_ids, new_token_tensor], dim=-1)
 
             counter += 1
         return outputs
@@ -215,7 +225,7 @@ class Translator(Injectable):
         :return: The hidden states from the specified layer.
         """
         # Tokenize the input text
-        inputs = tokenizer(text, return_tensors="pt")
+        inputs = tokenizer(text, return_tensors="pt").to(model.device)
 
         # Forward pass through the model, providing decoder input ids
         outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, attention_mask=attention_mask)
@@ -229,7 +239,7 @@ class Translator(Injectable):
     @staticmethod
     def input_ids_to_hidden_states(input_ids, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
         inputs = {
-            "input_ids": input_ids,
+            "input_ids": input_ids.to(model.device),
         }
 
         # Forward pass through the model, providing decoder input ids
@@ -240,3 +250,4 @@ class Translator(Injectable):
             return outputs.encoder_hidden_states[layer_num]
         else:
             return outputs.decoder_hidden_states[layer_num]
+        

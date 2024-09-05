@@ -22,11 +22,16 @@ from llm.llm_integration import LLMWrapper
 class Transformer(nn.Module):
 
     def __init__(self,
-                 translator: Translator = None,
-                 llm: LLMWrapper = None,
-                 pretrained_transformer1_path: str = None,
-                 pretrained_transformer2_path: str = None):
-
+                translator: Translator = None,
+                llm: LLMWrapper = None,
+                pretrained_transformer1_path: str = None,
+                pretrained_transformer2_path: str = None,
+                device: str = 'cpu'):
+        
+        print(f"Transformer.__init__ - uses: {device}")
+        
+        self.device = device
+        
         nn.Module.__init__(self)
 
         # Obtain transformer1
@@ -35,10 +40,10 @@ class Transformer(nn.Module):
             pass
 
         else:
-            self.transformer1 = Transformer1(translator=translator, llm=llm)
+            self.transformer1 = Transformer1(translator=translator, llm=llm, device=device)
 
         # Obtain transformer2
         if pretrained_transformer2_path:
             self.transformer2: Transformer2 = torch.load(pretrained_transformer2_path)
         else:
-            self.transformer2 = Transformer2(translator=translator, llm=llm)
+            self.transformer2 = Transformer2(translator=translator, llm=llm, device=device)

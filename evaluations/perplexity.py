@@ -61,7 +61,7 @@ if tokenizer.pad_token is None:
 
 
 model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto", trust_remote_code=True,
-                                             offload_folder="offload_folder")
+                                             offload_folder="offload_folder").to(device)
 
 model.eval()
 
