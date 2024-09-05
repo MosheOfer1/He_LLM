@@ -65,8 +65,13 @@ class Translator(Injectable):
         # Directly set self.inputs to the dummy input tensor
         self.inputs = {"input_ids": dummy_input}
 
-        # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
-        self.generate_sentence_from_outputs(use_first_translator=False)
+        decoder_input_ids = torch.tensor([[self.target_to_src_tokenizer.pad_token_id]])
+
+        self.outputs = self.target_to_src_model(
+            **self.inputs,
+            decoder_input_ids=decoder_input_ids,
+            output_hidden_states=True
+        )
 
         return self.outputs
 
@@ -143,8 +148,7 @@ class Translator(Injectable):
         """
         # Initialize decoder input IDs with the start token ID
         decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]])
-        # decoder_input_ids = torch.tensor([[tokenizer.bos_token_id]])
-        
+
         counter = 0
         while counter < max_len:
             

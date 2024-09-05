@@ -8,7 +8,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_integration import LLMWrapper
-from my_datasets.create_datasets import create_transformer1_dataset
 from translation.translator import Translator
 
 
@@ -22,7 +21,7 @@ class Transformer1(BaseTransformer):
         if not model_name:
             model_name = f"long_short_rnn_transformer1_{translator.src_to_target_translator_model_name.replace('/', '_')}_to_{llm.model.config.name_or_path.replace('/', '_')}"
 
-        super(Transformer1, self).__init__(model_name=model_name, translator=translator, llm=llm)
+        super(Transformer1, self).__init__(model_name=model_name)
 
         self.encoder = RNNEncoder(input_dim=input_dim, hidden_dim=hidden_dim, num_layers=num_layers)
         self.decoder = RNNDecoder(output_dim=output_dim, hidden_dim=hidden_dim, num_layers=num_layers)
@@ -50,9 +49,6 @@ class Transformer1(BaseTransformer):
         return outputs
 
     def train_model(self, train_dataset=None, test_dataset=None, epochs=8):
-        if not train_dataset:
-            train_dataset, test_dataset = create_transformer1_dataset(self.translator, self.llm, '../my_datasets/')
-
         training_args = TrainingArguments(
             output_dir='./results',  # output directory
             num_train_epochs=epochs,  # total number of training epochs

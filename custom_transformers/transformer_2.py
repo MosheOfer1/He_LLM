@@ -25,7 +25,7 @@ class Transformer2(BaseTransformer):
         # Generate a model name that includes the translator and LLM names
         model_name = f"transformer_2_{llm.model.config.name_or_path.replace('/','_')}_to_{translator.target_to_src_translator_model_name.replace('/','_')}"
 
-        super(Transformer2, self).__init__(model_name=model_name, translator=translator, llm=llm)
+        super(Transformer2, self).__init__(model_name=model_name)
 
         # Define the layers of the transformer model
         self.layer1 = nn.Linear(input_dim, hidden_dim)
@@ -34,7 +34,6 @@ class Transformer2(BaseTransformer):
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, hidden_states):
-        # print(f"Input hidden_states.shape = {hidden_states.shape}")
         """
         Define the forward pass for Transformer2.
         """
@@ -42,7 +41,4 @@ class Transformer2(BaseTransformer):
         x = self.activation(x)
         x = self.dropout(x)
         x = self.layer2(x)
-        
-        # print(f"Output x.shape = {x.shape}")
-
         return x
