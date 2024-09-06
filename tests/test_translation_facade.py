@@ -9,12 +9,9 @@ from transformers import modeling_outputs
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from models.custom_model import MyCustomModel
+from models.combined_model import MyCustomModel
 from translation.translator import Translator
-from custom_transformers.transformer import Transformer
 from llm.llm_integration import LLMWrapper
-
-from custom_trainers.combined_model_trainer import CombinedTrainer
 
 # Transformers
 from custom_transformers.transformer import Transformer

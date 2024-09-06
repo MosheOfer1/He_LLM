@@ -8,7 +8,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from my_datasets.combo_model_dataset import ComboModelDataset
-from models.custom_model import MyCustomModel
+from models.combined_model import MyCustomModel
 
 class TestHebrewDataset(unittest.TestCase):
 

@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from my_datasets.create_datasets import read_file_to_string
 from my_datasets.combo_model_dataset import ComboModelDataset
-from models.custom_model import MyCustomModel
+from models.combined_model import MyCustomModel
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'

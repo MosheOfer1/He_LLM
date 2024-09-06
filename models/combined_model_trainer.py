@@ -60,8 +60,20 @@ class CombinedTrainer(Trainer):
         logits = outputs.get("logits").to(self.device)
         labels = inputs.get("labels").to(self.device)
 
+        # Use only the first token (i.e., first position) from each sequence in the batch
+        # logits[:, 0, :] gives you logits for the first token in each batch element
+        first_token_logits = logits[:, 0, :]  # Shape: [batch_size, num_classes]
+        print(f"logits shape: {first_token_logits.shape}")
+
+        # Similarly, take the labels corresponding to the first token
+        first_token_labels = labels[:, 0]  # Shape: [batch_size]
+        print(f"label shape: {first_token_labels.shape}")
+
+        # Define loss function
         loss_func = nn.CrossEntropyLoss()
-        loss = loss_func(logits[:, 0, :], labels)
+
+        # Compute the loss only for the first token in each batch
+        loss = loss_func(first_token_logits, first_token_labels)
 
         return (loss, outputs) if return_outputs else loss
 
