@@ -45,36 +45,12 @@ class CombinedTrainer(Trainer):
                          eval_dataset=eval_dataset,
                          optimizers=(optimizer, scheduler))
 
-    def compute_loss(self, model, inputs, return_outputs=False):        
+    def compute_loss(self, model, inputs, return_outputs=False):
         """
         Overrides the Trainer lib default loss computation
         """
-        # Extract labels
-        input_ids = inputs.get("input_ids").to(self.device)
-
-        # Feed inputs to model and extract logits
-        outputs = model(
-            input_ids=input_ids,
-        )
-
-        logits = outputs.get("logits").to(self.device)
-        labels = inputs.get("labels").to(self.device)
-
-        # Use only the first token (i.e., first position) from each sequence in the batch
-        # logits[:, 0, :] gives you logits for the first token in each batch element
-        first_token_logits = logits[:, 0, :]  # Shape: [batch_size, num_classes]
-        print(f"logits shape: {first_token_logits.shape}")
-
-        # Similarly, take the labels corresponding to the first token
-        first_token_labels = labels[:, 0]  # Shape: [batch_size]
-        print(f"label shape: {first_token_labels.shape}")
-
-        # Define loss function
-        loss_func = nn.CrossEntropyLoss()
-
-        # Compute the loss only for the first token in each batch
-        loss = loss_func(first_token_logits, first_token_labels)
-
+        outputs = model(**inputs)
+        loss = outputs.loss
         return (loss, outputs) if return_outputs else loss
 
     def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
