@@ -57,28 +57,68 @@ class MyCustomModel(nn.Module, BestHyper):
         self.llm.set_requires_grad(False)
 
     def forward(self, input_ids, attention_mask=None, labels=None) -> torch.Tensor:
+        # Step 1: Get hidden states from the translator for input_ids
+        translator_last_hs = self.get_translator_hidden_states(input_ids, attention_mask)
 
-        translator_last_hs = self.translator.input_ids_to_hidden_states(input_ids, -1,
-                                                                        self.translator.src_to_target_tokenizer,
-                                                                        self.translator.src_to_target_model, False,
-                                                                        attention_mask=attention_mask).to(self.device)
+        # Step 2: Transform to LLM hidden states
+        transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs)
 
-        # Transform to llm first hidden states
-        transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs)  # .to(self.device)
+        # Step 3: Get LLM output using dummy input
+        llm_last_hidden_state = self.get_llm_last_hidden_state(transformed_to_llm_hs)
 
-        # Inject the new hidden states to the llm first layer
+        # Step 4: Transform LLM hidden states to translator's hidden states and inject
+        transformed_to_translator_hs = self.get_transformed_translator_hidden_states(llm_last_hidden_state)
+
+        # Step 5: Get translator output using dummy input
+        outputs = self.get_translator_outputs(transformed_to_translator_hs)
+
+        # Step 6: Compute loss if labels are provided
+        if labels is not None:
+            outputs.loss = self.compute_loss(outputs.get("logits"), labels)
+
+        return outputs
+
+    def get_translator_hidden_states(self, input_ids, attention_mask):
+        return self.translator.input_ids_to_hidden_states(
+            input_ids,
+            -1,
+            self.translator.src_to_target_tokenizer,
+            self.translator.src_to_target_model,
+            False,
+            attention_mask=attention_mask
+        ).to(self.device)
+
+    def get_llm_last_hidden_state(self, transformed_to_llm_hs):
         self.llm.inject_hidden_states(transformed_to_llm_hs)
 
         batch_size = transformed_to_llm_hs.shape[0]
         token_num = transformed_to_llm_hs.shape[1]
 
-        # Input dummy text but the it is ignored and uses the injected 
         llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size)
+        return llm_outputs.hidden_states[-1][:, -1, :].unsqueeze(1)  # Shape: [batch_size, 1, dim]
 
-        # Extract the last hidden states and the last token (the prediction) shape: [1, 1, dim]
-        llm_last_hidden_state = llm_outputs.hidden_states[-1][:, -1, :].unsqueeze(1)
+    def get_translator_outputs(self, transformed_to_translator_hs):
+        self.translator.inject_hidden_states(transformed_to_translator_hs)
+        outputs = self.translator.get_output_by_using_dummy(
+            token_num=transformed_to_translator_hs.shape[1],
+            batch_size=transformed_to_translator_hs.shape[0]
+        )
+        return outputs
 
-        # Transform to translator first hidden states
+    def get_transformed_translator_hidden_states(self, llm_last_hidden_state):
+        """
+        Transforms the LLM's last hidden state to the translator's hidden state and
+        concatenates it with the EOS token embedding.
+
+        Args:
+        - llm_last_hidden_state: Tensor of the last hidden state from the LLM. Shape: [batch_size, 1, dim].
+
+        Returns:
+        - transformed_to_translator_hs: Tensor after transforming and concatenating the EOS embedding.
+        """
+        batch_size = llm_last_hidden_state.shape[0]
+
+        # Transform to translator's first hidden states
         transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state).to(self.device)
 
         # Get hidden states of the EOS token
@@ -86,13 +126,14 @@ class MyCustomModel(nn.Module, BestHyper):
             # Use the context manager without specifying the layer number or state
             with self.translator.injection_state():
                 eos_embedding = self.translator.text_to_hidden_states(
-                    "n",
+                    "a",
                     0,
                     self.translator.target_to_src_tokenizer,
                     self.translator.target_to_src_model,
                     True
-                )  # Shape: [1, 1, dim]
+                )  # Shape: [1, 2, dim]
 
+            # Reshape eos_embedding and repeat for the batch size
             eos_embedding = eos_embedding[:, -1, :].unsqueeze(0)  # Shape: [1, 2, dim] -> [1, dim]
             eos_embedding = eos_embedding.repeat(batch_size, 1, 1)  # Shape: [batch_size, 1, dim]
 
@@ -100,23 +141,12 @@ class MyCustomModel(nn.Module, BestHyper):
         transformed_to_translator_hs = torch.cat((transformed_to_translator_hs, eos_embedding),
                                                  dim=1)  # Shape: [batch_size, 2, dim]
 
-        # Inject the new hidden states to translator2 first layer
-        self.translator.inject_hidden_states(transformed_to_translator_hs)
+        return transformed_to_translator_hs
 
-        batch_size = transformed_to_translator_hs.shape[0]
-        token_num = transformed_to_translator_hs.shape[1]
-
-        # Input dummy text but the it is ignored and uses the injected 
-        outputs = self.translator.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size)
-
-        # Compute loss
-        if labels is not None:
-            logits = outputs.get("logits").to(self.device)
-            first_token_logits = logits[:, 0, :]  # Shape: [batch_size, num_classes]
-            loss_func = nn.CrossEntropyLoss()
-            outputs.loss = loss_func(first_token_logits, labels)
-
-        return outputs
+    def compute_loss(self, logits, labels):
+        logits = logits[:, 0, :].to(self.device)  # Shape: [batch_size, num_classes]
+        loss_func = nn.CrossEntropyLoss()
+        return loss_func(logits, labels)
 
     def create_trainer(
             self, train_dataset: ComboModelDataset, eval_dataset: ComboModelDataset,
@@ -212,7 +242,8 @@ class MyCustomModel(nn.Module, BestHyper):
     # Overrides BestHyper func
     def train_and_evaluate(self, train_dataset, eval_dataset, lr, weight_decay, batch_size, epochs, output_dir,
                            logging_dir):
-        """Subclasses should implement this method to define how to train and evaluate the model using transformers.Trainer."""
+        """Subclasses should implement this method to define how to train and evaluate the model using
+        transformers.Trainer. """
         trainer = self.create_trainer(train_dataset=train_dataset,
                                       eval_dataset=eval_dataset,
                                       output_dir=output_dir,
@@ -235,3 +266,4 @@ class MyCustomModel(nn.Module, BestHyper):
         for name, param in self.named_parameters():
             if param.requires_grad:
                 print(name)
+
