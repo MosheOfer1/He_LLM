@@ -4,29 +4,24 @@ from torch.utils.data import Dataset
 
 class ComboModelDataset(Dataset):
     def __init__(self, text: str, input_tokenizer, output_tokenizer, window_size=10, device='cpu'):
-        
+
         self.device = device
-        
-        text = _filter_data(text=text,
-                            tokenizer=input_tokenizer)
-        
-        with output_tokenizer.as_target_tokenizer():
-            text = _filter_data(text=text,
-                                tokenizer=output_tokenizer)
-        
+
         self.token_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
         self.input_tokenizer = input_tokenizer
         self.output_tokenizer = output_tokenizer
         self.window_size = window_size
         self.counter = 0
-        
+
     def __len__(self):
         length = len(self.token_pairs) - self.window_size - 1
         if length <= 0:
-            raise ValueError(f"Your ComboModelDataset.__len__ <= 0. Check if your window_size is greater then you data size (clean data)")
+            raise ValueError(
+                f"Your ComboModelDataset.__len__ <= 0. Check if your window_size is greater then you data size (clean "
+                f"data)")
         return length
 
-    def __getitem__(self, idx):        
+    def __getitem__(self, idx):
         """
         Returns:
             dict: A dictionary with 'input_ids' containing the tokenized Hebrew sentence and 
@@ -34,29 +29,20 @@ class ComboModelDataset(Dataset):
         """
         input_ids = self._get_input_ids(idx)
         next_token = self.token_pairs[idx + self.window_size][1][0]
-        
+
         outputs = self.output_tokenizer(
             text_target=next_token,
             add_special_tokens=False
         )["input_ids"]
-        
-        if(len(outputs) > 0):
-            label = outputs[0]
-        else:
-            self.counter += 1
-            print(f"Got unexpected empty list from __getitem__. Sending default: [0] tensor. Counter: {self.counter}")
-            label = self.output_tokenizer(
-                text_target="a",
-                add_special_tokens=False
-            )["input_ids"][0]
-            
-        input_ids = torch.tensor(input_ids, dtype=torch.long)#.to(self.device)
-        labels = torch.tensor(label, dtype=torch.long)#.to(self.device)
+        labels = outputs[0]
+
+        input_ids = torch.tensor(input_ids, dtype=torch.long)
+        labels = torch.tensor(labels, dtype=torch.long)
         return {
             'input_ids': input_ids,
             'labels': labels,
         }
-    
+
     def _get_input_ids(self, idx):
         input_ids = []
 
@@ -70,7 +56,7 @@ class ComboModelDataset(Dataset):
                 tokens.append(token)
 
             encoded = self.input_tokenizer.encode(tokens, add_special_tokens=False)
-            
+
             # Maybe Bug
             input_ids.extend(encoded)
         input_ids = input_ids[(len(input_ids) - self.window_size):len(input_ids)]
@@ -78,7 +64,8 @@ class ComboModelDataset(Dataset):
         return input_ids
 
 
-def align_tokens(tokenizer1, tokenizer2, text):    
+def align_tokens(tokenizer1, tokenizer2, text):
+    count = 0
     # Tokenize the text using both tokenizers
     tokens1 = tokenizer1.tokenize(text)
     with tokenizer2.as_target_tokenizer():
@@ -105,15 +92,17 @@ def align_tokens(tokenizer1, tokenizer2, text):
 
         i += 1
         j += 1
-        
+
+        outputs = tokenizer2(
+            text_target=token_group_2[0],
+            add_special_tokens=False
+        )["input_ids"]
+
+        if len(outputs) <= 0:
+            aligned_pairs = aligned_pairs[:len(aligned_pairs) - 1]
+            count += 1
+
+    print(f"count: {count}, len {len(aligned_pairs)}")
     return aligned_pairs
 
-def _filter_data(text, tokenizer):
-    
-    data = tokenizer(text, add_special_tokens=False)
-    
-    clean_data = tokenizer.decode(data['input_ids'], skip_special_tokens=True)
-        
-    print(f"len(data) = {len(data)}, len(clean_data) = {len(clean_data)}")
 
-    return clean_data

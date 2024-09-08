@@ -1,7 +1,10 @@
+from contextlib import contextmanager
+
 import torch
 
 import os
 import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utilty.injectable import Injectable, CustomLayerWrapper
@@ -15,13 +18,12 @@ class Translator(Injectable):
                  target_to_src_model,
                  src_to_target_tokenizer,
                  target_to_src_tokenizer,
-                 device = 'cpu'):
+                 device='cpu'):
 
         print(f"Translator.__init__ - uses: {device}")
 
         self.device = device
 
-        
         self.src_to_target_translator_model_name = src_to_target_translator_model_name
         self.target_to_src_translator_model_name = target_to_src_translator_model_name
 
@@ -60,19 +62,31 @@ class Translator(Injectable):
         self.target_to_src_model.base_model.encoder.layers[
             self.injected_layer_num].injected_hidden_state = injected_hidden_state
 
-    def get_output_by_using_dummy(self, token_num):
+    def get_output_by_using_dummy(self, token_num, batch_size=1, attention_mask=None):
         """
-        Receive the output from the Second translator
-        :param token_num: The number of tokens to create the dummy
-        :return: The outputs of the model after passing it through
-        """
-        dummy_input = torch.zeros((1, token_num), dtype=torch.long).to(self.device)  # dtype=torch.long for token IDs
+        Receive the output from the second translator for a batch of inputs.
 
-        # Directly set self.inputs to the dummy input tensor
+        :param token_num: The number of tokens to create the dummy inputs for each sequence.
+        :param batch_size: The number of sequences in the batch.
+        :param attention_mask: The attention mask to be used (optional).
+        :return: The outputs of the model after passing the batch through.
+        """
+        # Create a dummy input tensor of shape (batch_size, token_num)
+        dummy_input = torch.zeros((batch_size, token_num), dtype=torch.long).to(
+            self.device)  # dtype=torch.long for token IDs
+
+        # Set self.inputs to the dummy input tensor for the batch
         self.inputs = {"input_ids": dummy_input}
 
-        decoder_input_ids = torch.tensor([[self.target_to_src_tokenizer.pad_token_id]]).to(self.device)
+        # Add attention_mask to inputs if it's provided
+        if attention_mask is not None:
+            self.inputs['attention_mask'] = attention_mask
 
+        # Initialize decoder input IDs for the entire batch (batch_size, 1) with the pad token ID
+        decoder_input_ids = torch.full((batch_size, 1), self.target_to_src_tokenizer.pad_token_id, dtype=torch.long).to(
+            self.device)
+
+        # Pass the batch through the model
         self.outputs = self.target_to_src_model(
             **self.inputs,
             decoder_input_ids=decoder_input_ids,
@@ -93,7 +107,7 @@ class Translator(Injectable):
             use_first_translator = False
 
         # Regular insertion
-        self.inputs = tokenizer(text, return_tensors="pt").to(self.device)
+        self.inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True).to(self.device)
         # Generate the full sentence to get the all necessary layers of hidden states of the decoder in the outputs
         self.generate_sentence_from_outputs(use_first_translator=use_first_translator)
         # Put it back as injectable
@@ -106,7 +120,7 @@ class Translator(Injectable):
             from_first=from_first,
             text=text
         ).to(self.device)
-        
+
         tokenizer = self.src_to_target_tokenizer if from_first else self.target_to_src_tokenizer
         translated_text = self.decode_logits(
             tokenizer=tokenizer,
@@ -142,95 +156,84 @@ class Translator(Injectable):
         return generated_sentence
 
     @staticmethod
-    def process_outputs(inputs, model, tokenizer, max_len=20, attention_mask=None):
+    def process_outputs(inputs, model, tokenizer, max_len=20):
         """
         Processes the model to generate outputs, including logits and hidden states.
-
-        :param attention_mask:
-        :param max_len:
-        :param inputs: The inputs to the model (e.g., encoder inputs).
-        :param model: The MarianMTModel to use for generating outputs.
-        :param tokenizer: The tokenizer to use for decoding.
-        :return: The final outputs after processing all tokens.
+        Handles a batch of inputs, such as (batch_size, seq_len).
         """
-                
-        # Initialize decoder input IDs with the start token ID
-        decoder_input_ids = torch.tensor([[tokenizer.pad_token_id]]).to(model.device)
-        # decoder_input_ids = torch.tensor([[tokenizer.bos_token_id]])
-        
+        batch_size = inputs["input_ids"].size(0)
+
+        # Initialize decoder input IDs with the start token ID for all sentences in the batch
+        decoder_input_ids = torch.full(
+            (batch_size, 1), tokenizer.pad_token_id, dtype=torch.long, device=model.device
+        )
+
         counter = 0
         while counter < max_len:
-            
             # Run the model with the current decoder input IDs to get the outputs
-            if attention_mask is not None:
-                outputs = model(
-                    **inputs,
-                    decoder_input_ids=decoder_input_ids,
-                    attention_mask=attention_mask,
-                    output_hidden_states=True
-                )
-            else:
-                outputs = model(
-                    **inputs,
-                    decoder_input_ids=decoder_input_ids,
-                    output_hidden_states=True
-                )
-            # Get the token ID for the current timestep (take argmax over the vocabulary dimension)
-            token_id = torch.argmax(outputs.logits[:, -1, :], dim=-1).item()
+            outputs = model(
+                **inputs,
+                decoder_input_ids=decoder_input_ids,
+                output_hidden_states=True
+            )
 
-            # Check if the token is an end-of-sequence token
-            if token_id == tokenizer.eos_token_id:
+            # Get the token IDs for the current timestep (take argmax over the vocabulary dimension)
+            token_ids = torch.argmax(outputs.logits[:, -1, :], dim=-1)  # Shape: [batch_size]
+
+            # Check if all sentences in the batch have generated the end-of-sequence token
+            if (token_ids == tokenizer.eos_token_id).all():
                 break
 
-            # Update the decoder input IDs with the newly generated token
-            new_token_tensor = torch.tensor([[token_id]]).to(model.device)  # Move the new token to the correct device
-            decoder_input_ids = torch.cat([decoder_input_ids, new_token_tensor], dim=-1)
+            # Update the decoder input IDs with the newly generated tokens (append new tokens to decoder_input_ids)
+            new_token_tensor = token_ids.unsqueeze(-1)  # Shape: [batch_size, 1]
+            decoder_input_ids = torch.cat([decoder_input_ids, new_token_tensor],
+                                          dim=-1)  # Shape: [batch_size, seq_len + 1]
 
             counter += 1
+
         return outputs
 
     @staticmethod
     def decode_logits(tokenizer, logits: torch.Tensor) -> str:
         """
-        Decodes the logits back into text.
+        Decodes the logits back into text for each sentence in the batch.
 
-        :param logits: The logits tensor output from the model.
+        :param logits: The logits tensor output from the model (batch_size, seq_len, vocab_size).
         :param tokenizer: The tokenizer to use for decoding.
-        :return: The decoded text.
+        :return: A list of decoded texts, one for each sentence in the batch.
         """
         # Get the token IDs by taking the argmax over the vocabulary dimension (dim=-1)
-        token_ids = torch.argmax(logits, dim=-1)
+        token_ids = torch.argmax(logits, dim=-1)  # Shape: (batch_size, seq_len)
 
-        # If logits contain multiple sequences (batch size > 1), process each separately
-        if token_ids.dim() > 1:
-            # Concatenate token IDs along the sequence length dimension (dim=1)
-            token_ids = token_ids.squeeze()
+        # Decode each sequence in the batch individually
+        generated_texts = []
+        for seq in token_ids:
+            # Decode the token IDs to a sentence, skipping special tokens like <pad>, <eos>, etc.
+            generated_text = tokenizer.decode(seq, skip_special_tokens=True)
+            generated_texts.append(generated_text)
 
-        # Decode the token IDs to a full sentence, skipping special tokens like <pad>, <eos>, etc.
-        generated_text = tokenizer.decode(token_ids, skip_special_tokens=True)
-
-        return generated_text
+        generated_texts = "\n".join(generated_texts)
+        return generated_texts
 
     @staticmethod
-    def text_to_hidden_states(text, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
+    def text_to_hidden_states(text, layer_num, tokenizer, model, from_encoder=True):
         """
-        Extracts hidden states from the specified layer in either the encoder or decoder.
+        Extracts hidden states from the specified layer in either the encoder or decoder for a batch of sentences.
 
-        :param attention_mask:
-        :param text: The input text to be tokenized and passed through the model.
+        :param text: List of input sentences to be tokenized and passed through the model.
         :param layer_num: The layer number from which to extract hidden states.
         :param tokenizer: The specific tokenizer.
         :param model: The specific model.
         :param from_encoder: If True, return hidden states from the encoder; otherwise, return from the decoder.
         :return: The hidden states from the specified layer.
         """
-        # Tokenize the input text
-        inputs = tokenizer(text, return_tensors="pt").to(model.device)
+        # Tokenize the input text as a batch
+        inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True).to(model.device)
 
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, attention_mask=attention_mask)
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer)
 
-        # Return the hidden states of the specified layer
+        # Return the hidden states of the specified layer for all sentences in the batch
         if from_encoder:
             return outputs.encoder_hidden_states[layer_num]
         else:
@@ -240,14 +243,30 @@ class Translator(Injectable):
     def input_ids_to_hidden_states(input_ids, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
         inputs = {
             "input_ids": input_ids.to(model.device),
+            "attention_mask": attention_mask
         }
 
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, attention_mask=attention_mask)
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer)
 
         # Return the hidden states of the specified layer
         if from_encoder:
             return outputs.encoder_hidden_states[layer_num]
         else:
             return outputs.decoder_hidden_states[layer_num]
-        
+
+    @contextmanager
+    def injection_state(self):
+        """Context manager to set the injection state for a specific layer with default values."""
+        # Use default values: injected_layer_num and False for the state
+        layer_num = self.injected_layer_num
+        state = False
+
+        # Set the injection state to the desired value
+        self.target_to_src_model.base_model.encoder.layers[layer_num].set_injection_state(state)
+        try:
+            # Yield control to the block inside the 'with' statement
+            yield
+        finally:
+            # Revert the injection state when exiting the 'with' block
+            self.target_to_src_model.base_model.encoder.layers[layer_num].set_injection_state(not state)

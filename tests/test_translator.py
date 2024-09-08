@@ -142,15 +142,65 @@ class TestTranslator(unittest.TestCase):
                 self.assertGreater(len(translated_text), 0)  # Ensure the decoded text is not empty
                 print(f"From second, size={len(text)}:", translated_text)
 
-    def test_input_output_tokenizers(self):
+    def test_batch_translation_with_first_translator(self):
+        """Test the batch translation from Hebrew to English using the first translator with get_output."""
 
-        known_target_ids = self.translator.target_to_src_tokenizer(self.sample_text_he, return_tensors="pt").input_ids
+        # Sample batch of Hebrew sentences
+        batch_sentences_he = [
+            "הילד רץ.",
+            "החתול ישן.",
+            "אני לומד פייתון.",
+            "השמש זורחת היום."
+        ]
 
-        with self.translator.target_to_src_tokenizer.as_target_tokenizer():
-            target_ids = self.translator.target_to_src_tokenizer.encode(self.sample_text_he, return_tensors="pt")
+        # Step 1: Get the output from the first translator using the get_output method for batch processing
+        output = self.translator.get_output(from_first=True, text=batch_sentences_he)
 
-            print(f"regular_target_ids = {known_target_ids}")
-            print(f"as_output_tokenizer_target_ids = {target_ids}")
+        # Step 2: Ensure logits are generated
+        self.assertIsNotNone(output.logits)
+
+        # Step 3: Decode the logits into text
+        translated_texts = self.translator.decode_logits(tokenizer=self.translator.src_to_target_tokenizer,
+                                                         logits=output.logits)
+
+        # Step 4: Validate and print the output for the batch
+        self.assertIsInstance(translated_texts, str)
+        self.assertGreater(len(translated_texts), 0)  # Ensure the decoded text is not empty
+        print("Batch translation from Hebrew to English:", translated_texts)
+
+    def test_batch_input_ids_to_hidden_states_and_inject(self):
+        """Test the batch translation using input_ids_to_hidden_states with the first translator and inject the
+        hidden states. """
+
+        # Sample batch of Hebrew sentences
+        batch_sentences_he = [
+            "הילד רץ.",
+            "החתול ישן.",
+            "אני לומד פייתון.",
+            "השמש זורחת היום."
+        ]
+
+        # Step 1: Tokenize the input text batch to get input_ids with padding and truncation
+        tokenizer = self.translator.src_to_target_tokenizer
+        inputs = tokenizer(batch_sentences_he, return_tensors="pt", padding=True, truncation=True)
+
+        # Extract the input_ids and attention_mask from the tokenizer output
+        input_ids = inputs["input_ids"]
+        attention_mask = inputs["attention_mask"]
+        with self.translator.injection_state():
+            # Step 2: Get the hidden states from the first layer of the first translator model using input_ids
+            translator_first_hs = self.translator.input_ids_to_hidden_states(
+                input_ids=input_ids,
+                layer_num=0,  # Extract hidden states from the first layer
+                tokenizer=tokenizer,
+                model=self.translator.src_to_target_model,
+                from_encoder=True,
+                attention_mask=attention_mask
+            )
+
+        # Ensure the hidden states are generated and not None
+        self.assertIsNotNone(translator_first_hs)
+        self.assertEqual(translator_first_hs.shape[0], input_ids.shape[0])  # Check batch size consistency
 
 
 if __name__ == '__main__':

@@ -3,6 +3,11 @@ import unittest
 import torch
 from transformers import MarianTokenizer, MarianMTModel
 from torch.utils.data import DataLoader, RandomSampler
+
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from my_datasets.combo_model_dataset import ComboModelDataset
 
 
@@ -86,7 +91,7 @@ class TestComboModelDataset(unittest.TestCase):
 
     def test_getitem(self):
         # Check the output of __getitem__
-        first_item = self.dataset[11]
+        first_item = self.dataset[0]
 
         self.assertIn('input_ids', first_item)
         self.assertIn('labels', first_item)
@@ -96,7 +101,7 @@ class TestComboModelDataset(unittest.TestCase):
         self.assertTrue(isinstance(first_item['labels'], torch.Tensor))
 
         # Additional checks can be done to ensure correctness
-        expected_next_token = self.dataset.token_pairs[16][1][0]
+        expected_next_token = self.dataset.token_pairs[5][1][0]
         expected_label = self.output_tokenizer(
             text_target=expected_next_token,
             add_special_tokens=False

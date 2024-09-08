@@ -42,9 +42,10 @@ class LLMWrapper(Injectable):
         injected_hidden_state = injected_hidden_state
         self.model.base_model.decoder.layers[self.injected_layer_num].injected_hidden_state = injected_hidden_state
 
-    def get_output_by_using_dummy(self, token_num):
+    def get_output_by_using_dummy(self, token_num, batch_size=1):
         # Generate a dummy input for letting the model output the desired result of the injected layer
-        dummy_input = torch.zeros((1, token_num), dtype=torch.long).to(self.device)  # dtype=torch.long for token IDs
+        dummy_input = torch.zeros((batch_size, token_num), dtype=torch.long).to(
+            self.device)
 
         self.outputs = self.model(input_ids=dummy_input, output_hidden_states=True)
 

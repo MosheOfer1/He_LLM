@@ -5,7 +5,7 @@ import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from models.custom_model import MyCustomModel
+from models.combined_model import MyCustomModel
 # Dataset
 from my_datasets.combo_model_dataset import ComboModelDataset
 
@@ -53,7 +53,7 @@ customLLM.train_model(train_dataset=train_dataset,
                       output_dir="results",
                       logging_dir="loggings",
                       epochs=5,
-                      batch_size=1,
+                      batch_size=32,
                       weight_decay=0.01,
                       logging_steps=10,
                       evaluation_strategy="steps",
