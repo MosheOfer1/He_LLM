@@ -3,6 +3,11 @@ import unittest
 import torch
 from transformers import MarianTokenizer, MarianMTModel
 from torch.utils.data import DataLoader, RandomSampler
+
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from my_datasets.combo_model_dataset import ComboModelDataset
 
 
