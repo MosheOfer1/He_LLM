@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from transformers import OPTForCausalLM
 import torch
 from utilty.injectable import CustomLayerWrapper, Injectable
@@ -86,3 +88,17 @@ class LLMWrapper(Injectable):
         outputs = model(**inputs, output_hidden_states=True)
 
         return outputs.hidden_states[layer_num]
+
+    @contextmanager
+    def injection_state(self):
+        """Context manager to set the injection state for a specific layer with default values."""
+        layer_num = self.injected_layer_num
+        state = False
+
+        # Set the injection state to the desired value
+        self.model.base_model.decoder.layers[layer_num].set_injection_state(state)
+        try:
+            yield  # Yield control to the block inside the 'with' statement
+        finally:
+            # Revert the injection state when exiting the 'with' block
+            self.model.base_model.decoder.layers[layer_num].set_injection_state(not state)

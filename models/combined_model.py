@@ -144,7 +144,7 @@ class MyCustomModel(nn.Module, BestHyper):
         return transformed_to_translator_hs
 
     def compute_loss(self, logits, labels):
-        logits = logits[:, 0, :].to(self.device)  # Shape: [batch_size, num_classes]
+        logits = logits[:, 0, :]#.to(self.device)  # Shape: [batch_size, num_classes]
         loss_func = nn.CrossEntropyLoss()
         return loss_func(logits, labels)
 

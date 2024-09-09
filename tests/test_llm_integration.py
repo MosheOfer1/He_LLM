@@ -2,7 +2,7 @@ import unittest
 import sys
 import os
 import torch
-from transformers import AutoTokenizer, OPTForCausalLM, MarianMTModel, MarianTokenizer
+from transformers import AutoTokenizer, OPTForCausalLM
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 

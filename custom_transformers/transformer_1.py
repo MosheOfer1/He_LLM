@@ -20,8 +20,8 @@ class Transformer1(BaseTransformer):
     def __init__(self, translator: Translator,
                  llm: LLMWrapper, 
                  model_name=None, 
-                 nhead=8, 
-                 num_layers=6,
+                 nhead=2,
+                 num_layers=2,
                  max_seq_len=512,
                  device='cpu'):
         """
@@ -34,9 +34,6 @@ class Transformer1(BaseTransformer):
         print(f"Transformer1.__init__ - uses: {device}")
         
         self.device = device
-        
-        llm = llm.to(device)
-        translator = translator.to(device)
 
         # Determine input and output dimensions based on the translator and LLM
         self.input_dim = translator.src_to_target_model.config.hidden_size
@@ -46,9 +43,7 @@ class Transformer1(BaseTransformer):
         if not model_name:
             model_name = f"transformer_1_{translator.src_to_target_translator_model_name.replace('/', '_')}_to_{llm.model.config.name_or_path.replace('/', '_')}"
 
-        super(Transformer1, self).__init__(model_name=model_name, 
-                                           translator=translator, 
-                                           llm=llm)
+        super(Transformer1, self).__init__(model_name=model_name)
 
         """ Define the layers of the transformer model  """
         # Input projection to align translator's hidden states to the model's hidden dimension
