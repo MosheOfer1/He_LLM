@@ -8,6 +8,7 @@ class ComboModelDataset(Dataset):
         self.device = device
 
         self.token_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
+
         self.input_tokenizer = input_tokenizer
         self.output_tokenizer = output_tokenizer
         self.window_size = window_size
