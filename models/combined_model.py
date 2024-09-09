@@ -227,56 +227,59 @@ class MyCustomModel(nn.Module, BestHyper):
         return trainer
 
     def save_transformers_state_dict(self, path: str):
-        
+
         # Get the full state dict
         full_state_dict = self.state_dict()
 
         # Filter out only transformer1 and transformer2 keys
-        transformer1_and_2_state_dict = {k: v for k, v in full_state_dict.items() if k.startswith('transformer.transformer1') or k.startswith('transformer.transformer2')}
+        transformer1_and_2_state_dict = {k: v for k, v in full_state_dict.items() if
+                                         k.startswith('transformer.transformer1') or k.startswith(
+                                             'transformer.transformer2')}
 
         # Save the filtered state dictionary
         torch.save(transformer1_and_2_state_dict, path)
 
         print(f"Saved state dictionary with {len(transformer1_and_2_state_dict)} keys.")
 
-
     def load_transformers_state_dict(self, path: str, to_transformer1=True, to_transformer2=True):
         # Load the state dictionary from the file
         loaded_state_dict = torch.load(path, weights_only=True)
-        
+
         # Get the current state dictionary of the model
         current_state_dict = self.state_dict()
-        
+
         # Create a filtered dictionary depending on the flags
         filtered_state_dict = {}
-        
+
         if to_transformer1:
             # Add keys that belong to transformer1
-            filtered_state_dict.update({k: v for k, v in loaded_state_dict.items() if k.startswith('transformer.transformer1')})
-        
+            filtered_state_dict.update(
+                {k: v for k, v in loaded_state_dict.items() if k.startswith('transformer.transformer1')})
+
         if to_transformer2:
             # Add keys that belong to transformer2
-            filtered_state_dict.update({k: v for k, v in loaded_state_dict.items() if k.startswith('transformer.transformer2')})
-        
+            filtered_state_dict.update(
+                {k: v for k, v in loaded_state_dict.items() if k.startswith('transformer.transformer2')})
+
         # Update the model's current state dictionary with the filtered weights
         current_state_dict.update(filtered_state_dict)
-        
+
         # Load the updated state dict back into the model
         self.load_state_dict(current_state_dict)
-        
-        print(f"Loaded {'transformer1 ' if to_transformer1 else ''}{'and ' if to_transformer1 and to_transformer2 else ''}{'transformer2' if to_transformer2 else ''} state into the model.")
 
-    
-    def compere_state_dicts(self, model2, only_transformer1 = False, only_transformer2 = False):
-    
+        print(
+            f"Loaded {'transformer1 ' if to_transformer1 else ''}{'and ' if to_transformer1 and to_transformer2 else ''}{'transformer2' if to_transformer2 else ''} state into the model.")
+
+    def compere_state_dicts(self, model2, only_transformer1=False, only_transformer2=False):
+
         excluded = []
-        
+
         if only_transformer1:
             excluded.append('transformer.transformer2')
-        
+
         elif only_transformer2:
             excluded.append('transformer.transformer1')
-                
+
         # Get the state dictionaries of both models
         state_dict1 = self.state_dict()
         state_dict2 = model2.state_dict()
@@ -318,4 +321,3 @@ class MyCustomModel(nn.Module, BestHyper):
         for name, param in self.named_parameters():
             if param.requires_grad:
                 print(name)
-

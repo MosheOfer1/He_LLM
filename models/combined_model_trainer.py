@@ -45,14 +45,6 @@ class CombinedTrainer(Trainer):
                          eval_dataset=eval_dataset,
                          optimizers=(optimizer, scheduler))
 
-    # def compute_loss(self, model, inputs, return_outputs=False):
-    #     """
-    #     Overrides the Trainer lib default loss computation
-    #     """
-    #     outputs = model(**inputs)
-    #     loss = outputs.loss
-    #     return (loss, outputs) if return_outputs else loss
-
     def compute_loss(self, model, inputs, return_outputs=False):
         """
         Overrides the Trainer lib default loss computation

@@ -42,7 +42,7 @@ class Transformer1(BaseTransformer):
         self.model_name = model_name if model_name else "seq2seq_model"
         self.model_path = f"../models/{self.model_name}.pth"
 
-    def forward(self, input_ids, labels=None, teacher_forcing_ratio=0.01):
+    def forward(self, input_ids, labels=None, teacher_forcing_ratio=0.9):
         
         input_ids = input_ids.to(self.device)
         
@@ -69,6 +69,9 @@ class Transformer1(BaseTransformer):
             per_device_train_batch_size=32,  # batch size per device during training
             save_steps=10_000,  # number of updates steps before saving checkpoint
             save_total_limit=2,  # limit the total amount of checkpoints
+            eval_strategy="steps",
+            eval_steps=300,
+            logging_steps=100,
         )
 
         trainer = CustomTrainer(
@@ -84,6 +87,8 @@ class Transformer1(BaseTransformer):
             os.makedirs(os.path.dirname(self.model_path))
         torch.save(self.state_dict(), self.model_path)
         print(f"Model saved to {self.model_path}")
+        self.evaluate_model(trainer, test_dataset)
+
 
     @classmethod
     def load_model(cls, model_name: str, translator: Translator, llm: LLMWrapper, device='cpu'):
@@ -134,6 +139,13 @@ class Transformer1(BaseTransformer):
             inputs = output
 
         return generated_seq
+
+    @staticmethod
+    def evaluate_model(trainer, test_dataset):
+        # Evaluate the model on the test dataset
+        eval_results = trainer.evaluate(eval_dataset=test_dataset)
+        print(f"Evaluation Results: {eval_results}")
+        return eval_results
 
 
 class RNNEncoder(nn.Module):

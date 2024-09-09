@@ -2,12 +2,10 @@ import unittest
 import sys
 import os
 import torch
-from transformers import AutoTokenizer, OPTForCausalLM, MarianMTModel, MarianTokenizer
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from models.combined_model import MyCustomModel
-from facade import predict, load_model
 
 
 class TestCombinedModel(unittest.TestCase):
