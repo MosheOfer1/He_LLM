@@ -1,5 +1,6 @@
 import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from llm.facebook_llm import FacebookLLM
 from my_datasets.create_datasets import read_file_lines
@@ -8,7 +9,6 @@ import torch
 from my_datasets.seq2seq_dataset import Seq2SeqDataset
 from translation.helsinki_translator import HelsinkiTranslator
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from custom_transformers.short_rnn_transformer1 import Transformer1
 # Dataset
