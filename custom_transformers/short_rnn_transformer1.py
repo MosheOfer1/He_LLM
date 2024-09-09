@@ -43,7 +43,7 @@ class Transformer1(BaseTransformer):
 
         # Set model name and path for saving
         self.model_name = model_name if model_name else "seq2seq_model"
-        self.model_path = f"models/{self.model_name}.pth"
+        self.model_path = f"../models/{self.model_name}.pth"
 
     def forward(self, input_ids, labels=None, teacher_forcing_ratio=0.01):
         
@@ -69,7 +69,7 @@ class Transformer1(BaseTransformer):
         training_args = TrainingArguments(
             output_dir='./results',  # output directory
             num_train_epochs=epochs,  # total number of training epochs
-            per_device_train_batch_size=8,  # batch size per device during training
+            per_device_train_batch_size=32,  # batch size per device during training
             save_steps=10_000,  # number of updates steps before saving checkpoint
             save_total_limit=2,  # limit the total amount of checkpoints
         )
