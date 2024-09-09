@@ -1,0 +1,49 @@
+Im working with: cuda
+MyCustomModel.__init__ - uses: cuda
+HelsinkiTranslator.__init__ - uses: cuda
+Translator.__init__ - uses: cuda
+FacebookLLM.__init__ - uses: cuda
+Transformer.__init__ - uses: cuda
+Transformer2.__init__ - uses: cuda
+len(text) = 168786
+count: 144, len 37266
+count: 33, len 9498
+
+
+ epoch = 37235, total = 5815, warmup = 581 
+
+
+CombinedTrainer.__init__ - uses: cuda
+transformer.transformer1.encoder.rnn.weight_ih_l0
+transformer.transformer1.encoder.rnn.weight_hh_l0
+transformer.transformer1.encoder.rnn.bias_ih_l0
+transformer.transformer1.encoder.rnn.bias_hh_l0
+transformer.transformer1.encoder.rnn.weight_ih_l1
+transformer.transformer1.encoder.rnn.weight_hh_l1
+transformer.transformer1.encoder.rnn.bias_ih_l1
+transformer.transformer1.encoder.rnn.bias_hh_l1
+transformer.transformer1.decoder.rnn.weight_ih_l0
+transformer.transformer1.decoder.rnn.weight_hh_l0
+transformer.transformer1.decoder.rnn.bias_ih_l0
+transformer.transformer1.decoder.rnn.bias_hh_l0
+transformer.transformer1.decoder.rnn.weight_ih_l1
+transformer.transformer1.decoder.rnn.weight_hh_l1
+transformer.transformer1.decoder.rnn.bias_ih_l1
+transformer.transformer1.decoder.rnn.bias_hh_l1
+transformer.transformer1.decoder.fc.weight
+transformer.transformer1.decoder.fc.bias
+transformer.transformer2.layer1.weight
+transformer.transformer2.layer1.bias
+transformer.transformer2.layer2.weight
+transformer.transformer2.layer2.bias
+{'loss': 7.5793, 'grad_norm': 1.016206979751587, 'learning_rate': 0.005832635006300864, 'epoch': 0.86}
+{'eval_loss': 7.375693321228027, 'eval_runtime': 388.5273, 'eval_samples_per_second': 24.366, 'eval_steps_per_second': 0.762, 'epoch': 0.86}
+{'loss': 7.5311, 'grad_norm': 1.5629167556762695, 'learning_rate': 0.004623503989223761, 'epoch': 1.72}
+{'eval_loss': 7.3275322914123535, 'eval_runtime': 379.7914, 'eval_samples_per_second': 24.927, 'eval_steps_per_second': 0.779, 'epoch': 1.72}
+{'loss': 7.5514, 'grad_norm': 1.9810956716537476, 'learning_rate': 0.003413162630788221, 'epoch': 2.58}
+{'eval_loss': 7.271439552307129, 'eval_runtime': 385.7823, 'eval_samples_per_second': 24.54, 'eval_steps_per_second': 0.767, 'epoch': 2.58}
+{'loss': 7.4709, 'grad_norm': 2.324315071105957, 'learning_rate': 0.002202821272352682, 'epoch': 3.44}
+{'eval_loss': 7.250452041625977, 'eval_runtime': 385.9576, 'eval_samples_per_second': 24.529, 'eval_steps_per_second': 0.767, 'epoch': 3.44}
+{'loss': 7.4046, 'grad_norm': 2.613966703414917, 'learning_rate': 0.0009924799139171424, 'epoch': 4.3}
+{'eval_loss': 7.2147111892700195, 'eval_runtime': 397.592, 'eval_samples_per_second': 23.811, 'eval_steps_per_second': 0.744, 'epoch': 4.3}
+{'train_runtime': 10362.9822, 'train_samples_per_second': 17.965, 'train_steps_per_second': 0.562, 'train_loss': 7.490464001422895, 'epoch': 5.0}

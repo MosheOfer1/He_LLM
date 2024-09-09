@@ -26,10 +26,7 @@ class Transformer2(BaseTransformer):
         print(f"Transformer2.__init__ - uses: {device}")
         
         self.device = device
-        
-        translator = translator.to(device)
-        llm = llm.to(device)
-        
+                
         # Determine input and output dimensions based on the LLM and translator
         input_dim = llm.model.config.word_embed_proj_dim
         output_dim = translator.target_to_src_model.config.hidden_size

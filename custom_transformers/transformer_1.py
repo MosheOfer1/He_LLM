@@ -34,7 +34,6 @@ class Transformer1(BaseTransformer):
         print(f"Transformer1.__init__ - uses: {device}")
         
         self.device = device
-
         # Determine input and output dimensions based on the translator and LLM
         self.input_dim = translator.src_to_target_model.config.hidden_size
         self.output_dim = llm.model.config.hidden_size

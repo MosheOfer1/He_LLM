@@ -28,13 +28,13 @@ class TestComboModelDataset(unittest.TestCase):
 
         # Example text in Hebrew
         self.text = "לא משנה עם מי תלך לעולם לא"
-
+        self.window_size = 5
         # Initialize the dataset
         self.dataset = ComboModelDataset(
             text=self.text,
             input_tokenizer=self.input_tokenizer,
             output_tokenizer=self.output_tokenizer,
-            window_size=5
+            window_size=self.window_size
         )
 
     def test_dataloader(self):
@@ -92,6 +92,7 @@ class TestComboModelDataset(unittest.TestCase):
     def test_getitem(self):
         # Check the output of __getitem__
         first_item = self.dataset[0]
+        first_item = self.dataset[0]
 
         self.assertIn('input_ids', first_item)
         self.assertIn('labels', first_item)
@@ -101,7 +102,7 @@ class TestComboModelDataset(unittest.TestCase):
         self.assertTrue(isinstance(first_item['labels'], torch.Tensor))
 
         # Additional checks can be done to ensure correctness
-        expected_next_token = self.dataset.token_pairs[5][1][0]
+        expected_next_token = self.dataset.token_pairs[self.window_size][1][0]
         expected_label = self.output_tokenizer(
             text_target=expected_next_token,
             add_special_tokens=False
