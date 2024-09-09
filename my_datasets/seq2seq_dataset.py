@@ -46,8 +46,8 @@ class Seq2SeqDataset(Dataset):
 
         # If max_seq_len is provided, pad input_ids and labels
         if self.max_seq_len:
-            input_hidden_states = self.pad_hidden_states(input_hidden_states, self.max_seq_len)
-            target_hidden_states = self.pad_hidden_states(target_hidden_states, self.max_seq_len)
+            input_hidden_states = self.pad_hidden_states(input_hidden_states.to(self.device), self.max_seq_len)
+            target_hidden_states = self.pad_hidden_states(target_hidden_states.to(self.device), self.max_seq_len)
 
         input_hidden_states = input_hidden_states.squeeze(0)
         target_hidden_states = target_hidden_states.squeeze(0)
