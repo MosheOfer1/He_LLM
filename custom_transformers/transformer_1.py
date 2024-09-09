@@ -22,7 +22,7 @@ class Transformer1(BaseTransformer):
                  model_name=None, 
                  nhead=2,
                  num_layers=2,
-                 max_seq_len=512,
+                 max_seq_len=128,
                  device='cpu'):
         """
         Initialize the Transformer1 model.
@@ -187,7 +187,7 @@ class Transformer1(BaseTransformer):
 
         print(f"Model saved to {self.model_path}")
         self.evaluate_model(trainer, test_dataset)
-        self.plot_loss(trainer)
+        # self.plot_loss(trainer)
 
     @staticmethod
     def plot_loss(trainer):

@@ -81,14 +81,16 @@ class Transformer1(BaseTransformer):
             eval_dataset=test_dataset,
         )
 
+        self.printTrainableParams()
+
         trainer.train()
 
         if not os.path.exists(os.path.dirname(self.model_path)):
             os.makedirs(os.path.dirname(self.model_path))
         torch.save(self.state_dict(), self.model_path)
         print(f"Model saved to {self.model_path}")
-        self.evaluate_model(trainer, test_dataset)
 
+        self.evaluate_model(trainer, test_dataset)
 
     @classmethod
     def load_model(cls, model_name: str, translator: Translator, llm: LLMWrapper, device='cpu'):
@@ -146,6 +148,13 @@ class Transformer1(BaseTransformer):
         eval_results = trainer.evaluate(eval_dataset=test_dataset)
         print(f"Evaluation Results: {eval_results}")
         return eval_results
+
+    def printTrainableParams(self):
+        # Print the parameter names for the model customLLM
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                print(name)
+
 
 
 class RNNEncoder(nn.Module):
