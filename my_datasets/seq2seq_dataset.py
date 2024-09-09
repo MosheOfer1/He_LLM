@@ -2,18 +2,8 @@ import torch
 from torch.utils.data import Dataset
 
 
-def pad_hidden_states(hidden_states, max_len):
-    """Pad hidden states to a fixed length."""
-    batch_size, seq_len, hidden_dim = hidden_states.shape
-    if seq_len < max_len:
-        pad_size = max_len - seq_len
-        padding = torch.zeros((batch_size, pad_size, hidden_dim))  # Pad with zeros for the batch
-        return torch.cat([hidden_states, padding], dim=1)  # Concatenate along the seq_len dimension
-    return hidden_states[:, :max_len, :]  # Truncate if necessary
-
-
 class Seq2SeqDataset(Dataset):
-    def __init__(self, sentences, translator, llm, max_seq_len=None):
+    def __init__(self, sentences, translator, llm, max_seq_len=None, device='cpu'):
         """
         Args:
             sentences (list): List of Hebrew sentences.
@@ -21,6 +11,7 @@ class Seq2SeqDataset(Dataset):
             llm (LLMWrapper): The language model wrapped with the injection state context manager.
             max_seq_len (int, optional): Maximum sequence length for padding. If None, it will not pad.
         """
+        self.device = device
         self.sentences = sentences
         self.translator = translator
         self.llm = llm
@@ -55,8 +46,8 @@ class Seq2SeqDataset(Dataset):
 
         # If max_seq_len is provided, pad input_ids and labels
         if self.max_seq_len:
-            input_hidden_states = pad_hidden_states(input_hidden_states, self.max_seq_len)
-            target_hidden_states = pad_hidden_states(target_hidden_states, self.max_seq_len)
+            input_hidden_states = self.pad_hidden_states(input_hidden_states, self.max_seq_len)
+            target_hidden_states = self.pad_hidden_states(target_hidden_states, self.max_seq_len)
 
         input_hidden_states = input_hidden_states.squeeze(0)
         target_hidden_states = target_hidden_states.squeeze(0)
@@ -66,3 +57,12 @@ class Seq2SeqDataset(Dataset):
             "input_ids": input_hidden_states,  # Last layer of translator
             "labels": target_hidden_states  # First layer of LLM
         }
+
+    def pad_hidden_states(self, hidden_states, max_len):
+        """Pad hidden states to a fixed length."""
+        batch_size, seq_len, hidden_dim = hidden_states.shape
+        if seq_len < max_len:
+            pad_size = max_len - seq_len
+            padding = torch.zeros((batch_size, pad_size, hidden_dim)).to(self.device)  # Pad with zeros for the batch
+            return torch.cat([hidden_states, padding], dim=1).to(self.device)  # Concatenate along the seq_len dimension
+        return hidden_states[:, :max_len, :]  # Truncate if necessary
