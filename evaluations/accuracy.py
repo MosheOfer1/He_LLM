@@ -10,7 +10,7 @@ from my_datasets.create_datasets import read_file_lines
 
 def clean_token(token):
     """ Remove special characters like Ġ and convert to more readable form. """
-    return token.replace('Ġ', '').replace('▁', '')
+    return token.replace('Ġ', '_').replace('▁', '_')
 
 
 def display_token_comparison(true_tokens, predicted_tokens, attention_mask, correct_mask):
@@ -78,7 +78,8 @@ else:
     print("GPU not available, using CPU instead.")
 
 # Initialize tokenizer and model
-model_path = "DAMO-NLP-MT/polylm-1.7b"
+# model_path = "DAMO-NLP-MT/polylm-1.7b"
+model_path = input("Enter model name to evaluate:")
 # model_path = "facebook/opt-125m"
 
 tokenizer = AutoTokenizer.from_pretrained(model_path, legacy=False, use_fast=False)
@@ -102,9 +103,9 @@ print("en text len: ", len(en_text))
 # Calculate accuracy for polylm-1.7b in English
 print("Calculating accuracy for English...")
 accuracy_en = calculate_accuracy(model, tokenizer, en_text)
-print(f"Accuracy for polylm-1.7b in English: {accuracy_en * 100:.2f}%")
+print(f"Accuracy for {model_path} in English: {accuracy_en * 100:.2f}%")
 
 # Calculate accuracy for polylm-1.7b in Hebrew
 print("Calculating accuracy for Hebrew...")
 accuracy_he = calculate_accuracy(model, tokenizer, he_text)
-print(f"Accuracy for polylm-1.7b in Hebrew: {accuracy_he * 100:.2f}%")
+print(f"Accuracy for {model_path} in Hebrew: {accuracy_he * 100:.2f}%")
