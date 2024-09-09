@@ -35,7 +35,7 @@ class Seq2SeqDataset(Dataset):
         # Step 1: Get the last hidden state from the first translator model
         with torch.no_grad():
             outputs = self.translator.get_output(from_first=True, text=sentence)
-        input_hidden_states = outputs.decoder_hidden_states[-1]  # Shape: (seq_len, hidden_dim)
+        input_hidden_states = outputs.decoder_hidden_states[-1]  # Shape: (batch_size, seq_len, hidden_dim)
 
         # Step 2: Translate the sentence
         translated_text = self.translator.decode_logits(
@@ -57,6 +57,9 @@ class Seq2SeqDataset(Dataset):
         if self.max_seq_len:
             input_hidden_states = pad_hidden_states(input_hidden_states, self.max_seq_len)
             target_hidden_states = pad_hidden_states(target_hidden_states, self.max_seq_len)
+
+        input_hidden_states = input_hidden_states.squeeze(0)
+        target_hidden_states = target_hidden_states.squeeze(0)
 
         # Return the input hidden states and target hidden states
         return {

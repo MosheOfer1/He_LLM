@@ -65,7 +65,7 @@ class Transformer1(BaseTransformer):
 
         return outputs
 
-    def train_model(self, train_dataset=None, test_dataset=None, epochs=8):
+    def train_model(self, train_dataset, test_dataset, epochs=8):
         training_args = TrainingArguments(
             output_dir='./results',  # output directory
             num_train_epochs=epochs,  # total number of training epochs
