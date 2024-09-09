@@ -72,10 +72,6 @@ class MyCustomModel(nn.Module, BestHyper):
         # Step 5: Get translator output using dummy input
         outputs = self.get_translator_outputs(transformed_to_translator_hs)
 
-        # Step 6: Compute loss if labels are provided
-        if labels is not None:
-            outputs.loss = self.compute_loss(outputs.get("logits"), labels)
-
         return outputs
 
     def get_translator_hidden_states(self, input_ids, attention_mask):
@@ -142,11 +138,6 @@ class MyCustomModel(nn.Module, BestHyper):
                                                  dim=1)  # Shape: [batch_size, 2, dim]
 
         return transformed_to_translator_hs
-
-    def compute_loss(self, logits, labels):
-        logits = logits[:, 0, :]#.to(self.device)  # Shape: [batch_size, num_classes]
-        loss_func = nn.CrossEntropyLoss()
-        return loss_func(logits, labels)
 
     def create_trainer(
             self, train_dataset: ComboModelDataset, eval_dataset: ComboModelDataset,
