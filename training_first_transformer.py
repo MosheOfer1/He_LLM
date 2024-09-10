@@ -20,8 +20,8 @@ print(f"Im working with: {device}")
 
 translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
-llm_model_name = "facebook/opt-125m"
-text_file_path = "my_datasets/7k_hebrew_wiki_text.txt"
+llm_model_name = "facebook/opt-350m"
+text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
 
 
 llm = OptLLM(llm_model_name,
@@ -51,14 +51,14 @@ train_dataset = Seq2SeqDataset(
     sentences=train_data,
     translator=translator,
     llm=llm,
-    max_seq_len=18
+    max_seq_len=15
 )
 
 eval_dataset = Seq2SeqDataset(
     sentences=eval_data,
     translator=translator,
     llm=llm,
-    max_seq_len=18
+    max_seq_len=15
 )
 
-trans1.train_model(train_dataset, eval_dataset, 5)
+trans1.train_model(train_dataset, eval_dataset, 6)

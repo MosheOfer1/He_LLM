@@ -143,15 +143,16 @@ class Transformer1(BaseTransformer):
 
         return outputs
 
-    def train_model(self, train_dataset, test_dataset, epochs=8):
+    def train_model(self, train_dataset, test_dataset, epochs=5):
         training_args = Seq2SeqTrainingArguments(
             output_dir='../my_datasets',
             eval_strategy="epoch",
             learning_rate=2e-5,
-            per_device_train_batch_size=16,
+            per_device_train_batch_size=32,
             per_device_eval_batch_size=16,
             weight_decay=0.01,
-            save_total_limit=3,
+            save_total_limit=1,
+            save_strategy="epoch",
             num_train_epochs=epochs,
             predict_with_generate=False,  # Not generating text, so disable generation
             logging_dir='../my_datasets/logs',
@@ -180,10 +181,10 @@ class Transformer1(BaseTransformer):
 
         print(f"Model saved to {self.model_path}")
         self.evaluate_model(trainer, test_dataset)
-        # self.plot_loss(trainer)
+        self.plot_loss(trainer)
 
     @staticmethod
-    def plot_loss(trainer):
+    def plot_loss(trainer, save_path='images/loss_plot.png'):
         # Extract the logs from the trainer's state
         training_loss = trainer.state.log_history
 
@@ -200,7 +201,10 @@ class Transformer1(BaseTransformer):
         plt.title('Training and Evaluation Loss Over Epochs')
         plt.legend()
         plt.grid(True)
-        plt.show()
+
+        # Save the plot to the specified file path
+        plt.savefig(save_path)
+        plt.close()  # Close the figure to avoid displaying it
 
     @staticmethod
     def evaluate_model(trainer, test_dataset):
