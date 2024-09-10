@@ -153,6 +153,37 @@ class TestGPT2LLMIntegration(unittest.TestCase):
         for param in self.gpt2_integration.model.parameters():
             self.assertFalse(param.requires_grad)
 
+    def test_get_output_using_dummy_with_batch_injection(self):
+        """Test the get_output_by_using_dummy function with batch injection."""
+        # Define the token number and batch size for dummy inputs
+        token_num = 5
+        batch_size = 2
+
+        # Get dummy hidden states for a batch
+        dummy_hidden_states = torch.rand((batch_size, token_num, self.gpt2_integration.model.config.n_embd)).to(
+            self.gpt2_integration.device)
+
+        # Inject the dummy hidden states into the model (for all items in the batch)
+        self.gpt2_integration.inject_hidden_states(dummy_hidden_states)
+
+        # Call the get_output_by_using_dummy function after injection
+        outputs = self.gpt2_integration.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size)
+
+        # Verify that outputs are not None
+        self.assertIsNotNone(outputs)
+
+        # Verify that the hidden states in the outputs have the correct shape
+        expected_hidden_shape = (batch_size, token_num, self.gpt2_integration.model.config.n_embd)
+        self.assertEqual(outputs.hidden_states[-1].shape, expected_hidden_shape)
+
+        # Ensure that the logits have the correct shape
+        expected_logits_shape = (batch_size, token_num, self.gpt2_integration.model.config.vocab_size)
+        self.assertEqual(outputs.logits.shape, expected_logits_shape)
+
+        # Ensure that the outputs are tensors
+        self.assertTrue(torch.is_tensor(outputs.hidden_states[-1]))
+        self.assertTrue(torch.is_tensor(outputs.logits))
+
 
 if __name__ == '__main__':
     unittest.main()
