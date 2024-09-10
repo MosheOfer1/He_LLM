@@ -2,8 +2,10 @@ import sys
 import os
 import torch
 
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from llm.gpt2_llm import GPT2LLM
 from models.combined_model import MyCustomModel
 from facade import create_datasets_from_txt_file, save_model, predict, train
 
@@ -16,11 +18,12 @@ translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
 llm_model_name = "DAMO-NLP-MT/polylm-1.7b"
 
-text_file_path = input("Enter text file path")
+text_file_path = input("Enter text file path: ")
 
 customLLM = MyCustomModel(translator1_model_name,
                           translator2_model_name,
                           llm_model_name,
+                          GPT2LLM,
                           device=device)
 
 

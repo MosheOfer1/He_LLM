@@ -2,9 +2,11 @@ import torch
 import torch.nn as nn
 import os
 import sys
-from my_datasets.combo_model_dataset import ComboModelDataset
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from llm.opt_llm import OptLLM
+from my_datasets.combo_model_dataset import ComboModelDataset
 
 from transformers import TrainingArguments
 from models.combined_model_trainer import CombinedTrainer
@@ -14,7 +16,6 @@ from custom_transformers.transformer import Transformer
 
 # Translators
 from translation.helsinki_translator import HelsinkiTranslator
-from llm.opt_llm import OprLLM
 
 # Optuna best hypers finder
 from utilty.BestHyper import BestHyper
@@ -25,6 +26,7 @@ class MyCustomModel(nn.Module, BestHyper):
                  src_to_target_translator_model_name,
                  target_to_src_translator_model_name,
                  llm_model_name,
+                 llm_model_cls=OptLLM,
                  pretrained_transformer1_path: str = None,
                  pretrained_transformer2_path: str = None,
                  device='cpu'):
@@ -40,8 +42,9 @@ class MyCustomModel(nn.Module, BestHyper):
                                              target_to_src_translator_model_name,
                                              device=device)
         # Custom LLM
-        self.llm = OprLLM(llm_model_name,
-                          device=device)
+        self.llm = llm_model_cls(
+            llm_model_name,
+            device=device)
 
         # Custom Transformer
         self.transformer = Transformer(translator=self.translator,
