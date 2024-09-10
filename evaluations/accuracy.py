@@ -78,9 +78,8 @@ else:
     print("GPU not available, using CPU instead.")
 
 # Initialize tokenizer and model
-# model_path = "DAMO-NLP-MT/polylm-1.7b"
+# "DAMO-NLP-MT/polylm-1.7b"
 model_path = input("Enter model name to evaluate:")
-# model_path = "facebook/opt-125m"
 
 tokenizer = AutoTokenizer.from_pretrained(model_path, legacy=False, use_fast=False)
 
@@ -103,9 +102,10 @@ print("en text len: ", len(en_text))
 # Calculate accuracy for polylm-1.7b in English
 print("Calculating accuracy for English...")
 accuracy_en = calculate_accuracy(model, tokenizer, en_text)
-print(f"Accuracy for {model_path} in English: {accuracy_en * 100:.2f}%")
 
 # Calculate accuracy for polylm-1.7b in Hebrew
 print("Calculating accuracy for Hebrew...")
 accuracy_he = calculate_accuracy(model, tokenizer, he_text)
+
+print(f"Accuracy for {model_path} in English: {accuracy_en * 100:.2f}%")
 print(f"Accuracy for {model_path} in Hebrew: {accuracy_he * 100:.2f}%")
