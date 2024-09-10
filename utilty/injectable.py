@@ -56,13 +56,15 @@ class CustomLayerWrapper(nn.Module):
             if arg_name == 'hidden_states':
                 # Replace in *args if 'hidden_states' is in positional arguments
                 if i < len(new_args):
-                    print("The hidden_state in the args")
+                    print("The hidden_states in the args")
+                    print(f"\nOrigin shape {new_args[i].shape}", f"Modified shape {hidden_states.shape}")
                     new_args[i] = hidden_states
                     break
+        new_args = tuple(new_args)
 
         # If 'hidden_states' is in **kwargs, replace it there as well
         if 'hidden_states' in kwargs:
-            print("The hidden_state in the kwargs")
+            print("The hidden_states in the kwargs")
             kwargs['hidden_states'] = hidden_states
 
         # Call the layer's forward method with the modified arguments
