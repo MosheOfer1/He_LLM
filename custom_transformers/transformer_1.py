@@ -10,10 +10,21 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import matplotlib.pyplot as plt
 
-from my_datasets.create_datasets import create_transformer1_dataset
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_wrapper import LLMWrapper
 from translation.translator import Translator
+
+
+def create_positional_encoding(max_seq_len, hidden_dim):
+    # Initialize the positional encoding matrix
+    position = torch.arange(0, max_seq_len).unsqueeze(1)
+    div_term = torch.exp(torch.arange(0, hidden_dim, 2) * (-torch.log(torch.tensor(10000.0)) / hidden_dim))
+
+    positional_encoding = torch.zeros(max_seq_len, hidden_dim)
+    positional_encoding[:, 0::2] = torch.sin(position * div_term)
+    positional_encoding[:, 1::2] = torch.cos(position * div_term)
+
+    return positional_encoding.unsqueeze(0)  # Shape (1, max_seq_len, hidden_dim)
 
 
 class Transformer1(BaseTransformer):
@@ -48,7 +59,8 @@ class Transformer1(BaseTransformer):
         # Input projection to align translator's hidden states to the model's hidden dimension
         self.input_projection = nn.Linear(self.input_dim, hidden_dim).to(device)
         # Initializing the positional encoding as a learnable parameter in the model max seq len is 512
-        self.positional_encoding = nn.Parameter(torch.zeros(1, max_seq_len, hidden_dim)).to(device)
+        self.positional_encoding = create_positional_encoding(max_seq_len, hidden_dim).to(device)
+
         # Transformer Encoder Layer
         encoder_layers = TransformerEncoderLayer(d_model=hidden_dim, nhead=nhead).to(device)
         self.encoder = TransformerEncoder(encoder_layers, num_layers=num_layers).to(device)
@@ -60,7 +72,7 @@ class Transformer1(BaseTransformer):
 
         # Define the EOS vector (e.g., a vector of zeros or a specific learned vector)
         self.eos_vector_input = torch.zeros(translator.src_to_target_model.config.hidden_size).to(device)
-        self.eos_vector_output = torch.zeros(llm.model.config.hidden_size).to(device)
+        self.eos_vector_output = torch.ones(llm.model.config.hidden_size).to(device)
 
     def encode(self, input_seq):
         input_seq = self.input_projection(input_seq)
@@ -82,70 +94,56 @@ class Transformer1(BaseTransformer):
         output = self.decoder(tgt=target_seq, memory=memory)
         return output
 
-    def forward(self, input_ids, labels=None, mse_threshold=1e-4):
+    def forward(self, input_ids, labels=None):
         """
         Forward pass through the Transformer1 model.
 
-        :param mse_threshold:
-        :param input_ids: Input tensor of shape (batch_size, seq_len, input_dim).
-        :param labels: Target tensor of shape (batch_size, seq_len, output_dim), optional.
-        :return: The output of the model.
+        :param input_ids: Tensor of shape (batch_size, seq_len, input_dim), representing the input sequence.
+        :param labels: Optional tensor of shape (batch_size, seq_len, output_dim), representing the target sequence.
+        :param mse_threshold: MSE loss threshold for early stopping if the error becomes too small.
+        :return: The output sequence tensor.
         """
-        input_ids = input_ids.to(self.device)
-        if labels is not None:
-            labels = labels.to(self.device)
-            
-        max_length = input_ids.size(1) + 5
 
-        # Encode the input sequence using the encoder
+        # Move input_ids to the correct device
+        input_ids = input_ids.to(self.device)
+
+        # Encode the input sequence to get memory
         memory = self.encode(input_ids)
 
-        if labels is not None:
-            # Training mode
-            decoder_input = labels[:, :-1]  # Shifted target sequence
-            decoder_output = self.decode(decoder_input, memory)
-            logits = self.output_projection(decoder_output)
+        # Initialize the output tensor
+        batch_size, tgt_len = labels.size(0), labels.size(1) if labels is not None else input_ids.size(1)
+        outputs = torch.zeros(batch_size, tgt_len, self.output_dim).to(self.device)
 
-            # Compute Mean Squared Error Loss (MSELoss)
-            loss_fn = torch.nn.MSELoss()
-            loss = loss_fn(logits, labels[:, 1:])
-            # Return a dictionary with the loss
-            return {"loss": loss}
-        else:
-            # Inference mode with autoregressive decoding
-            batch_size = input_ids.size(0)
-            # Initialize the decoder input with a start token (or a tensor of zeros)
-            # Assuming the first token in the sequence as a start token.
-            start_tokens = torch.zeros((batch_size, 1, self.output_dim))#, device=self.device)
-            generated_seq = start_tokens.to(self.device)
+        # Initialize the target sequence with the EOS vector for the first token
+        input_token = self.eos_vector_output.unsqueeze(0).expand(batch_size, -1).to(self.device)
 
-            for _ in range(max_length):
-                # Decode the current sequence
-                decoder_output = self.decode(generated_seq, memory)
-                # Project the decoder output to get the logits
-                logits = self.output_projection(decoder_output)
-                # Get the predicted token by taking the argmax of the logits (greedy decoding)
-                next_token = logits[:, -1, :].to(self.device)  # Take the last time step's output
-                # Calculate MSE with the EOS vector
-                mse_loss = torch.nn.MSELoss()
-                mse = mse_loss(next_token, self.eos_vector_output)
+        # Iterate over the sequence to generate each token step by step
+        for t in range(tgt_len):
+            # Create a sequence tensor for the current target token
+            target_seq = input_token.unsqueeze(1)  # Shape: (batch_size, 1, output_dim)
 
-                # If MSE is below the threshold, stop decoding
-                if mse < mse_threshold:
-                    break
+            # Decode using the transformer decoder
+            decoder_output = self.decode(target_seq, memory)
 
-                # Append the predicted token to the sequence
-                generated_seq = torch.cat([generated_seq, next_token.unsqueeze(1)], dim=1)
+            # Project the decoder output to the desired output dimension
+            output_token = self.output_projection(decoder_output[:, -1, :])  # Shape: (batch_size, output_dim)
 
-            # The generated sequence is now the output
-            output = generated_seq
+            # Store the generated token in the output sequence
+            outputs[:, t, :] = output_token
 
-        return output
+            # If labels are provided, calculate the loss between predicted and true tokens
+            if labels is not None:
+                true_token = labels[:, t, :].to(self.device)
 
-    def train_model(self, train_dataset=None, test_dataset=None, epochs=8):
-        if not train_dataset:
-            train_dataset, test_dataset = create_transformer1_dataset(self.translator, self.llm, '../my_datasets/')
+                # Update the input token for the next time step with teacher forcing
+                input_token = true_token.clone().detach()
+            else:
+                # In the absence of labels, use the predicted output as the next input token
+                input_token = output_token.clone().detach()
 
+        return outputs
+
+    def train_model(self, train_dataset, test_dataset, epochs=8):
         training_args = Seq2SeqTrainingArguments(
             output_dir='../my_datasets',
             evaluation_strategy="epoch",
@@ -160,15 +158,10 @@ class Transformer1(BaseTransformer):
         )
 
         # Print trainable layers and parameters
-        print("Trainable Layers and Parameters:")
-        for name, param in self.named_parameters():
-            if param.requires_grad:
-                print(f"Layer: {name} | Size: {param.size()} | Requires Grad: {param.requires_grad}")
-            else:
-                print(f"Layer: {name} | Size: {param.size()} | Requires Grad: {param.requires_grad} (Not trainable)")
+        print_model_parameters(self)
 
         # Initialize the Seq2SeqTrainer
-        trainer = Seq2SeqTrainer(
+        trainer = CustomTrainer(
             model=self.to(self.device),  # Pass the current model instance
             args=training_args,
             train_dataset=train_dataset,
@@ -242,3 +235,23 @@ class Transformer1(BaseTransformer):
 
         print(f"Model '{model_name}' loaded from {model_path}")
         return model
+
+
+def print_model_parameters(model):
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    print(f"Total parameters: {total_params}")
+    print(f"Trainable parameters: {trainable_params}")
+
+
+class CustomTrainer(Seq2SeqTrainer):
+    def compute_loss(self, model, inputs, return_outputs=False):
+        input_ids = inputs.get("input_ids").to(model.device)
+        labels = inputs.get("labels").to(model.device)
+        outputs = model(input_ids, labels)
+
+        loss_fct = nn.MSELoss()
+        loss = loss_fct(outputs, labels)
+
+        return (loss, outputs) if return_outputs else loss

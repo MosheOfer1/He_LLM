@@ -63,6 +63,8 @@ class Seq2SeqDataset(Dataset):
         batch_size, seq_len, hidden_dim = hidden_states.shape
         if seq_len < max_len:
             pad_size = max_len - seq_len
-            padding = torch.zeros((batch_size, pad_size, hidden_dim)).to(self.device)  # Pad with zeros for the batch
+            padding = torch.ones((batch_size, pad_size, hidden_dim)).to(self.device)  # Pad with ones for the batch
             return torch.cat([hidden_states, padding], dim=1).to(self.device)  # Concatenate along the seq_len dimension
-        return hidden_states[:, :max_len, :]  # Truncate if necessary
+        hidden_states = hidden_states[:, :max_len - 1, :]  # Truncate if necessary
+        padding = torch.ones((batch_size, 1, hidden_dim)).to(self.device)
+        return torch.cat([hidden_states, padding], dim=1).to(self.device)  # Add the last one to be EOS (all ones)

@@ -1,8 +1,10 @@
 import sys
 import os
+
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from llm.opt_llm import OprLLM
+from llm.opt_llm import OptLLM
 from my_datasets.create_datasets import read_file_lines
 import torch
 
@@ -10,7 +12,7 @@ from my_datasets.seq2seq_dataset import Seq2SeqDataset
 from translation.helsinki_translator import HelsinkiTranslator
 
 
-from custom_transformers.short_rnn_transformer1 import Transformer1
+from custom_transformers.transformer_1 import Transformer1
 # Dataset
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -20,10 +22,12 @@ print(f"Im working with: {device}")
 translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
 llm_model_name = "facebook/opt-125m"
-llm = OprLLM(llm_model_name,
-             device=device)
 text_file_path = "../my_datasets/7k_hebrew_wiki_text.txt"
-# text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
+
+
+llm = OptLLM(llm_model_name,
+             device=device)
+
 translator = HelsinkiTranslator(
     translator1_model_name,
     translator2_model_name,

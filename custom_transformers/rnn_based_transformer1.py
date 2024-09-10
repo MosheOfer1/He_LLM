@@ -12,7 +12,7 @@ from custom_transformers.base_transformer import BaseTransformer
 from my_datasets.create_datasets import create_transformer1_dataset
 
 
-class Transformer1(BaseTransformer):
+class RNNTransformer1(BaseTransformer):
     def __init__(self, 
                  translator, 
                  llm, 
@@ -40,7 +40,7 @@ class Transformer1(BaseTransformer):
         if not model_name:
             model_name = f"rnn_transformer1_{translator.src_to_target_translator_model_name.replace('/', '_')}_to_{llm.model.config.name_or_path.replace('/', '_')}"
 
-        super(Transformer1, self).__init__(model_name=model_name, translator=translator, llm=llm)
+        super(RNNTransformer1, self).__init__(model_name=model_name, translator=translator, llm=llm)
 
         # Define the encoder and decoder
         self.encoder = RNNEncoder(input_dim=self.input_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)

@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Transformers
-from custom_transformers.short_rnn_transformer1 import Transformer1
+from custom_transformers.transformer_1 import Transformer1
 from custom_transformers.transformer_2 import Transformer2
 
 # Translators
