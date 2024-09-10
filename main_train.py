@@ -35,7 +35,7 @@ train_dataset, eval_dataset = create_datasets_from_txt_file(translator=customLLM
 train(model=customLLM,
       train_dataset=train_dataset,
       eval_dataset=eval_dataset,
-      batches=32,
+      batches=16,
       device=device)
 
 # Specify the full file path for the model
