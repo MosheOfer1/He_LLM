@@ -16,9 +16,7 @@ class Transformer1(BaseTransformer):
                  translator, 
                  llm, 
                  model_name=None, 
-                 input_dim=1024, 
-                 output_dim=768, 
-                 hidden_dim=512, 
+                 hidden_dim=512,
                  num_layers=2,
                  device='cpu'):
         
@@ -34,9 +32,8 @@ class Transformer1(BaseTransformer):
 
         super(Transformer1, self).__init__(model_name=model_name)
 
-        self.encoder = RNNEncoder(input_dim=input_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
-        self.decoder = RNNDecoder(output_dim=output_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
-        self.output_dim = output_dim
+        self.encoder = RNNEncoder(input_dim=self.input_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
+        self.decoder = RNNDecoder(output_dim=self.output_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
 
         # Set model name and path for saving
         self.model_name = model_name if model_name else "seq2seq_model"

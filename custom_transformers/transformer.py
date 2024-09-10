@@ -22,16 +22,16 @@ from llm.llm_wrapper import LLMWrapper
 class Transformer(nn.Module):
 
     def __init__(self,
-                translator: Translator = None,
-                llm: LLMWrapper = None,
-                pretrained_transformer1_path: str = None,
-                pretrained_transformer2_path: str = None,
-                device: str = 'cpu'):
-        
+                 translator: Translator = None,
+                 llm: LLMWrapper = None,
+                 pretrained_transformer1_path: str = None,
+                 pretrained_transformer2_path: str = None,
+                 device: str = 'cpu'):
+
         print(f"Transformer.__init__ - uses: {device}")
-        
+
         self.device = device
-        
+
         nn.Module.__init__(self)
 
         # Obtain transformer1
