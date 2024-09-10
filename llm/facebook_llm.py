@@ -4,7 +4,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from transformers import AutoTokenizer, OPTForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from llm.llm_integration import LLMWrapper
 
 
@@ -23,7 +23,7 @@ class FacebookLLM(nn.Module ,LLMWrapper):
         
         self.llm_model_name = model_name
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.llm_model = OPTForCausalLM.from_pretrained(model_name).to(device)
+        self.llm_model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
 
         # Initialize LLMWrapper
         LLMWrapper.__init__(self, 
