@@ -28,7 +28,7 @@ def load_and_evaluate_model(model_name):
         llm=llm
     )
 
-    sentence = "להביא הצהרה שכזו על בסיס ציטוט שכזה זה לא סביר"
+    sentence = input("Enter Hebrew sentence: ")
 
     # Step 1: Get the last hidden state from the first translator model
     with torch.no_grad():
