@@ -26,9 +26,17 @@ class Transformer2(BaseTransformer):
         print(f"Transformer2.__init__ - uses: {device}")
         
         self.device = device
-                
+
         # Determine input and output dimensions based on the LLM and translator
-        input_dim = llm.model.config.word_embed_proj_dim
+        if hasattr(llm.model.config, 'word_embed_proj_dim'):
+            # For models that have word_embed_proj_dim (like BART, T5)
+            input_dim = llm.model.config.word_embed_proj_dim
+        elif hasattr(llm.model.config, 'n_embd'):
+            # For GPT-2 or models that use n_embd
+            input_dim = llm.model.config.n_embd
+        else:
+            raise AttributeError(f"Unsupported model architecture: {llm.model.config.__class__.__name__}")
+
         output_dim = translator.target_to_src_model.config.hidden_size
 
         # Generate a model name that includes the translator and LLM names
