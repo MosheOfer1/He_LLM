@@ -111,7 +111,7 @@ class Transformer1(BaseTransformer):
         memory = self.encode(input_ids)
 
         # Initialize the output tensor
-        batch_size, tgt_len = labels.size(0), labels.size(1) if labels is not None else input_ids.size(1)
+        batch_size, tgt_len = input_ids.size(0), labels.size(1) if labels is not None else input_ids.size(1)
         outputs = torch.zeros(batch_size, tgt_len, self.output_dim).to(self.device)
 
         # Initialize the target sequence with the EOS vector for the first token
