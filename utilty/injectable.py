@@ -34,8 +34,16 @@ class CustomLayerWrapper(nn.Module):
     def set_injection_state(self, injection_state: bool):
         self.injection_state = injection_state
 
-    def forward(self, hidden_states, attention_mask=None, layer_head_mask=None, **kwargs):
-        # Pass the injected hidden state layer to the original layer
-        hs = self.injected_hidden_state if self.injection_state else hidden_states
-        return self.layer(hs, attention_mask, layer_head_mask, **kwargs)
+    def forward(self, hidden_states, *args, **kwargs):
+        """
+        Forward pass for the wrapped layer. Injects hidden states if the injection is active.
+        :param hidden_states: The original hidden states.
+        :param *args: Additional positional arguments.
+        :param **kwargs: Additional keyword arguments.
+        """
+        # Inject the hidden states if injection is enabled
+        if self.injection_state and self.injected_hidden_state is not None:
+            hidden_states = self.injected_hidden_state
 
+        # Pass the modified or original hidden states along with the additional arguments to the original layer
+        return self.layer(hidden_states, *args, **kwargs)

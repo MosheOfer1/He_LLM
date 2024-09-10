@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from llm.facebook_llm import FacebookLLM
+from llm.opt_llm import OprLLM
 from my_datasets.create_datasets import read_file_lines
 import torch
 
@@ -20,8 +20,8 @@ print(f"Im working with: {device}")
 translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
 llm_model_name = "facebook/opt-125m"
-llm = FacebookLLM(llm_model_name,
-                               device=device)
+llm = OprLLM(llm_model_name,
+             device=device)
 text_file_path = "../my_datasets/7k_hebrew_wiki_text.txt"
 # text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
 translator = HelsinkiTranslator(

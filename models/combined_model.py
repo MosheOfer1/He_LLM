@@ -14,7 +14,7 @@ from custom_transformers.transformer import Transformer
 
 # Translators
 from translation.helsinki_translator import HelsinkiTranslator
-from llm.facebook_llm import FacebookLLM
+from llm.opt_llm import OprLLM
 
 # Optuna best hypers finder
 from utilty.BestHyper import BestHyper
@@ -40,8 +40,8 @@ class MyCustomModel(nn.Module, BestHyper):
                                              target_to_src_translator_model_name,
                                              device=device)
         # Custom LLM
-        self.llm = FacebookLLM(llm_model_name,
-                               device=device)
+        self.llm = OprLLM(llm_model_name,
+                          device=device)
 
         # Custom Transformer
         self.transformer = Transformer(translator=self.translator,

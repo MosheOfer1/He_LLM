@@ -9,7 +9,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from custom_transformers.short_rnn_transformer1 import Transformer1
-from llm.llm_integration import LLMWrapper
+from llm.llm_wrapper import LLMWrapper
 from my_datasets.seq2seq_dataset import Seq2SeqDataset
 from translation.helsinki_translator import HelsinkiTranslator
 

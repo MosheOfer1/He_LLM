@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from my_datasets.create_datasets import create_transformer1_dataset
 from custom_transformers.base_transformer import BaseTransformer
-from llm.llm_integration import LLMWrapper
+from llm.llm_wrapper import LLMWrapper
 from translation.translator import Translator
 
 

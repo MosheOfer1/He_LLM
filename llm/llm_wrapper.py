@@ -1,30 +1,45 @@
 from contextlib import contextmanager
 
-from transformers import OPTForCausalLM
 import torch
+from torch import nn
+
 from utilty.injectable import CustomLayerWrapper, Injectable
 
 
-class LLMWrapper(Injectable):
-    def __init__(self, model_name, tokenizer, llm_model, device='cpu'):
+class LLMWrapper(nn.Module, Injectable):
+    def __init__(self, model_name, tokenizer, llm_model, device='cpu', *args, **kwargs):
         """
-        Initialize the LLMIntegration with a specific OPT model.0
+        Common initialization logic for all models.
         """
-        
+        super().__init__(*args, **kwargs)
         self.device = device
-        
-        llm_model = llm_model.to(device)
-        
-        self.outputs = None
         self.tokenizer = tokenizer
-        self.model: OPTForCausalLM = llm_model
         self.model_name = model_name
+        self.model = llm_model.to(device)
+        self.injected_layer_num = 0  # Layer to be injected
+        self.inject_layer()
 
-        # Let the LLM be Injectable by replacing the first block of the LLM
-        self.injected_layer_num = 0
-        original_layer = self.model.base_model.decoder.layers[self.injected_layer_num]
+        self.outputs = None
+
+    def get_layers(self):
+        """
+        Abstract method: Each subclass must implement this method to return the model's layers.
+        """
+        raise NotImplementedError("Subclasses must implement 'get_layers' method")
+
+    def inject_layer(self):
+        """
+        Inject custom layer into the model by replacing the specified layer.
+        """
+        # Access the specific layer from the subclass implementation of get_layers()
+        layers = self.get_layers()
+        original_layer = layers[self.injected_layer_num]
+
+        # Wrap the layer using a custom layer wrapper
         wrapped_layer = CustomLayerWrapper(original_layer, None)
-        self.model.base_model.decoder.layers[self.injected_layer_num] = wrapped_layer
+
+        # Replace the original layer with the wrapped layer
+        layers[self.injected_layer_num] = wrapped_layer
 
     def set_requires_grad(self, requires_grad: bool):
         """
@@ -42,7 +57,7 @@ class LLMWrapper(Injectable):
         :param injected_hidden_state: The injected hidden states
         """
         injected_hidden_state = injected_hidden_state
-        self.model.base_model.decoder.layers[self.injected_layer_num].injected_hidden_state = injected_hidden_state
+        self.get_layers()[self.injected_layer_num].injected_hidden_state = injected_hidden_state
 
     def get_output_by_using_dummy(self, token_num, batch_size=1):
         # Generate a dummy input for letting the model output the desired result of the injected layer
@@ -90,15 +105,21 @@ class LLMWrapper(Injectable):
         return outputs.hidden_states[layer_num]
 
     @contextmanager
-    def injection_state(self):
-        """Context manager to set the injection state for a specific layer with default values."""
+    def injection_state(self, state=False):
+        """
+        Context manager to set the injection state for a specific layer with default values.
+        This will work with any model architecture by relying on the subclass to return the correct layers.
+        """
         layer_num = self.injected_layer_num
-        state = False
+
+        # Access the specific layer from the subclass implementation of get_layers()
+        layers = self.get_layers()
+        layer = layers[layer_num]
 
         # Set the injection state to the desired value
-        self.model.base_model.decoder.layers[layer_num].set_injection_state(state)
+        layer.set_injection_state(state)
         try:
             yield  # Yield control to the block inside the 'with' statement
         finally:
             # Revert the injection state when exiting the 'with' block
-            self.model.base_model.decoder.layers[layer_num].set_injection_state(not state)
+            layer.set_injection_state(not state)

@@ -14,7 +14,7 @@ from custom_transformers.transformer_2 import Transformer2
 from translation.translator import Translator
 
 # LLM
-from llm.llm_integration import LLMWrapper
+from llm.llm_wrapper import LLMWrapper
 
 
 # TODO - allow loading pretrained transformers
