@@ -6,7 +6,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from my_datasets.create_datasets import load_and_create_dataset
+from custom_datasets.create_datasets import load_and_create_dataset
 
 
 class Seq2SeqModel(nn.Module):

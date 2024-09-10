@@ -1,5 +1,3 @@
-import os
-
 import torch
 import torch.nn as nn
 from transformers import TrainingArguments, Trainer
@@ -9,7 +7,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from custom_transformers.base_transformer import BaseTransformer
-from my_datasets.create_datasets import create_transformer1_dataset
+from custom_datasets.create_datasets import create_transformer1_dataset
 
 
 class RNNTransformer1(BaseTransformer):

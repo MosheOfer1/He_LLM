@@ -33,12 +33,14 @@ class Transformer(nn.Module):
         self.device = device
 
         nn.Module.__init__(self)
-
         # Obtain transformer1
         if pretrained_transformer1_path:
-            # self.transformer1: Transformer1 = torch.load(pretrained_transformer1_path)
-            pass
-
+            self.transformer1 = Transformer1.load_model(
+                model_name=pretrained_transformer1_path,
+                translator=translator,
+                llm=llm,
+                device=device
+            )
         else:
             self.transformer1 = Transformer1(translator=translator, llm=llm, device=device)
 

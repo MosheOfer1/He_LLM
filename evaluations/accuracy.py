@@ -5,7 +5,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from my_datasets.create_datasets import read_file_lines
+from custom_datasets.create_datasets import read_file_lines
 
 
 def clean_token(token):

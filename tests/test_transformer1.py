@@ -7,7 +7,7 @@ import torch
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from llm.opt_llm import OptLLM
-from my_datasets.seq2seq_dataset import Seq2SeqDataset
+from custom_datasets.seq2seq_dataset import Seq2SeqDataset
 from translation.helsinki_translator import HelsinkiTranslator
 from custom_transformers.transformer_1 import Transformer1
 

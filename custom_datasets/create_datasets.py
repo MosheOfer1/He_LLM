@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pandas as pd
 from llm.llm_wrapper import LLMWrapper
-from my_datasets.seq2seq_dataset import Seq2SeqDataset
+from custom_datasets.seq2seq_dataset import Seq2SeqDataset
 from translation.translator import Translator
 
 

@@ -41,9 +41,9 @@ class Transformer1(BaseTransformer):
         :param translator: The translator instance used.
         :param llm: The LLM instance used.
         """
-        
+
         print(f"Transformer1.__init__ - uses: {device}")
-        
+
         self.device = device
         # Determine input and output dimensions based on the translator and LLM
         self.input_dim = translator.src_to_target_model.config.hidden_size
@@ -146,7 +146,7 @@ class Transformer1(BaseTransformer):
     def train_model(self, train_dataset, test_dataset, epochs=8):
         training_args = Seq2SeqTrainingArguments(
             output_dir='../my_datasets',
-            evaluation_strategy="epoch",
+            eval_strategy="epoch",
             learning_rate=2e-5,
             per_device_train_batch_size=16,
             per_device_eval_batch_size=16,
@@ -210,7 +210,7 @@ class Transformer1(BaseTransformer):
         return eval_results
 
     @classmethod
-    def load_model(cls, model_name: str, translator: Translator, llm: LLMWrapper):
+    def load_model(cls, model_name: str, translator: Translator, llm: LLMWrapper, device="cpu"):
         """
         Load a Transformer model (either Transformer1 or Transformer2) from the ../models directory using the model name.
 
@@ -222,10 +222,10 @@ class Transformer1(BaseTransformer):
         if not model_name.endswith('.pth') and not model_name.endswith('.pt'):
             model_name += '.pth'
         # Construct the full path to the model file
-        model_path = f"../models/{model_name}"
+        model_path = model_name
 
         # Initialize the appropriate Transformer model
-        model = Transformer1(translator=translator, llm=llm)
+        model = Transformer1(translator=translator, llm=llm, device=device)
 
         # Load the model state dictionary from the saved file
         model.load_state_dict(torch.load(model_path, map_location=torch.device(model.device)))

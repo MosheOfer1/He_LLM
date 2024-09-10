@@ -6,7 +6,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from my_datasets.create_datasets import read_file_lines
+from custom_datasets.create_datasets import read_file_lines
 
 
 def calculate_perplexity(model, tokenizer, texts, batch_size=8, max_length=512):

@@ -1,12 +1,8 @@
 import sys
 import os
-from my_datasets.create_datasets import read_file_to_string
 import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from models.combined_model import MyCustomModel
-from facade import predict, load_model
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 

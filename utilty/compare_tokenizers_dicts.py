@@ -6,7 +6,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Define a helper function to identify Hebrew tokens
-from my_datasets.create_datasets import read_file_to_string
+from custom_datasets.create_datasets import read_file_to_string
 
 
 def is_hebrew_token(token):

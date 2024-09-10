@@ -6,7 +6,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from llm.opt_llm import OptLLM
-from my_datasets.combo_model_dataset import ComboModelDataset
+from custom_datasets.combo_model_dataset import ComboModelDataset
 
 from transformers import TrainingArguments
 from models.combined_model_trainer import CombinedTrainer
