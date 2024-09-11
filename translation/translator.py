@@ -161,11 +161,22 @@ class Translator(Injectable):
         Processes the model to generate outputs, including logits and hidden states.
         Handles a batch of inputs, such as (batch_size, seq_len).
         """
-        batch_size = inputs["input_ids"].size(0)
-
+        input_ids = inputs["input_ids"]
+        input_shape = input_ids.shape
+        
+        batch_size = input_shape[0]
+        
+        # Get the start token ID (<bos> or <cls>)
+        if tokenizer.bos_token_id is not None:
+            start_token_id = tokenizer.bos_token_id
+        elif tokenizer.cls_token_id is not None:
+            start_token_id = tokenizer.cls_token_id
+        else:
+            start_token_id = tokenizer.pad_token_id
+        
         # Initialize decoder input IDs with the start token ID for all sentences in the batch
         decoder_input_ids = torch.full(
-            (batch_size, 1), tokenizer.pad_token_id, dtype=torch.long, device=model.device
+            (batch_size, 1), start_token_id, dtype=torch.long, device=model.device
         )
 
         counter = 0
@@ -191,8 +202,12 @@ class Translator(Injectable):
 
             counter += 1
 
+        print(f"input_ids.shape: {input_ids.shape}")
+        print(f"decoder_input_ids.shape: {decoder_input_ids.shape}")
+        print(f"outputs.logits.shape: {outputs.logits.shape}")
+        
         return outputs
-
+    
     @staticmethod
     def decode_logits(tokenizer, logits: torch.Tensor) -> str:
         """

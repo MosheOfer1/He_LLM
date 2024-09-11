@@ -3,11 +3,12 @@ from torch.utils.data import Dataset
 
 
 class ComboModelDataset(Dataset):
-    def __init__(self, text: str, input_tokenizer, output_tokenizer, window_size=10, device='cpu'):
+    def __init__(self, text_list: list[str], input_tokenizer, output_tokenizer, window_size=10, device='cpu'):
 
         self.device = device
 
-        self.token_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
+        self.token_pairs = create_token_pairs(input_tokenizer, output_tokenizer, text_list, window_size)
+        
 
         self.input_tokenizer = input_tokenizer
         self.output_tokenizer = output_tokenizer
@@ -44,6 +45,7 @@ class ComboModelDataset(Dataset):
             'labels': labels,
         }
 
+    # TODO - Change it to fit the new dataset - list[sentences]
     def _get_input_ids(self, idx):
         input_ids = []
 
@@ -79,8 +81,11 @@ def align_tokens(tokenizer1, tokenizer2, text):
         token_group_1 = [tokens1[i]]
         token_group_2 = [tokens2[j]]
 
+
+    
         # Collect tokens from the first list until they match the beginning of the next token in the second list
         while not ''.join(token_group_1) == ''.join(token_group_2):
+            
             if len(''.join(token_group_1)) < len(''.join(token_group_2)):
                 i += 1
                 token_group_1.append(tokens1[i])
@@ -89,8 +94,8 @@ def align_tokens(tokenizer1, tokenizer2, text):
                 token_group_2.append(tokens2[j])
 
         # Add the aligned pair of groups to the result
-        aligned_pairs.append((tuple(token_group_1), tuple(token_group_2)))
-
+        aligned_pairs.append((tuple(token_group_1), tuple(token_group_2)))        
+    
         i += 1
         j += 1
 
@@ -103,7 +108,51 @@ def align_tokens(tokenizer1, tokenizer2, text):
             aligned_pairs = aligned_pairs[:len(aligned_pairs) - 1]
             count += 1
 
-    print(f"count: {count}, len {len(aligned_pairs)}")
+    # print(f"count: {count}, len {len(aligned_pairs)}")
     return aligned_pairs
 
+def create_token_pairs(input_tokenizer, output_tokenizer, list_text, window_size):
+    
+    ans = []
+    for text in list_text:
+        sentence_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
+        ans.append(sentence_pairs)
+    return delete_unmatched_pairs(ans, window_size)
 
+def delete_unmatched_pairs(token_pairs: list[tuple], window: int):
+    
+    print(len(token_pairs))
+    
+    ans =[]
+    
+    temp = []
+    
+    for sentence_idx, sentence_pairs in enumerate(token_pairs):
+        
+        # Append only matched pairs window
+        if check_pair(sentence_pairs, sentence_idx):
+            temp.append(sentence_pairs)
+            
+            if len(temp) == window:
+                ans.extend(temp)
+                temp.clear()
+        else:
+            temp.clear()
+
+    print(len(ans))
+    return ans
+
+def check_pair(sentence_pairs, sentence_idx):
+    if not sentence_pairs:
+        return False
+    
+    for pair_idx, pair in enumerate(sentence_pairs):
+        left, right = pair
+        
+        if len(left) != len(right):
+            return False
+
+        for i in range(len(left)):
+            if left[i] != right[i]:
+                return False
+    return True

@@ -1,6 +1,6 @@
 import sys
 import os
-from custom_datasets.create_datasets import read_file_to_string
+from custom_datasets.create_datasets import read_file_to_string, read_file_lines
 import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -12,16 +12,16 @@ from translation.translator import Translator
 
 
 def create_datasets_from_txt_file(translator: Translator, text_file_path: str, window_size=30, device='cpu'):
-    text = read_file_to_string(text_file_path)
+    text_list = read_file_lines(text_file_path)
 
-    print(f"len(text) = {len(text)}")
+    print(f"len(text) = {len(text_list)}")
 
-    split_index = int(len(text) * 0.8)
-    train_data, eval_data = text[:split_index], text[split_index:]
+    split_index = int(len(text_list) * 0.8)
+    train_data, eval_data = text_list[:split_index], text_list[split_index:]
 
     # Create datasets
     train_dataset = ComboModelDataset(
-        text=train_data,
+        text_list=train_data,
         input_tokenizer=translator.src_to_target_tokenizer,
         output_tokenizer=translator.target_to_src_tokenizer,
         window_size=window_size,
@@ -29,7 +29,7 @@ def create_datasets_from_txt_file(translator: Translator, text_file_path: str, w
     )
 
     eval_dataset = ComboModelDataset(
-        text=eval_data,
+        text_list=eval_data,
         input_tokenizer=translator.src_to_target_tokenizer,
         output_tokenizer=translator.target_to_src_tokenizer,
         window_size=window_size,
@@ -63,7 +63,8 @@ def save_model(model: MyCustomModel, model_name: str, model_dir: str):
         os.makedirs(model_dir)
 
     # Save the model state
-    torch.save(model.state_dict(), model_path)
+    model.save_transformers_state_dict(model_path)
+
 
 
 def load_model(model_path: str, translator1_model_name, translator2_model_name, llm_model_name, device):
@@ -73,7 +74,7 @@ def load_model(model_path: str, translator1_model_name, translator2_model_name, 
                               device=device)
 
     # Load the saved state dictionary into the model
-    customLLM.load_state_dict(torch.load(model_path))
+    customLLM.load_transformers_state_dict(model_path)
     return customLLM
 
 
