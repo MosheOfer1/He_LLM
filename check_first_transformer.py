@@ -14,7 +14,7 @@ translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
 translator = HelsinkiTranslator(translator1_model_name,
                                 translator2_model_name)
 
-llm_model_name = "facebook/opt-125m"
+llm_model_name = "facebook/opt-350m"
 llm = OptLLM(llm_model_name)
 
 
