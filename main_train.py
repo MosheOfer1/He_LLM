@@ -1,10 +1,11 @@
 import sys
 import os
-from my_datasets.create_datasets import read_file_to_string
 import torch
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from llm.gpt2_llm import GPT2LLM
 from models.combined_model import MyCustomModel
 from facade import create_datasets_from_txt_file, save_model, predict, train
 
@@ -15,16 +16,14 @@ print(f"Im working with: {device}")
 
 translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
-llm_model_name = "facebook/opt-125m"
+llm_model_name = "DAMO-NLP-MT/polylm-1.7b"
 
-# text_file_path = "my_datasets/book.txt"
-text_file_path = "my_datasets/hebrew_text_for_tests.txt"
-# text_file_path = "my_datasets/7k_hebrew_wiki_text.txt"
-# text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
+text_file_path = input("Enter text file path: ")
 
 customLLM = MyCustomModel(translator1_model_name,
                           translator2_model_name,
                           llm_model_name,
+                          GPT2LLM,
                           device=device)
 
 
@@ -36,12 +35,12 @@ train_dataset, eval_dataset = create_datasets_from_txt_file(translator=customLLM
 train(model=customLLM,
       train_dataset=train_dataset,
       eval_dataset=eval_dataset,
-      batches=32,
+      batches=8,
       device=device)
 
-# # Specify the full file path for the model
-model_name = "customLLM_batches32_window30.pth"
-model_dir = "/home/ddn1/Documents/GitHub/He_LLM/output_dir_orel_moshe"
+# Specify the full file path for the model
+model_name = f"{text_file_path[:5]}_{llm_model_name.split('/')[-1].replace('.','_')}.pth"
+model_dir = "my_datasets"
 
 save_model(model=customLLM,
            model_name=model_name,

@@ -7,18 +7,16 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from custom_transformers.base_transformer import BaseTransformer
-from llm.llm_integration import LLMWrapper
+from llm.llm_wrapper import LLMWrapper
 from translation.translator import Translator
 
 
-class Transformer1(BaseTransformer):
+class LSTMTransformer1(BaseTransformer):
     def __init__(self, 
                  translator, 
                  llm, 
                  model_name=None, 
-                 input_dim=1024, 
-                 output_dim=768, 
-                 hidden_dim=512, 
+                 hidden_dim=512,
                  num_layers=2,
                  device='cpu'):
         
@@ -32,17 +30,16 @@ class Transformer1(BaseTransformer):
         if not model_name:
             model_name = f"long_short_rnn_transformer1_{translator.src_to_target_translator_model_name.replace('/', '_')}_to_{llm.model.config.name_or_path.replace('/', '_')}"
 
-        super(Transformer1, self).__init__(model_name=model_name)
+        super(LSTMTransformer1, self).__init__(model_name=model_name)
 
-        self.encoder = RNNEncoder(input_dim=input_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
-        self.decoder = RNNDecoder(output_dim=output_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
-        self.output_dim = output_dim
+        self.encoder = RNNEncoder(input_dim=self.input_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
+        self.decoder = RNNDecoder(output_dim=self.output_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
 
         # Set model name and path for saving
         self.model_name = model_name if model_name else "seq2seq_model"
-        self.model_path = f"models/{self.model_name}.pth"
+        self.model_path = f"../models/{self.model_name}.pth"
 
-    def forward(self, input_ids, labels=None, teacher_forcing_ratio=0.01):
+    def forward(self, input_ids, labels=None, teacher_forcing_ratio=0.9):
         
         input_ids = input_ids.to(self.device)
         
@@ -62,13 +59,16 @@ class Transformer1(BaseTransformer):
 
         return outputs
 
-    def train_model(self, train_dataset=None, test_dataset=None, epochs=8):
+    def train_model(self, train_dataset, test_dataset, epochs=8):
         training_args = TrainingArguments(
             output_dir='./results',  # output directory
             num_train_epochs=epochs,  # total number of training epochs
-            per_device_train_batch_size=8,  # batch size per device during training
+            per_device_train_batch_size=32,  # batch size per device during training
             save_steps=10_000,  # number of updates steps before saving checkpoint
             save_total_limit=2,  # limit the total amount of checkpoints
+            eval_strategy="steps",
+            eval_steps=300,
+            logging_steps=100,
         )
 
         trainer = CustomTrainer(
@@ -78,12 +78,16 @@ class Transformer1(BaseTransformer):
             eval_dataset=test_dataset,
         )
 
+        self.printTrainableParams()
+
         trainer.train()
 
         if not os.path.exists(os.path.dirname(self.model_path)):
             os.makedirs(os.path.dirname(self.model_path))
         torch.save(self.state_dict(), self.model_path)
         print(f"Model saved to {self.model_path}")
+
+        self.evaluate_model(trainer, test_dataset)
 
     @classmethod
     def load_model(cls, model_name: str, translator: Translator, llm: LLMWrapper, device='cpu'):
@@ -102,7 +106,7 @@ class Transformer1(BaseTransformer):
         model_path = f"models/{model_name}"
 
         # Initialize the appropriate Transformer model
-        model = Transformer1(model_name=model_name, translator=translator, llm=llm, device=device)
+        model = LSTMTransformer1(model_name=model_name, translator=translator, llm=llm, device=device)
 
         try:
             # Load the model state dictionary from the saved file
@@ -134,6 +138,20 @@ class Transformer1(BaseTransformer):
             inputs = output
 
         return generated_seq
+
+    @staticmethod
+    def evaluate_model(trainer, test_dataset):
+        # Evaluate the model on the test dataset
+        eval_results = trainer.evaluate(eval_dataset=test_dataset)
+        print(f"Evaluation Results: {eval_results}")
+        return eval_results
+
+    def printTrainableParams(self):
+        # Print the parameter names for the model customLLM
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                print(name)
+
 
 
 class RNNEncoder(nn.Module):

@@ -45,33 +45,19 @@ class CombinedTrainer(Trainer):
                          eval_dataset=eval_dataset,
                          optimizers=(optimizer, scheduler))
 
-    # def compute_loss(self, model, inputs, return_outputs=False):
-    #     """
-    #     Overrides the Trainer lib default loss computation
-    #     """
-    #     outputs = model(**inputs)
-    #     loss = outputs.loss
-    #     return (loss, outputs) if return_outputs else loss
-
     def compute_loss(self, model, inputs, return_outputs=False):
         """
         Overrides the Trainer lib default loss computation
         """
         outputs = model(**inputs)
-        
+
         logits = outputs.get("logits").to(self.device)
         labels = inputs.get("labels").to(self.device)
-        
-        # Cross Entropy
-        loss = self.cross_entropy_loss(logits=logits,
-                                       labels=labels)
-        
-        return (loss, outputs) if return_outputs else loss
-    
-    def cross_entropy_loss(self, logits, labels):
-        logits = logits[:, 0, :].to(self.device)  # Shape: [batch_size, num_classes]
+
         loss_func = nn.CrossEntropyLoss()
-        return loss_func(logits, labels)
+        loss = loss_func(logits[:, 0, :], labels)
+
+        return (loss, outputs) if return_outputs else loss
 
     def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
         """
