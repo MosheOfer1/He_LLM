@@ -71,17 +71,17 @@ class LLMWrapper(nn.Module, Injectable):
 
         return self.outputs
 
-    def process_text_input_to_logits(self, text: str) -> torch.Tensor:
+    def process_text_input_to_outputs(self, text: str):
         """
-        Process a regular text input through the LLM and return the logits layer.
+        Process a regular text input through the LLM and return the outputs.
 
         :param text: The input text to be processed by the LLM.
         :return: The last hidden state layer from the LLM.
         """
         # Tokenize the text input
         inputs = self.tokenizer(text, return_tensors="pt").to(self.device)
-        outputs = self.model(inputs.input_ids)
-        return outputs.logits
+        self.outputs = self.model(**inputs, output_hidden_states=True)
+        return self.outputs
 
     def decode_logits(self, logits: torch.Tensor) -> str:
         """

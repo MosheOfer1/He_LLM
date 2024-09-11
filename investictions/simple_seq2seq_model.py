@@ -79,7 +79,7 @@ model = Seq2SeqModel()
 
 # Define training arguments
 training_args = TrainingArguments(
-    output_dir='./results',  # output directory
+    output_dir='../utilty/results',  # output directory
     num_train_epochs=5,  # total number of training epochs
     per_device_train_batch_size=8,  # batch size per device during training
     save_steps=10_000,  # number of updates steps before saving checkpoint
