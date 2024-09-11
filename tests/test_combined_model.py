@@ -23,25 +23,47 @@ class TestCombinedModel(unittest.TestCase):
         self.path = 'transformer1_and_2_state.pth'
 
         # Create two instances of MyCustomModel
-        self.model1 = MyCustomModel(
+        self.model1: MyCustomModel = MyCustomModel(
             src_to_target_translator_model_name=self.translator1_model_name,
             target_to_src_translator_model_name=self.translator2_model_name,
             llm_model_name=self.llm_model_name,
             device=self.device)
 
-        self.model2 = MyCustomModel(
+        self.model2: MyCustomModel = MyCustomModel(
             src_to_target_translator_model_name=self.translator1_model_name,
             target_to_src_translator_model_name=self.translator2_model_name,
             llm_model_name=self.llm_model_name,
             device=self.device)
+        
+        self.model1.eval()
+        self.model2.eval()
 
     def test_saving_loading_both_transformers(self):
-        # Save model1 state dict & load both transformer1 and transformer2 state to model2
-        self.model1.save_transformers_state_dict(self.path)
-        self.model2.load_transformers_state_dict(self.path, to_transformer1=True, to_transformer2=True)
 
-        # Check if the state dicts are identical
-        self.assertTrue(self.model1.compere_state_dicts(self.model2))
+        input_ids = torch.tensor([[5444]]).to(self.device)
+        
+        with torch.no_grad():
+            
+            # Save outputs.logits before state dict change
+            logits_before_model1 = self.model1(input_ids=input_ids).logits
+            logits_before_model2 = self.model2(input_ids=input_ids).logits
+            
+            self.assertFalse(torch.equal(logits_before_model1, logits_before_model2))
+            
+            # Save model1 state dict & load both transformer1 and transformer2 state to model2
+            self.model1.save_transformers_state_dict(self.path)
+            self.model2.load_transformers_state_dict(self.path, to_transformer1=True, to_transformer2=True)
+
+            # Check if the state dicts are identical
+            self.assertTrue(self.model1.compere_state_dicts(self.model2))
+            
+            # Check model outputs.logits after change
+            logits_after_model1 = self.model1(input_ids=input_ids).logits
+            self.assertTrue(torch.equal(logits_before_model1, logits_after_model1))
+            
+            logits_after_model2 = self.model2(input_ids=input_ids).logits
+            self.assertTrue(torch.equal(logits_before_model1, logits_after_model2))
+        
 
     def test_loading_only_transformer1(self):
         # Save model1 state dict & load only transformer1 state to model2
