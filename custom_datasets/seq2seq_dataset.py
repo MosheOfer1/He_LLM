@@ -3,19 +3,17 @@ from torch.utils.data import Dataset
 
 
 class Seq2SeqDataset(Dataset):
-    def __init__(self, sentences, translator, llm, max_seq_len=None, device='cpu'):
+    def __init__(self, sentences, translator, llm, device='cpu'):
         """
         Args:
             sentences (list): List of Hebrew sentences.
             translator (Translator): The translator wrapper.
             llm (LLMWrapper): The language model wrapped with the injection state context manager.
-            max_seq_len (int, optional): Maximum sequence length for padding. If None, it will not pad.
         """
         self.device = device
         self.sentences = sentences
         self.translator = translator
         self.llm = llm
-        self.max_seq_len = max_seq_len
 
     def __len__(self):
         return len(self.sentences)
@@ -44,11 +42,6 @@ class Seq2SeqDataset(Dataset):
                     layer_num=0
                 )
 
-        # If max_seq_len is provided, pad input_ids and labels
-        if self.max_seq_len:
-            input_hidden_states = self.pad_hidden_states(input_hidden_states.to(self.device), self.max_seq_len)
-            target_hidden_states = self.pad_hidden_states(target_hidden_states.to(self.device), self.max_seq_len)
-
         input_hidden_states = input_hidden_states.squeeze(0)
         target_hidden_states = target_hidden_states.squeeze(0)
 
@@ -57,14 +50,3 @@ class Seq2SeqDataset(Dataset):
             "input_ids": input_hidden_states,  # Last layer of translator
             "labels": target_hidden_states  # First layer of LLM
         }
-
-    def pad_hidden_states(self, hidden_states, max_len):
-        """Pad hidden states to a fixed length."""
-        batch_size, seq_len, hidden_dim = hidden_states.shape
-        if seq_len < max_len:
-            pad_size = max_len - seq_len
-            padding = torch.ones((batch_size, pad_size, hidden_dim)).to(self.device)  # Pad with ones for the batch
-            return torch.cat([hidden_states, padding], dim=1).to(self.device)  # Concatenate along the seq_len dimension
-        hidden_states = hidden_states[:, :max_len - 1, :]  # Truncate if necessary
-        padding = torch.ones((batch_size, 1, hidden_dim)).to(self.device)
-        return torch.cat([hidden_states, padding], dim=1).to(self.device)  # Add the last one to be EOS (all ones)

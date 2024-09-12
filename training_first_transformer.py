@@ -51,14 +51,12 @@ train_dataset = Seq2SeqDataset(
     sentences=train_data,
     translator=translator,
     llm=llm,
-    max_seq_len=15
 )
 
 eval_dataset = Seq2SeqDataset(
     sentences=eval_data,
     translator=translator,
     llm=llm,
-    max_seq_len=15
 )
 
 trans1.train_model(train_dataset, eval_dataset, 6)
