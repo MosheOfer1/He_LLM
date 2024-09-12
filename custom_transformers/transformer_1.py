@@ -1,16 +1,14 @@
 import torch.nn as nn
 import torch
 from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
-from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
 import torch.nn.functional as F
-
+import matplotlib.pyplot as plt
 import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import matplotlib.pyplot as plt
-
+from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_wrapper import LLMWrapper
 from translation.translator import Translator
@@ -166,9 +164,6 @@ class Transformer1(BaseTransformer):
             logging_dir='../my_datasets/logs',
         )
 
-        # Print trainable layers and parameters
-        print_model_parameters(self)
-
         # Initialize the Seq2SeqTrainer
         trainer = CustomTrainer(
             model=self.to(self.device),  # Pass the current model instance
@@ -178,7 +173,7 @@ class Transformer1(BaseTransformer):
             tokenizer=None,  # No tokenizer since we're working with raw vectors
             data_collator=lambda x: collate_fn(x, max_seq_len=128, device=self.device)
         )
-
+        self.printTrainableParams()
         # Train the model
         trainer.train()
 
@@ -190,6 +185,20 @@ class Transformer1(BaseTransformer):
         print(f"Model saved to {self.model_path}")
         self.evaluate_model(trainer, test_dataset)
         self.plot_loss(trainer)
+
+    def printTrainableParams(self):
+        total_params = sum(p.numel() for p in self.parameters())  # Total number of parameters
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)  # Trainable parameters
+
+        # Print the parameter names for the trainable parameters
+        print("Trainable parameters:")
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                print(name)
+
+        # Print the total number of parameters and trainable parameters
+        print(f"\nTotal parameters: {total_params}")
+        print(f"Trainable parameters: {trainable_params}")
 
     @staticmethod
     def plot_loss(trainer, save_path='images/loss_plot.png'):
@@ -249,14 +258,6 @@ class Transformer1(BaseTransformer):
         return model
 
 
-def print_model_parameters(model):
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-    print(f"Total parameters: {total_params}")
-    print(f"Trainable parameters: {trainable_params}")
-
-
 def logits_from_first_layer(llm, hidden_states):
     # Inject the noised hidden states back into the model
     llm.inject_hidden_states(hidden_states)
@@ -277,7 +278,7 @@ def _calculate_KL_div(llm, outputs, label):
     original_probs = F.softmax(true_logits, dim=-1)
 
     # Calculate KL divergence between the original and predicted logits
-    kl_div = F.kl_div(original_probs.log(), predicted_probs, reduction='batchmean')
+    kl_div = F.kl_div(predicted_probs.log(), original_probs, reduction='batchmean')
 
     return kl_div
 
@@ -287,22 +288,25 @@ class CustomTrainer(Seq2SeqTrainer):
         input_ids = inputs.get("input_ids").to(model.device)
         labels = inputs.get("labels").to(model.device)
         outputs = model(input_ids, labels)
+
         llm = model.black_box.llm
         loss = _calculate_KL_div(llm, outputs, labels)
+
+        # loss_fct = nn.MSELoss()
+        # loss = loss_fct(outputs, labels)
+
+        # cosine_sim = F.cosine_similarity(outputs, labels, dim=-1)
+        # loss = 1 - cosine_sim.mean()
 
         return (loss, outputs) if return_outputs else loss
 
 
 def pad_hidden_states(hidden_states, max_len, device='cpu'):
     """Pad hidden states to a fixed length with ones."""
-    batch_size, seq_len, hidden_dim = hidden_states.shape
-    if seq_len < max_len:
-        pad_size = max_len - seq_len
-        padding = torch.ones((batch_size, pad_size, hidden_dim)).to(device)  # Pad with ones
-        return torch.cat([hidden_states, padding], dim=1).to(device)  # Concatenate along the seq_len dimension
-    hidden_states = hidden_states[:, :max_len - 1, :]  # Truncate if necessary
-    padding = torch.ones((batch_size, 1, hidden_dim)).to(device)  # Add ones for EOS
-    return torch.cat([hidden_states, padding], dim=1).to(device)
+    seq_len, hidden_dim = hidden_states.shape
+    pad_size = max_len - seq_len
+    padding = torch.ones((pad_size, hidden_dim)).to(device)  # Pad with ones
+    return torch.cat([hidden_states, padding], dim=0).to(device)  # Concatenate along the seq_len dimension
 
 
 def collate_fn(batch, max_seq_len=None, device='cpu'):
@@ -310,16 +314,16 @@ def collate_fn(batch, max_seq_len=None, device='cpu'):
     labels = [item['labels'] for item in batch]
 
     # Determine the maximum sequence length in the batch
-    max_input_len = max([x.size(0) for x in input_ids])
-    max_label_len = max([x.size(0) for x in labels])
+    max_input_len = max([x.size(0) for x in input_ids]) + 1
+    max_label_len = max([x.size(0) for x in labels]) + 1
 
     # Set the max sequence length to pad if provided, otherwise use the batch max
     max_input_len = min(max_seq_len, max_input_len) if max_seq_len is not None else max_input_len
     max_label_len = min(max_seq_len, max_label_len) if max_seq_len is not None else max_label_len
 
     # Pad input_ids and labels using your custom pad_hidden_states function
-    padded_input_ids = torch.stack([pad_hidden_states(x.unsqueeze(0), max_input_len, device=device).squeeze(0) for x in input_ids])
-    padded_labels = torch.stack([pad_hidden_states(x.unsqueeze(0), max_label_len, device=device).squeeze(0) for x in labels])
+    padded_input_ids = torch.stack([pad_hidden_states(x, max_input_len, device=device) for x in input_ids])
+    padded_labels = torch.stack([pad_hidden_states(x, max_label_len, device=device) for x in labels])
 
     # Move the tensors to CPU to avoid the pinning error
     padded_input_ids = padded_input_ids.to('cpu')
