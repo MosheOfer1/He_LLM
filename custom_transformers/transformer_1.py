@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
 from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
+import torch.nn.functional as F
 
 import os
 import sys
@@ -25,6 +26,11 @@ def create_positional_encoding(max_seq_len, hidden_dim):
     positional_encoding[:, 1::2] = torch.cos(position * div_term)
 
     return positional_encoding.unsqueeze(0)  # Shape (1, max_seq_len, hidden_dim)
+
+
+class BlackBox:
+    def __init__(self, llm: LLMWrapper):
+        self.llm = llm
 
 
 class Transformer1(BaseTransformer):
@@ -73,6 +79,8 @@ class Transformer1(BaseTransformer):
         # Define the EOS vector (e.g., a vector of zeros or a specific learned vector)
         self.eos_vector_input = torch.zeros(translator.src_to_target_model.config.hidden_size).to(device)
         self.eos_vector_output = torch.ones(llm.model.config.hidden_size).to(device)
+
+        self.black_box = BlackBox(llm)
 
     def encode(self, input_seq):
         input_seq = self.input_projection(input_seq)
@@ -249,13 +257,37 @@ def print_model_parameters(model):
     print(f"Trainable parameters: {trainable_params}")
 
 
+def logits_from_first_layer(llm, hidden_states):
+    # Inject the noised hidden states back into the model
+    llm.inject_hidden_states(hidden_states)
+    # Get the logits after injecting the hidden states
+    batch_size = hidden_states.shape[0]
+    token_num = hidden_states.shape[1]
+    llm_outputs = llm.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size)
+    predicted_logits = llm_outputs.logits
+    return predicted_logits
+
+
+def _calculate_KL_div(llm, outputs, label):
+    predicted_logits = logits_from_first_layer(llm, outputs)
+    true_logits = logits_from_first_layer(llm, label)
+
+    # Convert logits to probabilities using softmax
+    predicted_probs = F.softmax(predicted_logits, dim=-1)
+    original_probs = F.softmax(true_logits, dim=-1)
+
+    # Calculate KL divergence between the original and predicted logits
+    kl_div = F.kl_div(original_probs.log(), predicted_probs, reduction='batchmean')
+
+    return kl_div
+
+
 class CustomTrainer(Seq2SeqTrainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         input_ids = inputs.get("input_ids").to(model.device)
         labels = inputs.get("labels").to(model.device)
         outputs = model(input_ids, labels)
-
-        loss_fct = nn.MSELoss()
-        loss = loss_fct(outputs, labels)
+        llm = model.black_box.llm
+        loss = _calculate_KL_div(llm, outputs, labels)
 
         return (loss, outputs) if return_outputs else loss
