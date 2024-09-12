@@ -176,7 +176,7 @@ class Transformer1(BaseTransformer):
             train_dataset=train_dataset,
             eval_dataset=test_dataset,
             tokenizer=None,  # No tokenizer since we're working with raw vectors
-            data_collator=lambda x: collate_fn(x, max_seq_len=128, device=self.device)
+            data_collator=lambda x: collate_fn(x, max_seq_len=128)
         )
 
         # Train the model
@@ -293,19 +293,19 @@ class CustomTrainer(Seq2SeqTrainer):
         return (loss, outputs) if return_outputs else loss
 
 
-def pad_hidden_states(hidden_states, max_len, device='cpu'):
+def pad_hidden_states(hidden_states, max_len):
     """Pad hidden states to a fixed length with ones."""
     batch_size, seq_len, hidden_dim = hidden_states.shape
     if seq_len < max_len:
         pad_size = max_len - seq_len
-        padding = torch.ones((batch_size, pad_size, hidden_dim)).to(device)  # Pad with ones
-        return torch.cat([hidden_states, padding], dim=1).to(device)  # Concatenate along the seq_len dimension
+        padding = torch.ones((batch_size, pad_size, hidden_dim))  # Pad with ones
+        return torch.cat([hidden_states, padding], dim=1)  # Concatenate along the seq_len dimension
     hidden_states = hidden_states[:, :max_len - 1, :]  # Truncate if necessary
-    padding = torch.ones((batch_size, 1, hidden_dim)).to(device)  # Add ones for EOS
-    return torch.cat([hidden_states, padding], dim=1).to(device)
+    padding = torch.ones((batch_size, 1, hidden_dim))  # Add ones for EOS
+    return torch.cat([hidden_states, padding], dim=1)
 
 
-def collate_fn(batch, max_seq_len=None, device='cpu'):
+def collate_fn(batch, max_seq_len=None):
     input_ids = [item['input_ids'] for item in batch]
     labels = [item['labels'] for item in batch]
 
@@ -318,8 +318,8 @@ def collate_fn(batch, max_seq_len=None, device='cpu'):
     max_label_len = min(max_seq_len, max_label_len) if max_seq_len is not None else max_label_len
 
     # Pad input_ids and labels using your custom pad_hidden_states function
-    padded_input_ids = torch.stack([pad_hidden_states(x.unsqueeze(0), max_input_len, device=device).squeeze(0) for x in input_ids])
-    padded_labels = torch.stack([pad_hidden_states(x.unsqueeze(0), max_label_len, device=device).squeeze(0) for x in labels])
+    padded_input_ids = torch.stack([pad_hidden_states(x.unsqueeze(0), max_input_len).squeeze(0) for x in input_ids])
+    padded_labels = torch.stack([pad_hidden_states(x.unsqueeze(0), max_label_len).squeeze(0) for x in labels])
 
     return {
         'input_ids': padded_input_ids,

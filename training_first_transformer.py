@@ -43,8 +43,10 @@ text = read_file_lines(text_file_path)
 
 print(f"len(text) = {len(text)}")
 
-split_index = int(len(text) * 0.8)
+split_index = int(len(text) * 0.9)
 train_data, eval_data = text[:split_index], text[split_index:]
+print(f"Train number of sentences = {len(train_data)}")
+print(f"Eval number of sentences = {len(eval_data)}")
 
 # Create datasets
 train_dataset = Seq2SeqDataset(
