@@ -65,7 +65,7 @@ class Transformer1(BaseTransformer):
 
     def encode(self, input_seq, input_mask=None):
         input_seq = self.input_projection(input_seq)
-        input_seq = input_seq + self.positional_encoding[:, :input_seq.size(1), :]
+        input_seq = input_seq + self.positional_encoding[:, :input_seq.size(1), :].to(input_seq.device)
 
         # Pass the attention mask to the encoder
         memory = self.encoder(input_seq, src_key_padding_mask=input_mask)
@@ -82,7 +82,7 @@ class Transformer1(BaseTransformer):
         :return: The decoded output.
         """
         # Add positional encoding to the target sequence
-        target_seq = target_seq + self.positional_encoding[:, :target_seq.size(1), :]
+        target_seq = target_seq + self.positional_encoding[:, :target_seq.size(1), :].to(input_seq.device)
 
         # Decode using the Transformer Decoder with attention masks
         output = self.decoder(tgt=target_seq, memory=memory, tgt_key_padding_mask=target_mask,
