@@ -86,7 +86,7 @@ class CustomTrainer(Seq2SeqTrainer):
         # cosine_sim = F.cosine_similarity(outputs, labels, dim=-1)
         # loss = 1 - cosine_sim.mean()
 
-        llm = model.black_box.llm
+        llm = model.module.black_box.llm if hasattr(model, 'module') else model.black_box.llm
         loss = _calculate_KL_div(llm, outputs, labels, label_mask)
 
         return (loss, outputs) if return_outputs else loss
