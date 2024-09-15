@@ -102,7 +102,9 @@ class LLMWrapper(nn.Module, Injectable):
 
     @staticmethod
     def text_to_hidden_states(tokenizer, model, text, layer_num):
-        inputs = tokenizer(text, return_tensors="pt").to(model.device)
+        device = model.module.device if hasattr(model, 'module') else model.device
+
+        inputs = tokenizer(text, return_tensors="pt").to(device)
         outputs = model(**inputs, output_hidden_states=True)
 
         return outputs.hidden_states[layer_num]

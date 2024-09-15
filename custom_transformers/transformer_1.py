@@ -245,8 +245,10 @@ class Transformer1(BaseTransformer):
         # Initialize the appropriate Transformer model
         model = Transformer1(translator=translator, llm=llm, device=device)
 
+        device = model.module.device if hasattr(model, 'module') else model.device
+
         # Load the model state dictionary from the saved file
-        model.load_state_dict(torch.load(model_path, map_location=torch.device(model.device)))
+        model.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
 
         # Set the model to evaluation mode
         model.eval()
