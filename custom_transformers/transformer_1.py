@@ -1,4 +1,5 @@
 import torch.nn as nn
+from torch.distributed._composable.replicate import DDP
 from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
 import matplotlib.pyplot as plt
 import os
@@ -149,7 +150,7 @@ class Transformer1(BaseTransformer):
             output_dir='../my_datasets',
             evaluation_strategy="epoch",
             learning_rate=2e-5,
-            per_device_train_batch_size=32,
+            per_device_train_batch_size=64,
             per_device_eval_batch_size=32,
             weight_decay=0.01,
             save_total_limit=1,
@@ -158,10 +159,12 @@ class Transformer1(BaseTransformer):
             predict_with_generate=False,  # Not generating text, so disable generation
             logging_dir='../my_datasets/logs',
         )
+        # Wrap the model in DDP to leverage distributed training
+        model = DDP(self.to(self.device))
 
         # Initialize the Seq2SeqTrainer
         trainer = CustomTrainer(
-            model=self.to(self.device),  # Pass the current model instance
+            model=model,  # Pass the current model instance
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=test_dataset,
@@ -174,10 +177,16 @@ class Transformer1(BaseTransformer):
         # Train the model
         trainer.train()
 
+        import torch.distributed as dist
+
+        def is_main_process():
+            return not dist.is_initialized() or dist.get_rank() == 0
+
         # Optionally save the trained model
-        if not os.path.exists(os.path.dirname(self.model_path)):
-            os.makedirs(os.path.dirname(self.model_path))
-        torch.save(self.state_dict(), self.model_path)
+        if is_main_process():
+            if not os.path.exists(os.path.dirname(self.model_path)):
+                os.makedirs(os.path.dirname(self.model_path))
+            torch.save(self.state_dict(), self.model_path)
 
         print(f"Model saved to {self.model_path}")
         self.evaluate_model(trainer, test_dataset)

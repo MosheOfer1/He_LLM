@@ -45,7 +45,9 @@ translator = HelsinkiTranslator(
 trans1 = Transformer1(
     translator,
     llm,
-    device=device
+    device=device,
+    nhead=8,
+    num_layers=6
 )
 
 text = read_file_lines(text_file_path)
