@@ -209,7 +209,7 @@ class Translator(Injectable):
         generated_texts = []
         for seq in token_ids:
             # Decode the token IDs to a sentence, skipping special tokens like <pad>, <eos>, etc.
-            generated_text = tokenizer.decode(seq, skip_special_tokens=True)
+            generated_text = tokenizer.decode(seq, skip_special_tokens=True, clean_up_tokenization_spaces=False)
             generated_texts.append(generated_text)
 
         generated_texts = "\n".join(generated_texts)

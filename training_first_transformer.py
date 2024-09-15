@@ -19,7 +19,7 @@ print(f"Im working with: {device}")
 translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
 llm_model_name = "facebook/opt-350m"
-text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
+text_file_path = "my_datasets/ynet_256k.txt"
 
 
 llm = OptLLM(llm_model_name,
