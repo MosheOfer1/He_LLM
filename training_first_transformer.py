@@ -16,10 +16,21 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 print(f"Im working with: {device}")
 
-translator1_model_name = "/home/management/scratch/talias/opus-mt-tc-big-he-en/"
-translator2_model_name = "/home/management/scratch/talias/opus-mt-en-he/"
-llm_model_name = "/home/management/scratch/talias/opt-350m/"
+# Define local paths
+translator1_local_path = "/home/management/scratch/talias/opus-mt-tc-big-he-en/"
+translator2_local_path = "/home/management/scratch/talias/opus-mt-en-he/"
+llm_local_path = "/home/management/scratch/talias/opt-350m/"
 text_file_path = "my_datasets/ynet_256k.txt"
+
+# Define default Hugging Face model names
+default_translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
+default_translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
+default_llm_model_name = "facebook/opt-350m"
+
+# Check if the local paths exist, otherwise assign the Hugging Face model name
+translator1_model_name = translator1_local_path if os.path.exists(translator1_local_path) else default_translator1_model_name
+translator2_model_name = translator2_local_path if os.path.exists(translator2_local_path) else default_translator2_model_name
+llm_model_name = llm_local_path if os.path.exists(llm_local_path) else default_llm_model_name
 
 
 llm = OptLLM(llm_model_name,
