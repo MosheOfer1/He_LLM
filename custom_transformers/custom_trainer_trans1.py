@@ -71,10 +71,12 @@ def _calculate_KL_div(llm, outputs, label, mask=None):
 
 class CustomTrainer(Seq2SeqTrainer):
     def compute_loss(self, model, inputs, return_outputs=False):
-        input_ids = inputs.get("input_ids").to(model.device)
-        labels = inputs.get("labels").to(model.device)
-        input_mask = inputs.get("input_mask").to(model.device)
-        label_mask = inputs.get("label_mask").to(model.device)
+        device = model.module.device if hasattr(model, 'module') else model.device
+
+        input_ids = inputs.get("input_ids").to(device)
+        labels = inputs.get("labels").to(device)
+        input_mask = inputs.get("input_mask").to(device)
+        label_mask = inputs.get("label_mask").to(device)
 
         outputs = model(input_ids, labels, input_mask=input_mask, label_mask=label_mask)
 

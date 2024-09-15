@@ -32,9 +32,10 @@ def calculate_accuracy(model, tokenizer, texts, batch_size=8, max_length=512):
         for i in range(0, len(texts), batch_size):
             batch_texts = texts[i:i + batch_size]
             inputs = tokenizer(batch_texts, return_tensors='pt', max_length=max_length, truncation=True, padding=True)
+            device = model.module.device if hasattr(model, 'module') else model.device
 
-            input_ids = inputs['input_ids'].to(model.device)
-            attention_mask = inputs['attention_mask'].to(model.device)
+            input_ids = inputs['input_ids'].to(device)
+            attention_mask = inputs['attention_mask'].to(device)
 
             outputs = model(input_ids, attention_mask=attention_mask)
             logits = outputs.logits
