@@ -5,10 +5,10 @@ import sys
 import os
 import torch
 
-from translation.helsinki_translator import HelsinkiTranslator
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from translation.helsinki_translator import HelsinkiTranslator
 from llm.llm_wrapper import LLMWrapper
 from custom_datasets.seq2seq_dataset import Seq2SeqDataset
 

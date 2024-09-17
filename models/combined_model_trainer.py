@@ -56,7 +56,7 @@ class CombinedTrainer(Trainer):
         outputs = model(**inputs)
 
         logits = outputs.get("logits").to(self.device)
-        labels = inputs.get("labels").to(self.device)
+        labels = inputs.get("labels").view(-1).to(self.device)
         
         print(f"logits.shape = {logits.shape}")
         print(f"labels.shape = {labels.shape}")
