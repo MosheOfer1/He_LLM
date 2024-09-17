@@ -257,12 +257,21 @@ class Translator(Injectable):
     @staticmethod
     def input_ids_to_hidden_states(input_ids, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
         inputs = {
+            # Input ids doesn't contain any special ids (meaning bos, eos, pad) 
             "input_ids": input_ids.to(model.device),
             "attention_mask": attention_mask
         }
 
+        print(f"t1_input_ids.shape = {input_ids.shape}")
+        print(f"t1_input_ids: {input_ids}")
+        print(input_ids[0,:,:][0])
+        print(tokenizer.convert_ids_to_tokens(input_ids[0,:,:][0]))
+        
+        # Number of input tokens per batch
+        max_len = input_ids.shape[2]
+        
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer)
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, max_len=max_len)
 
         # Return the hidden states of the specified layer
         if from_encoder:

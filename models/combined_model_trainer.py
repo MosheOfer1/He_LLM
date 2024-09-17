@@ -60,7 +60,11 @@ class CombinedTrainer(Trainer):
         
         print(f"logits.shape = {logits.shape}")
         print(f"labels.shape = {labels.shape}")
+        
+        print(f"Full batch labels: {labels}")
 
+        # raise("Please stop here")
+    
         # Cross Entropy
         loss = self.cross_entropy_loss(logits=logits,
                                        labels=labels)

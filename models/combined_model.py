@@ -70,16 +70,16 @@ class MyCustomModel(nn.Module, BestHyper):
         transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs)
 
         print(f"transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}")
-        
+                
         # Step 3: Get LLM output using dummy input
         llm_last_hidden_state = self.get_llm_last_hidden_state(transformed_to_llm_hs) # shape: [batch, tokens, dim]
         
-        # llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs) # shape: [batch * tokens, 1, dim]
+        # llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs, true) # shape: [batch * tokens, 1, dim]
         
         print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
 
         # Step 4: Transform LLM hidden states to translator's hidden states and inject
-        transformed_to_translator_hs = self.get_transformed_translator_hidden_states(llm_last_hidden_state)
+        transformed_to_translator_hs = self.get_transformed_translator_hidden_states(llm_last_hidden_state, reshape=True) # [batch * tokens, 2, trans_dim]
         
         # transformed_to_translator_hs = self.get_reshaped_transformed_translator_hidden_states(llm_last_hidden_state)
 
@@ -101,7 +101,11 @@ class MyCustomModel(nn.Module, BestHyper):
         ).to(self.device)
 
     def get_llm_last_hidden_state(self, transformed_to_llm_hs):
-        return self.get_llm_hidden_states(transformed_to_llm_hs)[:, -1, :].unsqueeze(1)  # Shape: [batch_size, 1, dim]
+        llm_hs = self.get_llm_hidden_states(transformed_to_llm_hs)
+        
+        print(f"llm_hs.shape: {llm_hs.shape}")
+        
+        return llm_hs[:, -1, :].unsqueeze(1)  # Shape: [batch_size, 1, dim]
 
     def get_llm_hidden_states(self, transformed_to_llm_hs):
         self.llm.inject_hidden_states(transformed_to_llm_hs)
@@ -162,9 +166,10 @@ class MyCustomModel(nn.Module, BestHyper):
     
     def get_transformer2_output(self, llm_last_hidden_state, reshape = False):
         
+        # [batch, tokens, dim]
         transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state).to(self.device)
         
-        # Reshaped
+        # Reshaped: [batch * tokens, 1, dim]
         if (reshape):
             transformed_to_translator_hs = transformed_to_translator_hs.reshape(-1, 1, transformed_to_translator_hs.shape[-1])
         

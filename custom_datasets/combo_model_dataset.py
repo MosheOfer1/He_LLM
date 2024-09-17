@@ -32,32 +32,25 @@ class ComboModelDataset(Dataset):
         
         window = self.windows[idx]
         
+        # print(f"window: {window}")
+        
         # Get input tokens
-        tokens = []
-        for pair in window[:-1]:
-            input_tokens = pair[0]
-            tokens.append(input_tokens[0])
+        tokens = [pair[0][0] for pair in window[:-1]]
         
-        
-        input_ids = self.input_tokenizer.encode(tokens, # Do i need EOS?
-                                                add_special_tokens=False,
+        input_ids = self.input_tokenizer.encode(tokens,
+                                                add_special_tokens=True, # Adds bos token
                                                 return_tensors='pt'
                                                 ).to(self.device)
-        
 
-        # Get Label
-        next_token = window[-1][1]
+        # Get Labels tokens
+        next_token = [pair[1][0] for pair in window]
         
-        outputs = self.output_tokenizer(
-            text_target=next_token, # Do i need EOS?
-            add_special_tokens=False
-        )["input_ids"]
-        labels = outputs[0][0]
-        
+        labels = self.output_tokenizer.convert_tokens_to_ids(next_token)
+                
         labels = torch.tensor([labels], dtype=torch.long)
         
-        # print(f"Index: {idx}, Tokens: {tokens}, Input_ids: {input_ids}, label: {labels}")
-        
+        # print(f"Dataset item ({idx}) Labels: {labels}")
+    
         return {
             'input_ids': input_ids,
             'labels': labels,
@@ -128,7 +121,7 @@ def delete_unmatched_pairs(sentences_pairs: list[tuple], window: int):
     windows =[]
     temp = []
     
-    print(f"Before deleting: {sentences_pairs[:10]}")
+    # print(f"Before deleting: {sentences_pairs[:10]}")
     
     for sentence_pairs in sentences_pairs:
 
@@ -145,8 +138,8 @@ def delete_unmatched_pairs(sentences_pairs: list[tuple], window: int):
             else:
                 temp.clear()
 
-    print(f"I have {len(windows)} windows")
-    print(f"Windows example: {windows[:10]}")
+    # print(f"I have {len(windows)} windows")
+    # print(f"Windows example: {windows[:10]}")
     return windows
 
 
