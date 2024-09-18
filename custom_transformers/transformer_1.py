@@ -157,7 +157,7 @@ class Transformer1(BaseTransformer):
             num_train_epochs=epochs,
             predict_with_generate=False,  # Not generating text, so disable generation
             logging_dir='my_datasets/transformer1_training/logs',
-            fp16=True,
+            # fp16=True,
         )
 
         # Initialize the Seq2SeqTrainer
