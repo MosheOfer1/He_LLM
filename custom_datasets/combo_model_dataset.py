@@ -40,7 +40,7 @@ class ComboModelDataset(Dataset):
         input_ids = self.input_tokenizer.encode(tokens,
                                                 add_special_tokens=True, # Adds bos token
                                                 return_tensors='pt'
-                                                ).to(self.device)
+                                                )
 
         # Get Labels tokens
         next_token = [pair[1][0] for pair in window]
