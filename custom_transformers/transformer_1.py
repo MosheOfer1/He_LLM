@@ -218,14 +218,14 @@ class Transformer1(BaseTransformer):
         train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank)
         train_loader = DataLoader(
             train_dataset,
-            batch_size=64,
+            batch_size=8,
             sampler=train_sampler,
             collate_fn=lambda x: collate_fn(x, max_seq_len=128, device=device)
         )
         test_sampler = DistributedSampler(test_dataset, num_replicas=world_size, rank=rank)
         test_loader = DataLoader(
             test_dataset,
-            batch_size=32,
+            batch_size=8,
             sampler=test_sampler,
             collate_fn=lambda x: collate_fn(x, max_seq_len=128, device=device)
         )
