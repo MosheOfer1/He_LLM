@@ -1,15 +1,17 @@
-import torch.nn as nn
-from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
-import matplotlib.pyplot as plt
 import os
 import sys
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 
-from custom_transformers.custom_trainer_trans1 import _calculate_KL_div
+import matplotlib.pyplot as plt
+import torch.nn as nn
+from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
+from torch.utils.data import DistributedSampler, DataLoader
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from custom_transformers.custom_trainer_trans1 import _calculate_KL_div
 from custom_transformers.custom_trainer_trans1 import *
-from transformers import Seq2SeqTrainingArguments
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_wrapper import LLMWrapper
 from translation.translator import Translator
@@ -155,54 +157,72 @@ class Transformer1(BaseTransformer):
 
         outputs = model(input_ids, labels, input_mask=input_mask, label_mask=label_mask)
 
-        # loss_fct = nn.MSELoss()
-        # loss = loss_fct(outputs, labels)
-
-        # cosine_sim = F.cosine_similarity(outputs, labels, dim=-1)
-        # loss = 1 - cosine_sim.mean()
-
         llm = model.module.black_box.llm if hasattr(model, 'module') else model.black_box.llm
         loss = _calculate_KL_div(llm, outputs, labels, label_mask)
 
         return (loss, outputs) if return_outputs else loss
 
     def train_model(self, train_dataset, test_dataset, epochs=5):
-        import os
-        import torch
-        import torch.nn as nn
-        import torch.distributed as dist
-        from torch.nn.parallel import DistributedDataParallel as DDP
-        from torch.utils.data import DataLoader, DistributedSampler
+        # Set CUDA_VISIBLE_DEVICES based on local rank
+        if 'OMPI_COMM_WORLD_SIZE' in os.environ:
+            # We are running under MPI via mpirun
+            world_size = int(os.environ['OMPI_COMM_WORLD_SIZE'])
+            rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
+            local_rank = int(os.environ['OMPI_COMM_WORLD_LOCAL_RANK'])
 
-        # Initialize the process group
-        print("Initializing distributed process group...")
-        dist.init_process_group(backend='nccl')
+            # Set environment variables
+            os.environ['WORLD_SIZE'] = str(world_size)
+            os.environ['RANK'] = str(rank)
+            os.environ['LOCAL_RANK'] = str(local_rank)
+            os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
 
-        # Get local rank and set device
-        local_rank = int(os.environ['LOCAL_RANK'])
-        print(f"Process {dist.get_rank()} - Local rank: {local_rank}")
-        torch.cuda.set_device(local_rank)
-        device = torch.device('cuda', local_rank)
-        print(f"Process {dist.get_rank()} - Using device: {device}")
+            # Set the master address and port
+            master_addr = os.environ.get('MASTER_ADDR', 'localhost')
+            master_port = os.environ.get('MASTER_PORT', '12355')
+
+            # Initialize the process group
+            print(f"Process {rank} - Initializing distributed process group...")
+            dist.init_process_group(
+                backend='nccl',
+                init_method=f'tcp://{master_addr}:{master_port}',
+                world_size=world_size,
+                rank=rank
+            )
+        else:
+            # Single process (not distributed)
+            world_size = 1
+            rank = 0
+            local_rank = 0
+            os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
+            print("Single process training - not using distributed training.")
+            dist.init_process_group(backend='nccl', init_method='env://', world_size=1, rank=0)
+
+        # Set the device
+        torch.cuda.set_device(0)
+        device = torch.device('cuda', 0)
+        print(f"Process {rank} - local_rank: {local_rank}, CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
+        print(f"Process {rank} - Using device: {device}, Available GPUs: {torch.cuda.device_count()}")
+
+        # Update self.device
+        self.device = device
 
         # Move the model to the appropriate device
-        print(f"Process {dist.get_rank()} - Moving model to device...")
+        print(f"Process {rank} - Moving model to device...")
         self.to(device)
 
-        # Wrap the model with DDP using a different variable
-        print(f"Process {dist.get_rank()} - Wrapping model with DistributedDataParallel...")
-        ddp_model = DDP(self, device_ids=[local_rank], output_device=local_rank)
-
+        # Wrap the model with DDP
+        print(f"Process {rank} - Wrapping model with DistributedDataParallel...")
+        ddp_model = DDP(self, device_ids=[0], output_device=0)
         # Create data loaders with DistributedSampler
-        print(f"Process {dist.get_rank()} - Creating data loaders...")
-        train_sampler = DistributedSampler(train_dataset)
+        print(f"Process {rank} - Creating data loaders...")
+        train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank)
         train_loader = DataLoader(
             train_dataset,
             batch_size=64,
             sampler=train_sampler,
             collate_fn=lambda x: collate_fn(x, max_seq_len=128, device=device)
         )
-        test_sampler = DistributedSampler(test_dataset)
+        test_sampler = DistributedSampler(test_dataset, num_replicas=world_size, rank=rank)
         test_loader = DataLoader(
             test_dataset,
             batch_size=32,
@@ -211,12 +231,12 @@ class Transformer1(BaseTransformer):
         )
 
         # Define the optimizer
-        print(f"Process {dist.get_rank()} - Setting up optimizer...")
+        print(f"Process {rank} - Setting up optimizer...")
         optimizer = torch.optim.Adam(ddp_model.parameters(), lr=2e-5, weight_decay=0.01)
 
         # Training loop
         for epoch in range(epochs):
-            print(f"\nProcess {dist.get_rank()} - Starting epoch {epoch + 1}/{epochs}...")
+            print(f"\nProcess {rank} - Starting epoch {epoch + 1}/{epochs}...")
             ddp_model.train()
             train_sampler.set_epoch(epoch)  # Shuffle data for each epoch
 
@@ -247,10 +267,11 @@ class Transformer1(BaseTransformer):
                 num_batches += 1
 
                 if batch_idx % 10 == 0:
-                    print(f"Process {dist.get_rank()} - Epoch [{epoch + 1}/{epochs}], Batch [{batch_idx}/{len(train_loader)}], Loss: {loss.item():.4f}")
+                    print(
+                        f"Process {rank} - Epoch [{epoch + 1}/{epochs}], Batch [{batch_idx}/{len(train_loader)}], Loss: {loss.item():.4f}")
 
             avg_loss = epoch_loss / num_batches
-            print(f"Process {dist.get_rank()} - Epoch {epoch + 1} completed. Average Training Loss: {avg_loss:.4f}")
+            print(f"Process {rank} - Epoch {epoch + 1} completed. Average Training Loss: {avg_loss:.4f}")
 
             # Validation loop (optional)
             ddp_model.eval()
@@ -277,17 +298,17 @@ class Transformer1(BaseTransformer):
                     val_batches += 1
 
             avg_val_loss = val_loss / val_batches
-            print(f"Process {dist.get_rank()} - Validation Loss after Epoch {epoch + 1}: {avg_val_loss:.4f}")
+            print(f"Process {rank} - Validation Loss after Epoch {epoch + 1}: {avg_val_loss:.4f}")
 
             # Optionally save the model checkpoint (only on the main process)
-            if dist.get_rank() == 0:
+            if rank == 0:
                 if not os.path.exists(os.path.dirname(self.model_path)):
                     os.makedirs(os.path.dirname(self.model_path))
                 torch.save(self.state_dict(), self.model_path)
-                print(f"Process {dist.get_rank()} - Model saved to {self.model_path}")
+                print(f"Process {rank} - Model saved to {self.model_path}")
 
         # Clean up
-        print(f"Process {dist.get_rank()} - Destroying process group...")
+        print(f"Process {rank} - Destroying process group...")
         dist.destroy_process_group()
 
     def printTrainableParams(self):
