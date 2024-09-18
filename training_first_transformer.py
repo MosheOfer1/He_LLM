@@ -48,8 +48,8 @@ trans1 = Transformer1(
     translator,
     llm,
     device=device,
-    nhead=4,
-    num_layers=4
+    nhead=2,
+    num_layers=2
 )
 
 text = read_file_lines(text_file_path)
