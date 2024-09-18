@@ -149,14 +149,15 @@ class Transformer1(BaseTransformer):
             output_dir='my_datasets/transformer1_training',
             evaluation_strategy="epoch",
             learning_rate=2e-5,
-            per_device_train_batch_size=64,
-            per_device_eval_batch_size=32,
+            per_device_train_batch_size=16,
+            per_device_eval_batch_size=16,
             weight_decay=0.01,
-            save_total_limit=1,
+            save_total_limit=3,
             save_strategy="epoch",
             num_train_epochs=epochs,
             predict_with_generate=False,  # Not generating text, so disable generation
-            logging_dir='../my_datasets/logs',
+            logging_dir='my_datasets/transformer1_training/logs',
+            fp16=True,
         )
 
         # Initialize the Seq2SeqTrainer
