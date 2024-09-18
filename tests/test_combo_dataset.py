@@ -27,11 +27,12 @@ class TestComboModelDataset(unittest.TestCase):
                                                           output_hidden_states=True)
 
         # Example text in Hebrew
-        self.text = "לא משנה עם מי תלך לעולם לא"
-        self.window_size = 5
+        self.text = ["לא משנה עם מי תלך לעולם לא"]
+        self.window_size = 3
+        
         # Initialize the dataset
         self.dataset = ComboModelDataset(
-            text=self.text,
+            text_list=self.text,
             input_tokenizer=self.input_tokenizer,
             output_tokenizer=self.output_tokenizer,
             window_size=self.window_size
@@ -55,8 +56,11 @@ class TestComboModelDataset(unittest.TestCase):
             # Translate each input_ids in the batch to English using the first model
             input_ids_list = batch['input_ids']
             for input_ids in input_ids_list:
+                
+                print(input_ids.shape)
+                
                 # Step 1: Convert input_ids back to Hebrew text using input_tokenizer
-                hebrew_text = self.input_tokenizer.decode(input_ids, skip_special_tokens=True)
+                hebrew_text = self.input_tokenizer.decode(input_ids[0], skip_special_tokens=True)
                 print(f"Original Hebrew sentence: {hebrew_text}")
 
                 # Step 2: Tokenize the Hebrew text for the second translation process
@@ -74,7 +78,7 @@ class TestComboModelDataset(unittest.TestCase):
 
                 # Simulate the batch structure
                 batch_artificial = {
-                    'input_ids': input_ids.unsqueeze(0),  # Add batch dimension
+                    'input_ids': input_ids[0].unsqueeze(0),  # Add batch dimension
                 }
 
                 with torch.no_grad():
@@ -92,7 +96,6 @@ class TestComboModelDataset(unittest.TestCase):
     def test_getitem(self):
         # Check the output of __getitem__
         first_item = self.dataset[0]
-        first_item = self.dataset[0]
 
         self.assertIn('input_ids', first_item)
         self.assertIn('labels', first_item)
@@ -102,20 +105,26 @@ class TestComboModelDataset(unittest.TestCase):
         self.assertTrue(isinstance(first_item['labels'], torch.Tensor))
 
         # Additional checks can be done to ensure correctness
-        expected_next_token = self.dataset.token_pairs[self.window_size][1][0]
+        # expected_next_token = self.dataset.windows[0,:,0]
+        expected_next_token = [pair[1][0] for pair in self.dataset.windows[0]]
+        
+        print(f"expected_next_token = {expected_next_token}")
+        
         expected_label = self.output_tokenizer(
             text_target=expected_next_token,
-            add_special_tokens=False
-        )["input_ids"][0]
+            add_special_tokens=False,
+            return_tensors='pt'
+        )["input_ids"]
 
         with self.output_tokenizer.as_target_tokenizer():
             a = self.output_tokenizer(
                 text=expected_next_token,
-                add_special_tokens=False
-            )["input_ids"][0]
+                add_special_tokens=False,
+                return_tensors='pt'
+            )["input_ids"]
 
-        self.assertEqual(a, expected_label)
-        self.assertEqual(first_item['labels'], expected_label)
+        self.assertTrue(torch.equal(a, expected_label))
+        self.assertTrue(torch.equal(first_item['labels'][0], expected_label[:,0]))
 
 
 if __name__ == '__main__':
