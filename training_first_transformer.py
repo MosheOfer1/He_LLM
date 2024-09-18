@@ -13,8 +13,8 @@ from translation.helsinki_translator import HelsinkiTranslator
 
 from custom_transformers.transformer_1 import Transformer1
 
-# device = 'cuda' if torch.cuda.is_available() else 'cpu'
-device = 'cpu'
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# device = 'cpu'
 print(f"Im working with: {device}")
 
 # Define local paths for the HPC
