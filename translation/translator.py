@@ -202,9 +202,9 @@ class Translator(Injectable):
 
             counter += 1
 
-        print(f"input_ids.shape: {input_ids.shape}")
-        print(f"decoder_input_ids.shape: {decoder_input_ids.shape}")
-        print(f"outputs.logits.shape: {outputs.logits.shape}")
+        # print(f"input_ids.shape: {input_ids.shape}")
+        # print(f"decoder_input_ids.shape: {decoder_input_ids.shape}")
+        # print(f"outputs.logits.shape: {outputs.logits.shape}")
         
         return outputs
     
@@ -262,10 +262,10 @@ class Translator(Injectable):
             "attention_mask": attention_mask
         }
 
-        print(f"t1_input_ids.shape = {input_ids.shape}")
-        print(f"t1_input_ids: {input_ids}")
-        print(input_ids[0,:,:][0])
-        print(tokenizer.convert_ids_to_tokens(input_ids[0,:,:][0]))
+        # print(f"t1_input_ids.shape = {input_ids.shape}")
+        # print(f"t1_input_ids: {input_ids}")
+        # print(input_ids[0,:,:][0])
+        # print(tokenizer.convert_ids_to_tokens(input_ids[0,:,:][0]))
         
         # Number of input tokens per batch
         max_len = input_ids.shape[2]

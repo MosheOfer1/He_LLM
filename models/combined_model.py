@@ -64,26 +64,26 @@ class MyCustomModel(nn.Module, BestHyper):
         # Step 1: Get hidden states from the translator for input_ids
         translator_last_hs = self.get_translator_hidden_states(input_ids, attention_mask)
         
-        print(f"translator_last_hs.shape = {translator_last_hs.shape}")
+        # print(f"translator_last_hs.shape = {translator_last_hs.shape}")
 
         # Step 2: Transform to LLM hidden states
         transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs)
 
-        print(f"transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}")
+        # print(f"transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}")
                 
         # Step 3: Get LLM output using dummy input
-        llm_last_hidden_state = self.get_llm_last_hidden_state(transformed_to_llm_hs) # shape: [batch, tokens, dim]
+        # llm_last_hidden_state = self.get_llm_last_hidden_state(transformed_to_llm_hs) # shape: [batch, tokens, dim]
         
-        # llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs, true) # shape: [batch * tokens, 1, dim]
+        llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs) # shape: [batch * tokens, 1, dim]
         
-        print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
+        # print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
 
         # Step 4: Transform LLM hidden states to translator's hidden states and inject
-        transformed_to_translator_hs = self.get_transformed_translator_hidden_states(llm_last_hidden_state, reshape=True) # [batch * tokens, 2, trans_dim]
+        transformed_to_translator_hs = self.get_reshaped_translator2_hidden_states(llm_last_hidden_state, reshape=True) # [batch * tokens, 2, trans_dim]
         
         # transformed_to_translator_hs = self.get_reshaped_transformed_translator_hidden_states(llm_last_hidden_state)
 
-        print(f"final - reshaped_transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
+        # print(f"final - reshaped_transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
         
         # Step 5: Get translator output using dummy input
         outputs = self.get_translator_outputs(transformed_to_translator_hs)
@@ -103,7 +103,7 @@ class MyCustomModel(nn.Module, BestHyper):
     def get_llm_last_hidden_state(self, transformed_to_llm_hs):
         llm_hs = self.get_llm_hidden_states(transformed_to_llm_hs)
         
-        print(f"llm_hs.shape: {llm_hs.shape}")
+        # print(f"llm_hs.shape: {llm_hs.shape}")
         
         return llm_hs[:, -1, :].unsqueeze(1)  # Shape: [batch_size, 1, dim]
 
@@ -125,7 +125,7 @@ class MyCustomModel(nn.Module, BestHyper):
         )
         return outputs
 
-    def get_transformed_translator_hidden_states(self, llm_last_hidden_state, reshape = False):
+    def get_reshaped_translator2_hidden_states(self, llm_last_hidden_state, reshape = False):
         """
         Transforms the LLM's last hidden state to the translator's hidden state and
         concatenates it with the EOS token embedding.
