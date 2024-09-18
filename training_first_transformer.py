@@ -16,6 +16,13 @@ from custom_transformers.transformer_1 import Transformer1
 def main():
     import torch.distributed as dist
 
+    # Check GPU availability
+    gpu_count = torch.cuda.device_count()
+    print(f"Process started - GPU count: {gpu_count}")
+    if gpu_count == 0:
+        print("No GPUs available. Exiting.")
+        exit(1)
+
     # Check if we are in a distributed environment
     if 'OMPI_COMM_WORLD_SIZE' in os.environ:
         # We are running under MPI via mpirun
