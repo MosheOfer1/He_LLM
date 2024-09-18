@@ -63,31 +63,36 @@ sentences = [
 ]
 
 
-def calculate_kl_with_random_injection(llm, sentence, random_std=0.1):
-    with llm.injection_state():
+def calculate_kl_with_random_injection(llm, sentence, random_std=0.1, num_random_vectors=50):
+    kl_values = []
+
+    for _ in range(num_random_vectors):
+        with llm.injection_state():
+            with torch.no_grad():
+                outputs = llm.process_text_input_to_outputs(sentence)
+                original_logits = outputs.logits[:, -1, :]
+                original_probs = F.softmax(original_logits, dim=-1)
+                original_hidden_states = outputs.hidden_states[0]
+
+        random_vector = torch.normal(mean=0.0, std=random_std, size=original_hidden_states.shape).to(
+            original_hidden_states.device)
+
+        llm.inject_hidden_states(random_vector)
+
+        batch_size = random_vector.shape[0]
+        token_num = random_vector.shape[1]
+
         with torch.no_grad():
-            outputs = llm.process_text_input_to_outputs(sentence)
-            original_logits = outputs.logits[:, -1, :]
-            original_probs = F.softmax(original_logits, dim=-1)
-            original_hidden_states = outputs.hidden_states[0]
+            random_injected_outputs = llm.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size)
+            random_injected_logits = random_injected_outputs.logits[:, -1, :]
 
-    random_vector = torch.normal(mean=0.0, std=random_std, size=original_hidden_states.shape).to(
-        original_hidden_states.device)
+        random_injected_probs = F.softmax(random_injected_logits, dim=-1)
 
-    llm.inject_hidden_states(random_vector)
+        kl_div = F.kl_div(random_injected_probs.log(), original_probs, reduction='batchmean').item()
+        kl_values.append(kl_div)
 
-    batch_size = random_vector.shape[0]
-    token_num = random_vector.shape[1]
-
-    with torch.no_grad():
-        random_injected_outputs = llm.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size)
-        random_injected_logits = random_injected_outputs.logits[:, -1, :]
-
-    random_injected_probs = F.softmax(random_injected_logits, dim=-1)
-
-    kl_div = F.kl_div(random_injected_probs.log(), original_probs, reduction='batchmean').item()
-
-    return kl_div
+    # Return the average KL-divergence of 50 random vectors
+    return np.mean(kl_values)
 
 
 # Function to add Gaussian noise
@@ -96,74 +101,13 @@ def add_gaussian_noise(tensor, mean=0.0, std=0.1):
     return tensor + noise
 
 
-# New function for calculating cuisine similarity
+# New function for calculating cosine similarity
 def calculate_cuisine_similarity(original_hidden_states, noised_hidden_states):
     similarity = F.cosine_similarity(original_hidden_states, noised_hidden_states).mean().item()
     return 1 - similarity
 
 
-def plot_predictions(sentence_idx, noised_probs, metric_value, num, metric_name):
-    top_noised_probs, top_noised_indices = torch.topk(noised_probs, num, dim=-1)
-    top_noised_tokens = [llm.tokenizer.decode([idx.item()]) for idx in top_noised_indices[0, -1]]
-
-    print(f"Noised Probs - Top {num} Tokens (Noise {noise_level:.2f}) for Sentence {sentence_idx + 1}:")
-    for i, (prob, idx) in enumerate(zip(top_noised_probs[0, -1], top_noised_indices[0, -1])):
-        token = llm.tokenizer.decode([idx.item()])
-        print(f"{i + 1}: Token: {token}, Prob: {prob.item()}")
-
-    print("\n" + "=" * 40 + "\n")
-
-    plot_prob_distribution(
-        top_original_probs[0, -1],
-        top_noised_probs[0, -1],
-        list(zip(top_tokens, top_noised_tokens)),
-        noise_level,
-        metric_value,
-        num,
-        sentence_idx,
-        metric_name
-    )
-
-
-def plot_prob_distribution(original_probs, noised_probs, tokens, noise_level, metric_value, num, sentence_idx,
-                           metric_name):
-    n_tokens = len(tokens)
-
-    x = np.arange(n_tokens)
-    width = 0.35
-
-    original_probs_np = original_probs.detach().cpu().numpy()
-    noised_probs_np = noised_probs.detach().cpu().numpy()
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    ax.bar(x - width / 2, original_probs_np, width, label='Original Probs', color='blue')
-    ax.bar(x + width / 2, noised_probs_np, width,
-           label=f'Noised Probs (Noise={noise_level:.2f}) ({metric_name}={metric_value:.2f})', color='red')
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(tokens, rotation=10, ha='center', fontsize=10)
-
-    ax.set_ylabel('Probability')
-    ax.set_title(
-        f'Sentence {sentence_idx + 1} - Top {num} Token Probability Distribution (Noise Level: {noise_level:.2f})')
-    ax.legend()
-    image_name = f'Noise={noise_level:.2f} {metric_name}={metric_value:.2f} Sentence {sentence_idx + 1}'.replace('.',
-                                                                                                                 '_') + '.png'
-    plt.savefig(f'../images/' + image_name)
-    plt.close()
-
-
 if __name__ == '__main__':
-    # Prompt the user to select either 'MSE' or 'Cuisine Similarity'
-    metric_choice = input("Choose the metric: 'MSE' or 'Cuisine Similarity': ").strip().lower()
-
-    if metric_choice not in ['mse', 'cuisine similarity']:
-        print("Invalid choice! Defaulting to 'MSE'.")
-        metric_choice = 'mse'
-
-    metric_name = 'MSE' if metric_choice == 'mse' else 'Cuisine Similarity'
-
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Im working with: {device}")
 
@@ -174,39 +118,21 @@ if __name__ == '__main__':
         device=device
     )
 
-    random_kl = calculate_kl_with_random_injection(llm=llm, sentence=sentences[0])
-    print("KL-divergence with a random vector is: ", random_kl)
+    noise_levels = np.linspace(0.01, 0.15, 10)
 
-    metric_all_sentences = []
-    kl_all_sentences = []
-    noise_levels = np.linspace(0.01, 0.1, 12)
+    # To store the sum of metric values (MSE and Cosine Similarity) for each noise level
+    mse_sum = np.zeros(len(noise_levels))
+    cosine_sim_sum = np.zeros(len(noise_levels))
 
-    # To store the sum of metric values for each noise level
-    metric_sum = np.zeros(len(noise_levels))
-    # To store the sum of KL-divergence values for each noise level
-    kl_sum = np.zeros(len(noise_levels))
+    kl_sum = np.zeros(len(noise_levels))  # To store the sum of KL-divergence values for each noise level
 
     for sentence_idx, sentence in enumerate(sentences):
-        metric_values = []
-        kl_values = []
-
+        print(sentence_idx)
         with llm.injection_state():
             with torch.no_grad():
                 outputs = llm.process_text_input_to_outputs(sentence)
                 first_hidden_states = outputs.hidden_states[0]
                 logits = outputs.logits[:, -1, :]
-
-        original_probs = F.softmax(logits, dim=-1)
-
-        num = 7
-        top_original_probs, top_original_indices = torch.topk(original_probs, num, dim=-1)
-        top_tokens = [llm.tokenizer.decode([idx.item()]) for idx in top_original_indices[0]]
-
-        print(f"Original Probs - Top {num} Tokens for Sentence {sentence_idx + 1}:")
-        for i, (prob, idx) in enumerate(zip(top_original_probs[0], top_original_indices[0])):
-            token = llm.tokenizer.decode([idx.item()])
-            print(f"{i + 1}: Token: {token}, Prob: {prob.item()}")
-        print("\n" + "=" * 40 + "\n")
 
         for index, noise_level in enumerate(noise_levels):
             noised_first_hidden_states = add_gaussian_noise(first_hidden_states, std=noise_level)
@@ -218,47 +144,49 @@ if __name__ == '__main__':
             llm_outputs = llm.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size)
             noised_logits = llm_outputs.logits[:, -1, :]
 
+            # Calculate MSE
+            mse_value = F.mse_loss(first_hidden_states, noised_first_hidden_states).item()
+            mse_sum[index] += mse_value  # Add the value to the sum for averaging later
+
+            # Calculate Cosine Similarity (Cuisine Similarity)
+            cosine_sim_value = calculate_cuisine_similarity(first_hidden_states, noised_first_hidden_states)
+            cosine_sim_sum[index] += cosine_sim_value  # Add the value to the sum for averaging later
+
+            # Calculate KL-divergence
             noised_probs = F.softmax(noised_logits, dim=-1)
-
-            # Calculate either MSE or Cuisine Similarity based on the user's choice
-            if metric_choice == 'mse':
-                metric_value = F.mse_loss(first_hidden_states, noised_first_hidden_states).item()
-            else:
-                metric_value = calculate_cuisine_similarity(first_hidden_states, noised_first_hidden_states)
-
-            metric_values.append(metric_value)
-
-            # To create images of the bars uncommitted
-            # plot_predictions(sentence_idx, noised_probs, metric_value, num, metric_name)
-
-            metric_sum[index] += metric_value  # Add the value to the sum for averaging later
-
+            original_probs = F.softmax(logits, dim=-1)
             kl_div = F.kl_div(noised_probs.log(), original_probs, reduction='batchmean').item()
-            kl_values.append(kl_div)
-
             kl_sum[index] += kl_div  # Add the value to the sum for averaging later
 
-        metric_all_sentences.append(metric_values)
-        kl_all_sentences.append(kl_values)
-
-    # Calculate the average metric across all sentences for each noise level
-    metric_avg = metric_sum / len(sentences)
+    # Calculate the average MSE, Cosine Similarity, and KL-divergence across all sentences for each noise level
+    mse_avg = mse_sum / len(sentences)
+    cosine_sim_avg = cosine_sim_sum / len(sentences)
     kl_avg = kl_sum / len(sentences)
 
-    plt.figure(figsize=(8, 6))
+    # Calculate the average KL-divergence for 50 random vectors
+    random_kl_avg = calculate_kl_with_random_injection(llm=llm, sentence=sentences[0])
 
-    for i, sentence in enumerate(sentences):
-        plt.plot(metric_all_sentences[i], kl_all_sentences[i], marker='o', label=sentences[i])
-        if i == 3:
-            break
+    # Plotting
+    fig, ax1 = plt.subplots(figsize=(8, 6))
 
-    # Plot the average metric line
-    plt.plot(metric_avg, kl_avg, marker='x', linestyle='--', color='black', label=f'Average {metric_name}')
+    # Plot KL-divergence vs Cosine Similarity on the left x-axis
+    ax1.plot(cosine_sim_avg, kl_avg, marker='o', color='green', label='KL-divergence vs Cosine Similarity')
+    ax1.set_xlabel('Cosine Similarity', color='green')
+    ax1.set_ylabel('KL-divergence')
+    ax1.tick_params(axis='x', labelcolor='green')
+    ax1.grid(True)
 
-    plt.xlabel(f'{metric_name} (Original vs Noised Hidden States)')
-    plt.ylabel('KL Divergence (Logits Probability Distributions)')
-    plt.title(f'{metric_name} vs KL-divergence for Different Noise Levels.')
-    plt.grid(True)
-    plt.legend()
+    # Create another x-axis on the right for MSE
+    ax2 = ax1.twiny()
+    ax2.plot(mse_avg, kl_avg, marker='s', color='blue', label='KL-divergence vs MSE')
+    ax2.set_xlabel('MSE', color='blue')
+    ax2.tick_params(axis='x', labelcolor='blue')
+
+    # Add a horizontal line for the average KL-divergence of 50 random vectors
+    ax1.axhline(y=random_kl_avg, color='red', linestyle='--', label=f'Average KL (Random Vectors) = {random_kl_avg:.2f}')
+
+    # Combine legends from both axes
+    fig.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3)
+
+    plt.title('KL-divergence vs Cosine Similarity and MSE (Averaged over all sentences)')
     plt.show()
-    plt.close()

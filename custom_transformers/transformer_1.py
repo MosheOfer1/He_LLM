@@ -146,7 +146,7 @@ class Transformer1(BaseTransformer):
 
     def train_model(self, train_dataset, test_dataset, epochs=5):
         training_args = Seq2SeqTrainingArguments(
-            output_dir='../my_datasets',
+            output_dir='my_datasets/transformer1_training',
             evaluation_strategy="epoch",
             learning_rate=2e-5,
             per_device_train_batch_size=64,
