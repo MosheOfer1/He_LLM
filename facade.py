@@ -7,12 +7,15 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from models.combined_model import MyCustomModel
 # Dataset
+# from custom_datasets.combo_model_dataset_window import ComboModelDataset
 from custom_datasets.combo_model_dataset import ComboModelDataset
 from translation.translator import Translator
 
 
 def create_datasets_from_txt_file(translator: Translator, text_file_path: str, window_size=30, device='cpu'):
     text_list = read_file_lines(text_file_path)
+    
+    print(f"First 10 sentences: {text_list[:10]}")
 
     print(f"len(text) = {len(text_list)}")
 
@@ -24,7 +27,6 @@ def create_datasets_from_txt_file(translator: Translator, text_file_path: str, w
         text_list=train_data,
         input_tokenizer=translator.src_to_target_tokenizer,
         output_tokenizer=translator.target_to_src_tokenizer,
-        window_size=window_size,
         device=device
     )
 
@@ -32,7 +34,6 @@ def create_datasets_from_txt_file(translator: Translator, text_file_path: str, w
         text_list=eval_data,
         input_tokenizer=translator.src_to_target_tokenizer,
         output_tokenizer=translator.target_to_src_tokenizer,
-        window_size=window_size,
         device=device
     )
 

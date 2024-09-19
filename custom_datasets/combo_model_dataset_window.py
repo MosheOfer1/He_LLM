@@ -3,21 +3,22 @@ from torch.utils.data import Dataset
 
 
 class ComboModelDataset(Dataset):
-    def __init__(self, text_list: list[str], input_tokenizer, output_tokenizer, device='cpu'):
+    def __init__(self, text_list: list[str], input_tokenizer, output_tokenizer, window_size=5, device='cpu'):
 
         self.device = device
 
-        self.sentences_pair_tokens = self.create_pair_tokens_data(input_tokenizer, output_tokenizer, text_list)
+        self.windows = self.create_windows(input_tokenizer, output_tokenizer, text_list, window_size)
         
 
         self.input_tokenizer = input_tokenizer
         self.output_tokenizer = output_tokenizer
+        self.window_size = window_size
 
     def __len__(self):
-        length = len(self.sentences_pair_tokens)
+        length = len(self.windows)
         if length <= 0:
             raise ValueError(
-                f"Your ComboModelDataset.__len__ <= 0")
+                f"Your ComboModelDataset.__len__ <= 0. Check if your window_size is greater then your data size")
         return length
 
     def __getitem__(self, idx):
@@ -29,12 +30,12 @@ class ComboModelDataset(Dataset):
         if idx > self.__len__():
             raise ValueError(f"Your ComboModelDataset len is: {self.__len__()} and you are trying to get idx: {idx}")
         
-        sentence_pairs = self.sentences_pair_tokens[idx]
+        window = self.windows[idx]
         
-        # print(f"sentence_pairs: \n{sentence_pairs}")
+        # print(f"window: {window}")
         
         # Get input tokens
-        tokens = [pair[0][0] for pair in sentence_pairs[:-1]]
+        tokens = [pair[0][0] for pair in window[:-1]]
         
         input_ids = self.input_tokenizer.encode(tokens,
                                                 add_special_tokens=True, # Adds bos token
@@ -42,90 +43,31 @@ class ComboModelDataset(Dataset):
                                                 )
 
         # Get Labels tokens
-        next_token = [pair[1][0] for pair in sentence_pairs]
+        next_token = [pair[1][0] for pair in window]
         
         labels = self.output_tokenizer.convert_tokens_to_ids(next_token)
                 
         labels = torch.tensor([labels], dtype=torch.long)
         
-        # print(f"Dataset item ({idx}) \nLabels: {labels}")
-    
-        # raise("stop here pls")
+        # print(f"Dataset item ({idx}) Labels: {labels}")
     
         return {
             'input_ids': input_ids,
             'labels': labels,
         }
 
-    def create_pair_tokens_data(self, input_tokenizer, output_tokenizer, list_text):
+    def create_windows(self, input_tokenizer, output_tokenizer, list_text, window_size):
         print("in create_windows")
         
         pairs = []
         for text in list_text:
             sentence_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
             pairs.append(sentence_pairs)
+        windows = delete_unmatched_pairs(pairs, window_size)
+
+        return windows
+
         
-        print(f"After align - {pairs}")
-        
-        return make_matching_pairs(sentences_pairs=pairs,
-                                   output_tokenizer=output_tokenizer)
-
-def make_matching_pairs(sentences_pairs: list[tuple], output_tokenizer):
-
-    # print("in make_matching_pairs")
-    
-    """
-        Use check_pair func in order to ignore unwanted windows.
-    """
-    ans =[]
-    temp = []
-            
-    for sentence_idx, sentence_pairs in enumerate(sentences_pairs):
-
-        temp = []
-        
-        for pair in sentence_pairs:
-            
-            input, target = pair
-
-            # Only 1 token for input
-            if check_pair(pair, sentence_idx):
-                new_pair = (input[0], target[0])
-                temp.append(new_pair)
-                
-            # More then 1 input token
-            else:
-                for idx, token in enumerate(input):
-                    new_pair = (token, get_new_target_token(idx, input, output_tokenizer))
-                    temp.append(new_pair)
-        
-        ans.append(temp)
-        
-    return ans
-
-
-def check_pair(pair, sentence_idx):
-    """
-        Check that the sentence is tokenized to 1 token per word
-    """
-    if not pair:
-        raise ValueError(f"You have a problem in sentence {sentence_idx}, one of the pairs holds a None value")
-    
-    input, _ = pair
-    
-    len_input = len(input)
-    
-    if len_input == 1:
-        return True
-
-    return False
-
-def get_new_target_token(idx, input, output_tokenizer):
-    target_sentence = "".join(input[idx:])
-    
-    # return the first token
-    return output_tokenizer.tokenize(target_sentence)[1]
-
 def align_tokens(tokenizer1, tokenizer2, text):
     count = 0
     # Tokenize the text using both tokenizers
@@ -168,3 +110,49 @@ def align_tokens(tokenizer1, tokenizer2, text):
     # print(f"count: {count}, len {len(aligned_pairs)}")
     return aligned_pairs
 
+
+def delete_unmatched_pairs(sentences_pairs: list[tuple], window: int):
+    
+    print("in delete_unmatched_pairs")
+    
+    """
+        Use check_pair func in order to ignore unwanted windows.
+    """
+    windows =[]
+    temp = []
+    
+    # print(f"Before deleting: {sentences_pairs[:10]}")
+    
+    for sentence_pairs in sentences_pairs:
+
+        temp.clear()
+        
+        for pair in sentence_pairs:
+            
+            if len(temp) == window - 1:
+                windows.append(temp + [pair])
+                temp.pop(0)
+                
+            if check_pair(pair):
+                temp.append(pair)
+            else:
+                temp.clear()
+
+    # print(f"I have {len(windows)} windows")
+    # print(f"Windows example: {windows[:10]}")
+    return windows
+
+
+def check_pair(pair):
+    """
+        Check that the sentence is tokenized to 1 token per word
+    """
+    if not pair:
+        return False
+    
+    left, _ = pair
+    
+    if len(left) != 1:
+        return False
+
+    return True

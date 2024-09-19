@@ -6,7 +6,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from llm.opt_llm import OptLLM
-from custom_datasets.combo_model_dataset import ComboModelDataset
+from custom_datasets.combo_model_dataset_window import ComboModelDataset
 
 from transformers import TrainingArguments
 from models.combined_model_trainer import CombinedTrainer
@@ -59,7 +59,10 @@ class MyCustomModel(nn.Module, BestHyper):
         # Freeze LLM parameters
         self.llm.set_requires_grad(False)
 
-    def forward(self, input_ids, attention_mask=None, labels=None) -> torch.Tensor:
+    def forward(self, input_ids, attention_mask=None, labels=None, keep_reshaped=False) -> torch.Tensor:
+        
+        batch_size = input_ids.shape[0]
+        token_num = input_ids.shape[2]
         
         # Step 1: Get hidden states from the translator for input_ids
         translator_last_hs = self.get_translator_hidden_states(input_ids, attention_mask)
@@ -84,8 +87,15 @@ class MyCustomModel(nn.Module, BestHyper):
         # Step 5: Get translator output using dummy input
         outputs = self.get_translator_outputs(transformed_to_translator_hs)
         
+        if not keep_reshaped:
+            self.reverse_reshaping_translator2_outputs(outputs, batch_size, token_num)
+        
         return outputs
 
+    def reverse_reshaping_translator2_outputs(outputs, batch_size, token_num):
+        outputs.logits
+    
+    
     def get_translator_hidden_states(self, input_ids, attention_mask):
         return self.translator.input_ids_to_hidden_states(
             input_ids,

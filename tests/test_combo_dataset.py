@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from custom_datasets.combo_model_dataset import ComboModelDataset
+from custom_datasets.combo_model_dataset_window import ComboModelDataset
 
 
 class TestComboModelDataset(unittest.TestCase):
@@ -129,3 +129,4 @@ class TestComboModelDataset(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    
