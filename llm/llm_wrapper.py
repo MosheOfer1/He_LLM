@@ -104,7 +104,16 @@ class LLMWrapper(nn.Module, Injectable):
     def text_to_hidden_states(tokenizer, model, text, layer_num):
         device = model.module.device if hasattr(model, 'module') else model.device
 
+        # Check if the input text is empty or None
+        if not text or text.strip() == "":
+            raise ValueError("Input text cannot be empty or None.")
+
+        # Tokenize the text input
         inputs = tokenizer(text, return_tensors="pt").to(device)
+
+        if inputs['input_ids'].nelement() == 0:
+            raise ValueError(f"Tokenizer produced no tokens for input text: '{text}'")
+
         outputs = model(**inputs, output_hidden_states=True)
 
         return outputs.hidden_states[layer_num]
