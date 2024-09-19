@@ -152,6 +152,8 @@ class Transformer1(BaseTransformer):
             per_device_train_batch_size=32,
             per_device_eval_batch_size=32,
             weight_decay=0.01,
+            fp16=True,  # Enable mixed precision for faster training
+            dataloader_num_workers=4,
             save_total_limit=1,
             save_strategy="epoch",
             num_train_epochs=epochs,
