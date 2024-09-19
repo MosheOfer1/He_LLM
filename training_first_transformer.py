@@ -1,11 +1,10 @@
 import sys
 import os
-
+import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '')))
 
 from custom_datasets.create_datasets import read_file_lines
-import torch
 from llm.gpt2_llm import GPT2LLM
 
 from custom_datasets.seq2seq_dataset import Seq2SeqDataset
@@ -26,7 +25,7 @@ text_file_path = "my_datasets/ynet_256k.txt"
 # Define default Hugging Face model names
 default_translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
 default_translator2_model_name = "Helsinki-NLP/opus-mt-en-he"
-default_llm_model_name = "facebook/opt-350m"
+default_llm_model_name = "DAMO-NLP-MT/polylm-1.7b"
 
 # Check if the local paths exist, otherwise assign the Hugging Face model name
 translator1_model_name = translator1_local_path if os.path.exists(

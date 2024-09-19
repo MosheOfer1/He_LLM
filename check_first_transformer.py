@@ -2,13 +2,16 @@ import numpy as np
 import torch
 import os
 import sys
+import torch.nn.functional as F
 
 from matplotlib import pyplot as plt
+
+from custom_transformers.custom_trainer_trans1 import calculate_KL_div
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from llm.opt_llm import OptLLM
-from custom_transformers.transformer_1 import Transformer1, calculate_KL_div, logits_from_first_layer
+from custom_transformers.transformer_1 import Transformer1, logits_from_first_layer
 from translation.helsinki_translator import HelsinkiTranslator
 
 translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
@@ -105,6 +108,7 @@ def load_and_evaluate_model(model_name):
         logits=outputs.logits
     )
     print(translated_text)
+
     # Step 3: Pass the English translation through the LLM and get the first hidden state
     with torch.no_grad():
         with llm.injection_state():
@@ -119,18 +123,24 @@ def load_and_evaluate_model(model_name):
     with torch.no_grad():
         transformer1_outputs = loaded_model(input_hidden_states)
 
+    min_len = min(transformer1_outputs.shape[1], target_hidden_states.shape[1])
     loss = calculate_KL_div(
         llm=llm,
-        outputs=transformer1_outputs[:, -1, :].unsqueeze(1),
-        label=target_hidden_states[:, -1, :].unsqueeze(1)
+        outputs=transformer1_outputs[:, : min_len, :],
+        label=target_hidden_states[:, : min_len, :]
     )
 
     print(f"The KL-div is: {loss}")
+
+    cosine_sim = F.cosine_similarity(transformer1_outputs[:, : min_len, :], target_hidden_states[:, : min_len, :], dim=-1)
+    loss = 1 - cosine_sim.mean()
+    print(f"The cosine_sim is: {loss}")
+
     output_logits = logits_from_first_layer(llm, transformer1_outputs)
     target_hidden_logits = logits_from_first_layer(llm, target_hidden_states)
     plot_top_k_predictions(output_logits=output_logits, target_hidden_logits=target_hidden_logits, k=5, llm=llm, sentence_idx=0)
 
 
 if __name__ == '__main__':
-    model_name = "models/transformer_1_Helsinki-NLP_opus-mt-tc-big-he-en_to_facebook_opt-350m.pth"
+    model_name = "models/transformer_1_Helsinki-NLP_opus-mt-tc-big-he-en_to_facebook_opt-350m_KL.pth"
     load_and_evaluate_model(model_name)

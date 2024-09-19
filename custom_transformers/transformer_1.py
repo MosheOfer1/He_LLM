@@ -1,17 +1,14 @@
-import os
-import sys
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
-
-import matplotlib.pyplot as plt
 import torch.nn as nn
 from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
-from torch.utils.data import DistributedSampler, DataLoader
+import matplotlib.pyplot as plt
+import os
+import sys
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from custom_transformers.custom_trainer_trans1 import calculate_KL_div
 from custom_transformers.custom_trainer_trans1 import *
+from transformers import Seq2SeqTrainingArguments
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_wrapper import LLMWrapper
 from translation.translator import Translator
@@ -19,8 +16,8 @@ from translation.translator import Translator
 
 class Transformer1(BaseTransformer):
     def __init__(self, translator: Translator,
-                 llm: LLMWrapper, 
-                 model_name=None, 
+                 llm: LLMWrapper,
+                 model_name=None,
                  nhead=2,
                  num_layers=2,
                  max_seq_len=128,
@@ -147,169 +144,44 @@ class Transformer1(BaseTransformer):
 
         return outputs
 
-    def compute_loss(self, model, inputs, return_outputs=False):
-        device = model.module.device if hasattr(model, 'module') else model.device
-
-        input_ids = inputs.get("input_ids").to(device)
-        labels = inputs.get("labels").to(device)
-        input_mask = inputs.get("input_mask").to(device)
-        label_mask = inputs.get("label_mask").to(device)
-
-        outputs = model(input_ids, labels, input_mask=input_mask, label_mask=label_mask)
-
-        llm = model.module.black_box.llm if hasattr(model, 'module') else model.black_box.llm
-        loss = calculate_KL_div(llm, outputs, labels, label_mask)
-
-        return (loss, outputs) if return_outputs else loss
-
     def train_model(self, train_dataset, test_dataset, epochs=5):
-        # Set CUDA_VISIBLE_DEVICES based on local rank
-        if 'OMPI_COMM_WORLD_SIZE' in os.environ:
-            # We are running under MPI via mpirun
-            world_size = int(os.environ['OMPI_COMM_WORLD_SIZE'])
-            rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
-            local_rank = int(os.environ['OMPI_COMM_WORLD_LOCAL_RANK'])
-
-            # Set environment variables
-            os.environ['WORLD_SIZE'] = str(world_size)
-            os.environ['RANK'] = str(rank)
-            os.environ['LOCAL_RANK'] = str(local_rank)
-            os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
-
-            # Set the master address and port
-            master_addr = os.environ.get('MASTER_ADDR', 'localhost')
-            master_port = os.environ.get('MASTER_PORT', '12355')
-
-            # Initialize the process group
-            print(f"Process {rank} - Initializing distributed process group...")
-            dist.init_process_group(
-                backend='nccl',
-                init_method=f'tcp://{master_addr}:{master_port}',
-                world_size=world_size,
-                rank=rank
-            )
-        else:
-            # Single process (not distributed)
-            world_size = 1
-            rank = 0
-            local_rank = 0
-            os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank)
-            print("Single process training - not using distributed training.")
-            dist.init_process_group(backend='nccl', init_method='env://', world_size=1, rank=0)
-
-        # Set the device
-        torch.cuda.set_device(0)
-        device = torch.device('cuda', 0)
-        print(f"Process {rank} - local_rank: {local_rank}, CUDA_VISIBLE_DEVICES: {os.environ['CUDA_VISIBLE_DEVICES']}")
-        print(f"Process {rank} - Using device: {device}, Available GPUs: {torch.cuda.device_count()}")
-
-        # Update self.device
-        self.device = device
-
-        # Move the model to the appropriate device
-        print(f"Process {rank} - Moving model to device...")
-        self.to(device)
-
-        # Wrap the model with DDP
-        print(f"Process {rank} - Wrapping model with DistributedDataParallel...")
-        ddp_model = DDP(self, device_ids=[0], output_device=0)
-        # Create data loaders with DistributedSampler
-        print(f"Process {rank} - Creating data loaders...")
-        train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank)
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=8,
-            sampler=train_sampler,
-            collate_fn=lambda x: collate_fn(x, max_seq_len=128, device=device)
-        )
-        test_sampler = DistributedSampler(test_dataset, num_replicas=world_size, rank=rank)
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=8,
-            sampler=test_sampler,
-            collate_fn=lambda x: collate_fn(x, max_seq_len=128, device=device)
+        training_args = Seq2SeqTrainingArguments(
+            output_dir='my_datasets/transformer1_training',
+            evaluation_strategy="epoch",
+            learning_rate=2e-5,
+            per_device_train_batch_size=64,
+            per_device_eval_batch_size=32,
+            weight_decay=0.01,
+            save_total_limit=1,
+            save_strategy="epoch",
+            num_train_epochs=epochs,
+            predict_with_generate=False,  # Not generating text, so disable generation
+            logging_dir='my_datasets/logs',
         )
 
-        # Define the optimizer
-        print(f"Process {rank} - Setting up optimizer...")
-        optimizer = torch.optim.Adam(ddp_model.parameters(), lr=2e-5, weight_decay=0.01)
+        # Initialize the Seq2SeqTrainer
+        trainer = CustomTrainer(
+            model=self.to(self.device),  # Pass the current model instance
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=test_dataset,
+            tokenizer=None,  # No tokenizer since we're working with raw vectors
+            data_collator=lambda x: collate_fn(x, max_seq_len=128, device=self.device)
+        )
 
-        # Training loop
-        for epoch in range(epochs):
-            print(f"\nProcess {rank} - Starting epoch {epoch + 1}/{epochs}...")
-            ddp_model.train()
-            train_sampler.set_epoch(epoch)  # Shuffle data for each epoch
+        self.printTrainableParams()
 
-            epoch_loss = 0.0
-            num_batches = 0
+        # Train the model
+        trainer.train()
 
-            for batch_idx, batch in enumerate(train_loader):
-                input_ids = batch['input_ids']
-                labels = batch['labels']
-                input_mask = batch.get('input_mask', None)
-                label_mask = batch.get('label_mask', None)
+        # Optionally save the trained model
+        if not os.path.exists(os.path.dirname(self.model_path)):
+            os.makedirs(os.path.dirname(self.model_path))
+        torch.save(self.state_dict(), self.model_path)
 
-                optimizer.zero_grad()
-
-                inputs = {
-                    'input_ids': input_ids,
-                    'labels': labels,
-                    'input_mask': input_mask,
-                    'label_mask': label_mask,
-                }
-
-                loss = self.compute_loss(ddp_model, inputs)
-
-                loss.backward()
-                optimizer.step()
-
-                epoch_loss += loss.item()
-                num_batches += 1
-
-                if batch_idx % 10 == 0:
-                    print(
-                        f"Process {rank} - Epoch [{epoch + 1}/{epochs}], Batch [{batch_idx}/{len(train_loader)}], Loss: {loss.item():.4f}")
-
-            avg_loss = epoch_loss / num_batches
-            print(f"Process {rank} - Epoch {epoch + 1} completed. Average Training Loss: {avg_loss:.4f}")
-
-            # Validation loop (optional)
-            ddp_model.eval()
-            val_loss = 0.0
-            val_batches = 0
-
-            with torch.no_grad():
-                for val_batch_idx, batch in enumerate(test_loader):
-                    input_ids = batch['input_ids']
-                    labels = batch['labels']
-                    input_mask = batch.get('input_mask', None)
-                    label_mask = batch.get('label_mask', None)
-
-                    inputs = {
-                        'input_ids': input_ids,
-                        'labels': labels,
-                        'input_mask': input_mask,
-                        'label_mask': label_mask,
-                    }
-
-                    loss = self.compute_loss(ddp_model, inputs)
-
-                    val_loss += loss.item()
-                    val_batches += 1
-
-            avg_val_loss = val_loss / val_batches
-            print(f"Process {rank} - Validation Loss after Epoch {epoch + 1}: {avg_val_loss:.4f}")
-
-            # Optionally save the model checkpoint (only on the main process)
-            if rank == 0:
-                if not os.path.exists(os.path.dirname(self.model_path)):
-                    os.makedirs(os.path.dirname(self.model_path))
-                torch.save(self.state_dict(), self.model_path)
-                print(f"Process {rank} - Model saved to {self.model_path}")
-
-        # Clean up
-        print(f"Process {rank} - Destroying process group...")
-        dist.destroy_process_group()
+        print(f"Model saved to {self.model_path}")
+        self.evaluate_model(trainer, test_dataset)
+        self.plot_loss(trainer)
 
     def printTrainableParams(self):
         total_params = sum(p.numel() for p in self.parameters())  # Total number of parameters
@@ -383,4 +255,3 @@ class Transformer1(BaseTransformer):
 
         print(f"Model '{model_name}' loaded from {model_path}")
         return model
-
