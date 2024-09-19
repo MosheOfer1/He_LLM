@@ -10,7 +10,7 @@ from torch.utils.data import DistributedSampler, DataLoader
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from custom_transformers.custom_trainer_trans1 import _calculate_KL_div
+from custom_transformers.custom_trainer_trans1 import calculate_KL_div
 from custom_transformers.custom_trainer_trans1 import *
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_wrapper import LLMWrapper
@@ -158,7 +158,7 @@ class Transformer1(BaseTransformer):
         outputs = model(input_ids, labels, input_mask=input_mask, label_mask=label_mask)
 
         llm = model.module.black_box.llm if hasattr(model, 'module') else model.black_box.llm
-        loss = _calculate_KL_div(llm, outputs, labels, label_mask)
+        loss = calculate_KL_div(llm, outputs, labels, label_mask)
 
         return (loss, outputs) if return_outputs else loss
 

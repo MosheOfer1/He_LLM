@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from llm.opt_llm import OptLLM
-from custom_transformers.transformer_1 import Transformer1, _calculate_KL_div, logits_from_first_layer
+from custom_transformers.transformer_1 import Transformer1, calculate_KL_div, logits_from_first_layer
 from translation.helsinki_translator import HelsinkiTranslator
 
 translator1_model_name = "Helsinki-NLP/opus-mt-tc-big-he-en"
@@ -119,7 +119,7 @@ def load_and_evaluate_model(model_name):
     with torch.no_grad():
         transformer1_outputs = loaded_model(input_hidden_states)
 
-    loss = _calculate_KL_div(
+    loss = calculate_KL_div(
         llm=llm,
         outputs=transformer1_outputs[:, -1, :].unsqueeze(1),
         label=target_hidden_states[:, -1, :].unsqueeze(1)

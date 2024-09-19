@@ -37,7 +37,7 @@ def logits_from_first_layer(llm, hidden_states):
     return predicted_logits
 
 
-def _calculate_KL_div(llm, outputs, label, mask=None):
+def calculate_KL_div(llm, outputs, label, mask=None):
     predicted_logits = logits_from_first_layer(llm, outputs)
     true_logits = logits_from_first_layer(llm, label)
 
@@ -87,7 +87,7 @@ class CustomTrainer(Seq2SeqTrainer):
         # loss = 1 - cosine_sim.mean()
 
         llm = model.module.black_box.llm if hasattr(model, 'module') else model.black_box.llm
-        loss = _calculate_KL_div(llm, outputs, labels, label_mask)
+        loss = calculate_KL_div(llm, outputs, labels, label_mask)
 
         return (loss, outputs) if return_outputs else loss
 
