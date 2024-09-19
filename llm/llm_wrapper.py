@@ -106,8 +106,9 @@ class LLMWrapper(nn.Module, Injectable):
 
         # Check if the input text is empty or None
         if not text or text.strip() == "":
-            raise ValueError("Input text cannot be empty or None.")
-
+            print("Input text cannot be empty or None.", text)
+            text = 'Hello'
+            
         # Tokenize the text input
         inputs = tokenizer(text, return_tensors="pt").to(device)
 
