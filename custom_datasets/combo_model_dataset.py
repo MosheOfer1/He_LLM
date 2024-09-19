@@ -95,10 +95,17 @@ def make_matching_pairs(sentences_pairs: list[tuple], output_tokenizer):
                 
             # More then 1 input token
             else:
-                for idx, token in enumerate(input):
-                    new_pair = (token, get_new_target_token(idx, input, output_tokenizer))
-                    temp.append(new_pair)
-        
+                flag = True
+                for idx in range(len(input)):
+                    if flag:
+                        new_pair = (input[idx], target[idx])
+                        temp.append(new_pair)
+
+                        if input[idx] != target[idx]:
+                            flag = False
+                    else:
+                        new_pair = (input[idx], get_new_target_token(idx, input, output_tokenizer))
+                        temp.append(new_pair)
         ans.append(temp)
         
     return ans
