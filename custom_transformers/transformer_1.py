@@ -149,8 +149,8 @@ class Transformer1(BaseTransformer):
             output_dir='my_datasets/transformer1_training',
             evaluation_strategy="epoch",
             learning_rate=2e-5,
-            per_device_train_batch_size=32,
-            per_device_eval_batch_size=32,
+            per_device_train_batch_size=16,
+            per_device_eval_batch_size=16,
             weight_decay=0.01,
             fp16=True,  # Enable mixed precision for faster training
             dataloader_num_workers=4,
