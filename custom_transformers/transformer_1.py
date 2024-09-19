@@ -149,7 +149,7 @@ class Transformer1(BaseTransformer):
             output_dir='my_datasets/transformer1_training',
             evaluation_strategy="epoch",
             learning_rate=2e-5,
-            per_device_train_batch_size=64,
+            per_device_train_batch_size=32,
             per_device_eval_batch_size=32,
             weight_decay=0.01,
             save_total_limit=1,
