@@ -59,7 +59,7 @@ class MyCustomModel(nn.Module, BestHyper):
         # Freeze LLM parameters
         self.llm.set_requires_grad(False)
 
-    def forward(self, input_ids, attention_mask=None, labels=None, keep_reshaped=False) -> torch.Tensor:
+    def forward(self, input_ids, attention_mask=None, labels=None, return_reshaped=False) -> torch.Tensor:
         
         batch_size = input_ids.shape[0]
         token_num = input_ids.shape[2]
@@ -67,33 +67,38 @@ class MyCustomModel(nn.Module, BestHyper):
         # Step 1: Get hidden states from the translator for input_ids
         translator_last_hs = self.get_translator_hidden_states(input_ids, attention_mask)
         
-        # print(f"translator_last_hs.shape = {translator_last_hs.shape}")
+        print(f"translator_last_hs.shape = {translator_last_hs.shape}")
 
         # Step 2: Transform to LLM hidden states
         transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs)
 
-        # print(f"transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}")
+        print(f"transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}")
                 
         # Step 3: Get LLM output using dummy input        
         llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs) # shape: [batch * tokens, 1, dim]
         
-        # print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
+        print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
 
         # Step 4: Transform LLM hidden states to translator's hidden states and inject
         transformed_to_translator_hs = self.get_reshaped_translator2_hidden_states(llm_last_hidden_state, reshape=True) # [batch * tokens, 2, trans_dim]
         
-        # print(f"final - reshaped_transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
+        print(f"final - reshaped_transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
         
         # Step 5: Get translator output using dummy input
         outputs = self.get_translator_outputs(transformed_to_translator_hs)
-        
-        if not keep_reshaped:
-            self.reverse_reshaping_translator2_outputs(outputs, batch_size, token_num)
-        
-        return outputs
+       
+        if return_reshaped:
+            return outputs.logits
 
+        outputs = MyCustomModel.reverse_reshaping_translator2_outputs(outputs, batch_size, token_num)
+        print(f"reshaped_outputs.shape = {outputs.shape}")
+        return outputs.logits
+
+
+    @staticmethod
     def reverse_reshaping_translator2_outputs(outputs, batch_size, token_num):
-        outputs.logits
+        dim = outputs.logits.shape[2]
+        return outputs.logits.view(batch_size, token_num, dim)
     
     
     def get_translator_hidden_states(self, input_ids, attention_mask):

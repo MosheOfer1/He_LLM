@@ -33,8 +33,10 @@ class ComboModelDataset(Dataset):
         
         # print(f"sentence_pairs: \n{sentence_pairs}")
         
-        # Get input tokens
-        tokens = [pair[0][0] for pair in sentence_pairs[:-1]]
+        # Get input tokens (last token is the expected generated token)
+        tokens = [pair[0] for pair in sentence_pairs[:-1]]
+        
+        # print(f"tokens = {tokens}")
         
         input_ids = self.input_tokenizer.encode(tokens,
                                                 add_special_tokens=True, # Adds bos token
@@ -42,14 +44,21 @@ class ComboModelDataset(Dataset):
                                                 )
 
         # Get Labels tokens
-        next_token = [pair[1][0] for pair in sentence_pairs]
+        next_token = [pair[1] for pair in sentence_pairs]
+        
+        # print(next_token)
         
         labels = self.output_tokenizer.convert_tokens_to_ids(next_token)
                 
-        labels = torch.tensor([labels], dtype=torch.long)
+        labels = torch.tensor(labels, dtype=torch.long)
         
-        # print(f"Dataset item ({idx}) \nLabels: {labels}")
+        print(f"Dataset item ({idx}) \nLabels: {labels}")
     
+        # for idx in range(len(tokens)):
+        #     print(f"input: {tokens[idx]}, target: {next_token[idx]}")
+        
+        # print(f"Expected generated token: {next_token[len(tokens)]}")
+        
         # raise("stop here pls")
     
         return {
@@ -65,7 +74,7 @@ class ComboModelDataset(Dataset):
             sentence_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
             pairs.append(sentence_pairs)
         
-        print(f"After align - {pairs}")
+        # print(f"After align - {pairs}")
         
         return make_matching_pairs(sentences_pairs=pairs,
                                    output_tokenizer=output_tokenizer)
@@ -82,31 +91,34 @@ def make_matching_pairs(sentences_pairs: list[tuple], output_tokenizer):
             
     for sentence_idx, sentence_pairs in enumerate(sentences_pairs):
 
-        temp = []
         
-        for pair in sentence_pairs:
-            
-            input, target = pair
+        if len(sentence_pairs) > 0:
+            temp = []
 
-            # Only 1 token for input
-            if check_pair(pair, sentence_idx):
-                new_pair = (input[0], target[0])
-                temp.append(new_pair)
+            for pair in sentence_pairs:
                 
-            # More then 1 input token
-            else:
-                flag = True
-                for idx in range(len(input)):
-                    if flag:
-                        new_pair = (input[idx], target[idx])
-                        temp.append(new_pair)
+                input, target = pair
 
-                        if input[idx] != target[idx]:
-                            flag = False
-                    else:
-                        new_pair = (input[idx], get_new_target_token(idx, input, output_tokenizer))
-                        temp.append(new_pair)
-        ans.append(temp)
+                # Only 1 token for input
+                if check_pair(pair, sentence_idx):
+                    new_pair = (input[0], target[0])
+                    temp.append(new_pair)
+                    
+                # More then 1 input token
+                else:
+                    flag = True
+                    for idx in range(len(input)):
+                        if flag:
+                            new_pair = (input[idx], target[idx])
+                            temp.append(new_pair)
+
+                            if input[idx] != target[idx]:
+                                flag = False
+                        else:
+                            print(f"input[0] = {input[0]}, target[0] = {target[0]}")
+                            new_pair = (input[idx], get_new_target_token(idx, input, output_tokenizer))
+                            temp.append(new_pair)
+            ans.append(temp)
         
     return ans
 
@@ -128,10 +140,23 @@ def check_pair(pair, sentence_idx):
     return False
 
 def get_new_target_token(idx, input, output_tokenizer):
-    target_sentence = "".join(input[idx:])
+    target_sentence = "".join([item.rstrip("_") for item in input[idx:-1]])
+
+
+    
+    print(f"target_sentence = {target_sentence}, len = {len(target_sentence)}")
+    
+    # new_token = output_tokenizer.tokenize(target_sentence, add_special_tokens=False)[0]
+    
+    tokens = output_tokenizer.encode(target_sentence, add_special_tokens=True)
+    tokenized_sentence = output_tokenizer.convert_ids_to_tokens(tokens)
+    
+    new_token = tokenized_sentence[1] if len(tokenized_sentence) > 1 else tokenized_sentence[0]
+    
+    print(f"new token = {new_token}")
     
     # return the first token
-    return output_tokenizer.tokenize(target_sentence)[1]
+    return new_token
 
 def align_tokens(tokenizer1, tokenizer2, text):
     count = 0

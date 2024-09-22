@@ -53,15 +53,17 @@ class CombinedTrainer(Trainer):
         shape = inputs["input_ids"].shape # Shape: [batch, window]
         # print(f"inputs[\"input_ids\"].shape = {shape}")
         
-        outputs = model(**inputs)
+        outputs = model(**inputs, return_reshaped=True)
 
-        logits = outputs.get("logits").to(self.device)
+        logits = outputs.to(self.device)
         
         # print(f"before change - logits.shape = {logits.shape}")
+        labels = inputs.get("labels")
+        print(f"labels.shape = {labels.shape}")
         
-        labels = inputs.get("labels").view(-1).to(self.device)
+        labels = labels.view(-1).to(self.device)
         
-        # print(f"logits.shape = {logits.shape}")
+        # # print(f"logits.shape = {logits.shape}")
         # print(f"labels.shape = {labels.shape}")
         
         # print(f"Full batch labels: {labels}")

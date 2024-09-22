@@ -191,9 +191,9 @@ class Translator(Injectable):
             # Get the token IDs for the current timestep (take argmax over the vocabulary dimension)
             token_ids = torch.argmax(outputs.logits[:, -1, :], dim=-1)  # Shape: [batch_size]
 
-            # Check if all sentences in the batch have generated the end-of-sequence token
-            if (token_ids == tokenizer.eos_token_id).all():
-                break
+            # # Check if all sentences in the batch have generated the end-of-sequence token
+            # if (token_ids == tokenizer.eos_token_id).all():
+            #     break
 
             # Update the decoder input IDs with the newly generated tokens (append new tokens to decoder_input_ids)
             new_token_tensor = token_ids.unsqueeze(-1)  # Shape: [batch_size, 1]
@@ -262,7 +262,7 @@ class Translator(Injectable):
             "attention_mask": attention_mask
         }
 
-        # print(f"t1_input_ids.shape = {input_ids.shape}")
+        print(f"t1_input_ids.shape = {input_ids.shape}")
         # print(f"t1_input_ids: {input_ids}")
         # print(input_ids[0,:,:][0])
         # print(tokenizer.convert_ids_to_tokens(input_ids[0,:,:][0]))
