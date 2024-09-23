@@ -178,8 +178,10 @@ class RNNDecoder(nn.Module):
 
 class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
-        input_ids = inputs.get("input_ids").to(model.device)
-        labels = inputs.get("labels").to(model.device)
+        device = model.module.device if hasattr(model, 'module') else model.device
+
+        input_ids = inputs.get("input_ids").to(device)
+        labels = inputs.get("labels").to(device)
         outputs = model(input_ids, labels)
 
         loss_fct = nn.MSELoss()

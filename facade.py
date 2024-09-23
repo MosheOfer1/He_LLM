@@ -80,7 +80,9 @@ def load_model(model_path: str, translator1_model_name, translator2_model_name, 
 
 
 def predict(model: MyCustomModel, text: str):
-    inputs = model.translator.src_to_target_tokenizer(text, return_tensors="pt").to(model.device)
+    device = model.module.device if hasattr(model, 'module') else model.device
+
+    inputs = model.translator.src_to_target_tokenizer(text, return_tensors="pt").to(device)
 
     outputs = model(**inputs)
     print(outputs)

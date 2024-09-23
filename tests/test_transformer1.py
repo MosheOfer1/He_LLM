@@ -50,14 +50,12 @@ class TestTransformer1(unittest.TestCase):
             sentences=train_data,
             translator=self.translator,
             llm=self.llm,
-            max_seq_len=10
         )
 
         eval_dataset = Seq2SeqDataset(
             sentences=eval_data,
             translator=self.translator,
             llm=self.llm,
-            max_seq_len=10
         )
 
         # Perform training

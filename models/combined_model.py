@@ -368,7 +368,15 @@ class MyCustomModel(nn.Module, BestHyper):
         return eval_results['eval_loss']
 
     def printTrainableParams(self):
-        # Print the parameter names for the model customLLM
+        total_params = sum(p.numel() for p in self.parameters())  # Total number of parameters
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)  # Trainable parameters
+
+        # Print the parameter names for the trainable parameters
+        print("Trainable parameters:")
         for name, param in self.named_parameters():
             if param.requires_grad:
                 print(name)
+
+        # Print the total number of parameters and trainable parameters
+        print(f"\nTotal parameters: {total_params}")
+        print(f"Trainable parameters: {trainable_params}")
