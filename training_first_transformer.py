@@ -1,6 +1,14 @@
 import sys
 import os
 import torch
+import argparse
+
+# Set up command-line argument parsing
+parser = argparse.ArgumentParser(description="Training Transformer1 with custom datasets and LLM")
+parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')  # Default batch size is set to 32
+args = parser.parse_args()
+
+batch_size = args.batch_size
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '')))
 
@@ -14,7 +22,7 @@ from custom_transformers.transformer_1 import Transformer1
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # device = 'cpu'
-print(f"Im working with: {device}")
+print(f"I'm working with: {device}")
 
 # Define local paths for the HPC
 translator1_local_path = "/home/management/scratch/talias/opus-mt-tc-big-he-en/"
@@ -73,4 +81,5 @@ eval_dataset = Seq2SeqDataset(
     llm=llm,
 )
 
-trans1.train_model(train_dataset, eval_dataset)
+# Start training with batch size from command line
+trans1.train_model(train_dataset, eval_dataset, batch_size)
