@@ -1,15 +1,15 @@
 import unittest
 from torch.utils.data import DataLoader, RandomSampler
-from transformers import AutoTokenizer, OPTForCausalLM
 import sys
 import os
 import torch
 
+from custom_transformers.transformer_1 import collate_fn
+from llm.opt_llm import OptLLM
 from translation.helsinki_translator import HelsinkiTranslator
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from llm.llm_wrapper import LLMWrapper
 from custom_datasets.seq2seq_dataset import Seq2SeqDataset
 
 
@@ -22,9 +22,7 @@ class TestSeq2SeqDataset(unittest.TestCase):
                                              self.translator2_model_name)
 
         self.llm_model_name = "facebook/opt-125m"
-        self.llm_tokenizer = AutoTokenizer.from_pretrained(self.llm_model_name)
-        self.llm_model = OPTForCausalLM.from_pretrained(self.llm_model_name)
-        self.llm = LLMWrapper(self.llm_model_name, self.llm_tokenizer, self.llm_model)
+        self.llm = OptLLM(self.llm_model_name)
 
         # Example text in Hebrew
         self.sentences = [
@@ -38,7 +36,6 @@ class TestSeq2SeqDataset(unittest.TestCase):
             sentences=self.sentences,
             translator=self.translator,
             llm=self.llm,
-            max_seq_len=10
         )
 
     def test_dataloader(self):
@@ -46,7 +43,7 @@ class TestSeq2SeqDataset(unittest.TestCase):
         sampler = RandomSampler(self.dataset)
 
         # Create the DataLoader with the sampler
-        dataloader = DataLoader(self.dataset, batch_size=2, sampler=sampler)
+        dataloader = DataLoader(self.dataset, batch_size=2, sampler=sampler, collate_fn=collate_fn)
 
         # Iterate through the batches
         for batch_idx, batch in enumerate(dataloader):

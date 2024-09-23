@@ -1,36 +1,23 @@
 import torch.nn as nn
-import torch
 from torch.nn import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer, TransformerDecoder
-from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
-
+import matplotlib.pyplot as plt
 import os
 import sys
 
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import matplotlib.pyplot as plt
-
+from custom_transformers.custom_trainer_trans1 import *
+from transformers import Seq2SeqTrainingArguments
 from custom_transformers.base_transformer import BaseTransformer
 from llm.llm_wrapper import LLMWrapper
 from translation.translator import Translator
 
 
-def create_positional_encoding(max_seq_len, hidden_dim):
-    # Initialize the positional encoding matrix
-    position = torch.arange(0, max_seq_len).unsqueeze(1)
-    div_term = torch.exp(torch.arange(0, hidden_dim, 2) * (-torch.log(torch.tensor(10000.0)) / hidden_dim))
-
-    positional_encoding = torch.zeros(max_seq_len, hidden_dim)
-    positional_encoding[:, 0::2] = torch.sin(position * div_term)
-    positional_encoding[:, 1::2] = torch.cos(position * div_term)
-
-    return positional_encoding.unsqueeze(0)  # Shape (1, max_seq_len, hidden_dim)
-
-
 class Transformer1(BaseTransformer):
     def __init__(self, translator: Translator,
-                 llm: LLMWrapper, 
-                 model_name=None, 
+                 llm: LLMWrapper,
+                 model_name=None,
                  nhead=2,
                  num_layers=2,
                  max_seq_len=128,
@@ -62,7 +49,7 @@ class Transformer1(BaseTransformer):
         self.positional_encoding = create_positional_encoding(max_seq_len, hidden_dim).to(device)
 
         # Transformer Encoder Layer
-        encoder_layers = TransformerEncoderLayer(d_model=hidden_dim, nhead=nhead).to(device)
+        encoder_layers = TransformerEncoderLayer(d_model=hidden_dim, nhead=nhead, batch_first=True).to(device)
         self.encoder = TransformerEncoder(encoder_layers, num_layers=num_layers).to(device)
         # Transformer Decoder Layer
         decoder_layers = TransformerDecoderLayer(d_model=hidden_dim, nhead=nhead, batch_first=True).to(device)
@@ -74,41 +61,52 @@ class Transformer1(BaseTransformer):
         self.eos_vector_input = torch.zeros(translator.src_to_target_model.config.hidden_size).to(device)
         self.eos_vector_output = torch.ones(llm.model.config.hidden_size).to(device)
 
-    def encode(self, input_seq):
+        self.black_box = BlackBox(llm)
+
+    def encode(self, input_seq, input_mask=None):
         input_seq = self.input_projection(input_seq)
-        input_seq = input_seq + self.positional_encoding[:, :input_seq.size(1), :]
-        memory = self.encoder(input_seq)
+        input_seq = input_seq + self.positional_encoding[:, :input_seq.size(1), :].to(input_seq.device)
+
+        # Pass the attention mask to the encoder
+        memory = self.encoder(input_seq, src_key_padding_mask=input_mask)
         return memory
 
-    def decode(self, target_seq, memory):
+    def decode(self, target_seq, memory, target_mask=None, memory_mask=None):
         """
         Decoding step using the transformer decoder.
 
         :param target_seq: Target sequence tensor of shape (batch_size, seq_len, hidden_dim).
         :param memory: Memory tensor from the encoder of shape (batch_size, seq_len, hidden_dim).
+        :param target_mask: Attention mask for the target sequence.
+        :param memory_mask: Attention mask for the memory (source sequence).
         :return: The decoded output.
         """
         # Add positional encoding to the target sequence
-        target_seq = target_seq + self.positional_encoding[:, :target_seq.size(1), :]
-        # Decode using the Transformer Decoder
-        output = self.decoder(tgt=target_seq, memory=memory)
+        target_seq = target_seq + self.positional_encoding[:, :target_seq.size(1), :].to(target_seq.device)
+
+        # Decode using the Transformer Decoder with attention masks
+        output = self.decoder(tgt=target_seq, memory=memory, tgt_key_padding_mask=target_mask,
+                              memory_key_padding_mask=memory_mask)
         return output
 
-    def forward(self, input_ids, labels=None):
+    def forward(self, input_ids, labels=None, input_mask=None, label_mask=None):
         """
         Forward pass through the Transformer1 model.
 
         :param input_ids: Tensor of shape (batch_size, seq_len, input_dim), representing the input sequence.
         :param labels: Optional tensor of shape (batch_size, seq_len, output_dim), representing the target sequence.
-        :param mse_threshold: MSE loss threshold for early stopping if the error becomes too small.
+        :param input_mask: Attention mask for the input sequence.
+        :param label_mask: Attention mask for the labels (target sequence).
         :return: The output sequence tensor.
         """
 
-        # Move input_ids to the correct device
+        # Move input_ids and masks to the correct device
         input_ids = input_ids.to(self.device)
+        input_mask = input_mask.to(self.device) if input_mask is not None else None
+        label_mask = label_mask.to(self.device) if label_mask is not None else None
 
         # Encode the input sequence to get memory
-        memory = self.encode(input_ids)
+        memory = self.encode(input_ids, input_mask=input_mask)
 
         # Initialize the output tensor
         batch_size, tgt_len = input_ids.size(0), labels.size(1) if labels is not None else input_ids.size(1)
@@ -122,8 +120,11 @@ class Transformer1(BaseTransformer):
             # Create a sequence tensor for the current target token
             target_seq = input_token.unsqueeze(1)  # Shape: (batch_size, 1, output_dim)
 
+            # Slice the label_mask for the current token (t-th step)
+            target_mask_step = label_mask[:, t:t + 1] if label_mask is not None else None
+
             # Decode using the transformer decoder
-            decoder_output = self.decode(target_seq, memory)
+            decoder_output = self.decode(target_seq, memory, target_mask=target_mask_step, memory_mask=input_mask)
 
             # Project the decoder output to the desired output dimension
             output_token = self.output_projection(decoder_output[:, -1, :])  # Shape: (batch_size, output_dim)
@@ -143,23 +144,22 @@ class Transformer1(BaseTransformer):
 
         return outputs
 
-    def train_model(self, train_dataset, test_dataset, epochs=5):
+    def train_model(self, train_dataset, test_dataset, epochs=5, batch_size=32):
         training_args = Seq2SeqTrainingArguments(
-            output_dir='../my_datasets',
-            eval_strategy="epoch",
+            output_dir='my_datasets/transformer1_training',
+            evaluation_strategy="epoch",
             learning_rate=2e-5,
-            per_device_train_batch_size=32,
-            per_device_eval_batch_size=16,
+            per_device_train_batch_size=batch_size,
+            per_device_eval_batch_size=batch_size,
             weight_decay=0.01,
-            save_total_limit=1,
+            fp16=True,  # Enable mixed precision for faster training
+            # dataloader_num_workers=4,
+            save_total_limit=3,
             save_strategy="epoch",
             num_train_epochs=epochs,
             predict_with_generate=False,  # Not generating text, so disable generation
-            logging_dir='../my_datasets/logs',
+            logging_dir='my_datasets/logs',
         )
-
-        # Print trainable layers and parameters
-        print_model_parameters(self)
 
         # Initialize the Seq2SeqTrainer
         trainer = CustomTrainer(
@@ -168,8 +168,10 @@ class Transformer1(BaseTransformer):
             train_dataset=train_dataset,
             eval_dataset=test_dataset,
             tokenizer=None,  # No tokenizer since we're working with raw vectors
-            data_collator=None,  # Custom data collator if needed, else can be left as None
+            data_collator=lambda x: collate_fn(x, max_seq_len=128, device=self.device)
         )
+
+        self.printTrainableParams()
 
         # Train the model
         trainer.train()
@@ -182,6 +184,20 @@ class Transformer1(BaseTransformer):
         print(f"Model saved to {self.model_path}")
         self.evaluate_model(trainer, test_dataset)
         self.plot_loss(trainer)
+
+    def printTrainableParams(self):
+        total_params = sum(p.numel() for p in self.parameters())  # Total number of parameters
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)  # Trainable parameters
+
+        # Print the parameter names for the trainable parameters
+        print("Trainable parameters:")
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                print(name)
+
+        # Print the total number of parameters and trainable parameters
+        print(f"\nTotal parameters: {total_params}")
+        print(f"Trainable parameters: {trainable_params}")
 
     @staticmethod
     def plot_loss(trainer, save_path='images/loss_plot.png'):
@@ -231,31 +247,13 @@ class Transformer1(BaseTransformer):
         # Initialize the appropriate Transformer model
         model = Transformer1(translator=translator, llm=llm, device=device)
 
+        device = model.module.device if hasattr(model, 'module') else model.device
+
         # Load the model state dictionary from the saved file
-        model.load_state_dict(torch.load(model_path, map_location=torch.device(model.device)))
+        model.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
 
         # Set the model to evaluation mode
         model.eval()
 
         print(f"Model '{model_name}' loaded from {model_path}")
         return model
-
-
-def print_model_parameters(model):
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-    print(f"Total parameters: {total_params}")
-    print(f"Trainable parameters: {trainable_params}")
-
-
-class CustomTrainer(Seq2SeqTrainer):
-    def compute_loss(self, model, inputs, return_outputs=False):
-        input_ids = inputs.get("input_ids").to(model.device)
-        labels = inputs.get("labels").to(model.device)
-        outputs = model(input_ids, labels)
-
-        loss_fct = nn.MSELoss()
-        loss = loss_fct(outputs, labels)
-
-        return (loss, outputs) if return_outputs else loss

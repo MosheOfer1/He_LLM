@@ -163,9 +163,11 @@ class Translator(Injectable):
         """
         batch_size = inputs["input_ids"].size(0)
 
+        device = model.module.device if hasattr(model, 'module') else model.device
+
         # Initialize decoder input IDs with the start token ID for all sentences in the batch
         decoder_input_ids = torch.full(
-            (batch_size, 1), tokenizer.pad_token_id, dtype=torch.long, device=model.device
+            (batch_size, 1), tokenizer.pad_token_id, dtype=torch.long, device=device
         )
 
         counter = 0
@@ -209,7 +211,7 @@ class Translator(Injectable):
         generated_texts = []
         for seq in token_ids:
             # Decode the token IDs to a sentence, skipping special tokens like <pad>, <eos>, etc.
-            generated_text = tokenizer.decode(seq, skip_special_tokens=True)
+            generated_text = tokenizer.decode(seq, skip_special_tokens=True, clean_up_tokenization_spaces=False)
             generated_texts.append(generated_text)
 
         generated_texts = "\n".join(generated_texts)
@@ -227,8 +229,10 @@ class Translator(Injectable):
         :param from_encoder: If True, return hidden states from the encoder; otherwise, return from the decoder.
         :return: The hidden states from the specified layer.
         """
+        device = model.module.device if hasattr(model, 'module') else model.device
+
         # Tokenize the input text as a batch
-        inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True).to(model.device)
+        inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True).to(device)
 
         # Forward pass through the model, providing decoder input ids
         outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer)
@@ -241,8 +245,10 @@ class Translator(Injectable):
 
     @staticmethod
     def input_ids_to_hidden_states(input_ids, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
+        device = model.module.device if hasattr(model, 'module') else model.device
+
         inputs = {
-            "input_ids": input_ids.to(model.device),
+            "input_ids": input_ids.to(device),
             "attention_mask": attention_mask
         }
 
