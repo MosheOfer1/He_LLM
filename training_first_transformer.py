@@ -74,12 +74,14 @@ train_dataset = Seq2SeqDataset(
     sentences=train_data,
     translator=translator,
     llm=llm,
+    device=device
 )
 
 eval_dataset = Seq2SeqDataset(
     sentences=eval_data,
     translator=translator,
     llm=llm,
+    device=device
 )
 
 # Start training with batch size from command line
