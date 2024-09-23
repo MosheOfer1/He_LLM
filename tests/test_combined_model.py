@@ -38,6 +38,8 @@ class TestCombinedModel(unittest.TestCase):
         self.model1.eval()
         self.model2.eval()
 
+    
+    
     def test_saving_loading_both_transformers(self):
         input_ids = torch.tensor([[5444]]).to(self.device)
 

@@ -66,14 +66,14 @@ class MyCustomModel(nn.Module, BestHyper):
         
         # Step 1: Get hidden states from the translator for input_ids
         translator_last_hs = self.get_translator_hidden_states(input_ids, attention_mask)
-        
+
         print(f"translator_last_hs.shape = {translator_last_hs.shape}")
 
         # Step 2: Transform to LLM hidden states
         transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs)
 
         print(f"transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}")
-                
+
         # Step 3: Get LLM output using dummy input        
         llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs) # shape: [batch * tokens, 1, dim]
         
@@ -151,6 +151,9 @@ class MyCustomModel(nn.Module, BestHyper):
         # Transform to translator's first hidden states
         transformed_to_translator_hs = self.get_transformer2_output(llm_last_hidden_state=llm_last_hidden_state,
                                                                     reshape=reshape)
+        
+        print(f"transformed_to_translator_hs - {transformed_to_translator_hs.shape}")
+        
         batch_size = transformed_to_translator_hs.shape[0]
          
         # Get hidden states of the EOS token

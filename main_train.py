@@ -1,3 +1,4 @@
+
 import sys
 import os
 import torch
@@ -22,7 +23,8 @@ llm_model_name = "facebook/opt-125m"
 
 # text_file_path = input("Enter text file path: ")
 # text_file_path = "my_datasets/book.txt"
-text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
+text_file_path = "my_datasets/test_batches_dataset.txt"
+# text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
 
  
 customLLM = MyCustomModel(translator1_model_name,
@@ -43,9 +45,9 @@ train(model=customLLM,
       batches=8,
       device=device)
 
-# Specify the full file path for the model
-model_name = f"{text_file_path[:5]}_{llm_model_name.split('/')[-1].replace('.','_')}.pth"
-model_dir = "my_datasets"
+# # Specify the full file path for the model
+# model_name = f"{text_file_path[:5]}_{llm_model_name.split('/')[-1].replace('.','_')}.pth"
+# model_dir = "my_datasets"
 
 # save_model(model=customLLM,
 #            model_name=model_name,

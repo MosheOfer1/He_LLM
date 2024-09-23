@@ -63,8 +63,8 @@ class CombinedTrainer(Trainer):
         
         labels = labels.view(-1).to(self.device)
         
-        # # print(f"logits.shape = {logits.shape}")
-        # print(f"labels.shape = {labels.shape}")
+        print(f"labels.shape = {labels.shape}")
+        print(f"logits.shape = {logits.shape}")
         
         # print(f"Full batch labels: {labels}")
 
