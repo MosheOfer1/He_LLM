@@ -6,9 +6,12 @@ import argparse
 # Set up command-line argument parsing
 parser = argparse.ArgumentParser(description="Training Transformer1 with custom datasets and LLM")
 parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')  # Default batch size is set to 32
+parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu',
+                    help='Device to run the model on (e.g., "cuda" or "cpu")')  # Device default is cuda if available
 args = parser.parse_args()
 
 batch_size = args.batch_size
+device = args.device
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '')))
 
@@ -20,8 +23,6 @@ from translation.helsinki_translator import HelsinkiTranslator
 
 from custom_transformers.transformer_1 import Transformer1
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-# device = 'cpu'
 print(f"I'm working with: {device}")
 
 # Define local paths for the HPC
