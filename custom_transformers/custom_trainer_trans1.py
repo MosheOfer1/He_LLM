@@ -83,11 +83,11 @@ class CustomTrainer(Seq2SeqTrainer):
         # loss_fct = nn.MSELoss()
         # loss = loss_fct(outputs, labels)
 
-        cosine_sim = F.cosine_similarity(outputs, labels, dim=-1)
-        loss = 1 - cosine_sim.mean()
+        # cosine_sim = F.cosine_similarity(outputs, labels, dim=-1)
+        # loss = 1 - cosine_sim.mean()
 
-        # llm = model.module.black_box.llm if hasattr(model, 'module') else model.black_box.llm
-        # loss = calculate_KL_div(llm, outputs, labels, label_mask)
+        llm = model.module.black_box.llm if hasattr(model, 'module') else model.black_box.llm
+        loss = calculate_KL_div(llm, outputs, labels, label_mask)
 
         return (loss, outputs) if return_outputs else loss
 
