@@ -61,13 +61,14 @@ class MyCustomModel(nn.Module, BestHyper):
         # Freeze LLM parameters
         self.llm.set_requires_grad(False)
 
-    def forward(self, input_ids, attention_mask=None, labels=None, return_reshaped=False) -> torch.Tensor:
-
-        batch_size = input_ids.shape[0]
-        token_num = input_ids.shape[1]
+    def forward(self, input_ids, attention_mask=None, labels=None) -> torch.Tensor:
 
         # Step 1: Get hidden states from the translator for input_ids
         translator_last_hs, attention_mask = self.get_translator_hidden_states(input_ids, attention_mask)
+
+        # Keep the sizes for the second translator
+        batch_size = input_ids.shape[0]
+        number_of_tokens = translator_last_hs.shape[1]
 
         print(f"translator_last_hs.shape = {translator_last_hs.shape}")
 
@@ -88,22 +89,12 @@ class MyCustomModel(nn.Module, BestHyper):
             attention_mask=attention_mask
         )  # [batch * tokens, 2, trans_dim]
 
-        print(f"final - reshaped_transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
+        print(f"transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
 
         # Step 5: Get translator output using dummy input
-        outputs = self.get_translator_outputs(transformed_to_translator_hs, attention_mask)
+        outputs = self.get_translator_outputs(transformed_to_translator_hs, attention_mask, batch_size, number_of_tokens)
 
-        if return_reshaped:
-            return outputs.logits
-
-        outputs = MyCustomModel.reverse_reshaping_translator2_outputs(outputs, batch_size, token_num)
-        print(f"reshaped_outputs.shape = {outputs.shape}")
-        return outputs.logits
-
-    @staticmethod
-    def reverse_reshaping_translator2_outputs(outputs, batch_size, token_num):
-        dim = outputs.logits.shape[2]
-        return outputs.logits.view(batch_size, token_num, dim)
+        return outputs
 
     def get_translator_hidden_states(self, input_ids, attention_mask):
         (translator_last_hs, attention_mask) = self.translator.input_ids_to_hidden_states(
@@ -116,13 +107,41 @@ class MyCustomModel(nn.Module, BestHyper):
         )
         return translator_last_hs.to(self.device), attention_mask
 
-    def get_translator_outputs(self, transformed_to_translator_hs, attention_mask):
-        self.translator.inject_hidden_states(transformed_to_translator_hs)
+    def get_translator_outputs(self, transformed_to_translator_hs, attention_mask, batch_size, number_of_tokens):
+        # Flatten the attention mask to match the batch_size * tokens dimension in transformed_to_translator_hs
+        flattened_attention_mask = attention_mask.view(-1)  # Shape: (batch_size * tokens)
+
+        # Get indices of non-zero values in the attention mask
+        non_zero_indices = flattened_attention_mask.nonzero(as_tuple=True)[0]
+
+        # Select only the corresponding non-zero elements from transformed_to_translator_hs
+        filtered_transformed_hs = transformed_to_translator_hs[non_zero_indices]
+        print(f"filtered_transformed_hs = {filtered_transformed_hs.shape}")
+        # Inject filtered hidden states into the translator
+        self.translator.inject_hidden_states(filtered_transformed_hs)
+
+        # Get the output from the translator using the filtered hidden states
         outputs = self.translator.get_output_by_using_dummy(
-            token_num=transformed_to_translator_hs.shape[1],
-            batch_size=transformed_to_translator_hs.shape[0],
-            attention_mask=attention_mask
+            token_num=filtered_transformed_hs.shape[1],
+            batch_size=filtered_transformed_hs.shape[0],
         )
+
+        logits = outputs.logits
+        print(f"logits.shape = {logits.shape}")
+
+        # Create an empty tensor of zeros with the desired final shape [22, 8, 65839]
+        vocab_size = logits.shape[-1]
+        padded_logits = torch.zeros((batch_size, number_of_tokens, vocab_size), device=self.device)
+
+        # Reshape logits to remove the second dimension (since it's [111, 1, 65839])
+        logits = logits.view(-1, vocab_size)  # Shape: [111, 65839]
+
+        # Place the logits into the correct positions based on the non-zero indices
+        padded_logits.view(-1, vocab_size)[non_zero_indices] = logits
+
+        print(f"padded_logits.shape = {padded_logits.shape}")
+        outputs.logits = padded_logits
+
         return outputs
 
     def get_llm_hidden_states(self, transformed_to_llm_hs, attention_mask):
