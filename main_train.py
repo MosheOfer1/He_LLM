@@ -23,8 +23,8 @@ llm_model_name = "facebook/opt-125m"
 
 # text_file_path = input("Enter text file path: ")
 # text_file_path = "my_datasets/book.txt"
-text_file_path = "my_datasets/test_batches_dataset.txt"
-# text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
+# text_file_path = "my_datasets/test_batches_dataset.txt"
+text_file_path = "my_datasets/SVLM_Hebrew_Wikipedia_Corpus.txt"
 
  
 customLLM = MyCustomModel(translator1_model_name,
@@ -42,7 +42,7 @@ train_dataset, eval_dataset = create_datasets_from_txt_file(translator=customLLM
 train(model=customLLM,
       train_dataset=train_dataset,
       eval_dataset=eval_dataset,
-      batches=8,
+      batches=1,
       device=device)
 
 # # Specify the full file path for the model

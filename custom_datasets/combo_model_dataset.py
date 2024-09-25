@@ -35,7 +35,7 @@ class ComboModelDataset(Dataset):
         tokens = [pair[0] for pair in sentence_pairs[:-1]]
                 
         input_ids = self.input_tokenizer.encode(tokens,
-                                                add_special_tokens=True, # Adds bos token
+                                                add_special_tokens=True, # Adds EOS token
                                                 return_tensors='pt'
                                                 )
 
@@ -58,7 +58,11 @@ class ComboModelDataset(Dataset):
             sentence_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
             pairs.append(sentence_pairs)
         
-        # print(f"After align - {pairs}")
+        # print(f"After align:")
+        # for idx, sen in enumerate(pairs):
+        #     print(f"\nsentence: {idx}\n")
+        #     for pair in sen:
+        #         print(pair)
         
         return make_matching_pairs(sentences_pairs=pairs,
                                    output_tokenizer=output_tokenizer)
@@ -94,8 +98,7 @@ def make_matching_pairs(sentences_pairs: list[tuple], output_tokenizer):
                             new_pair = (input[idx], target[idx])
                             temp.append(new_pair)
 
-                            # if input[idx] != target[idx]: -> TODO- Check
-                            if input[idx].rstrip("_") != target[idx].rstrip("_"):
+                            if input[idx] != target[idx]:
                                 flag = False
                         else:
                             new_pair = (input[idx], get_new_target_token(idx, input, output_tokenizer))
@@ -123,9 +126,12 @@ def check_pair(pair, sentence_idx):
 
 def get_new_target_token(idx, input, output_tokenizer):
     
-    target_sentence = "".join([item.rstrip("_") for item in input[idx:]])
+    target_sentence = "".join([item for item in input[idx:]])
+
     tokens = output_tokenizer.encode(target_sentence, add_special_tokens=True)
     tokenized_sentence = output_tokenizer.convert_ids_to_tokens(tokens)
+    
+    # print('new token: ', tokenized_sentence)
     
     # return the first token
     return tokenized_sentence[1] if len(tokenized_sentence) > 1 else tokenized_sentence[0]
