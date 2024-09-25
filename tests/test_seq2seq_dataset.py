@@ -4,11 +4,12 @@ import sys
 import os
 import torch
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from custom_transformers.transformer_1 import collate_fn
 from llm.opt_llm import OptLLM
 from translation.helsinki_translator import HelsinkiTranslator
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from custom_datasets.seq2seq_dataset import Seq2SeqDataset
 

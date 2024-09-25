@@ -161,10 +161,21 @@ class Translator(Injectable):
         Processes the model to generate outputs, including logits and hidden states.
         Handles a batch of inputs, such as (batch_size, seq_len).
         """
-        batch_size = inputs["input_ids"].size(0)
+        input_ids = inputs["input_ids"]
+        input_shape = input_ids.shape
+        
+        batch_size = input_shape[0]
+        
+        # Get the start token ID (<bos> or <cls>)
+        if tokenizer.bos_token_id is not None:
+            start_token_id = tokenizer.bos_token_id
+        elif tokenizer.cls_token_id is not None:
+            start_token_id = tokenizer.cls_token_id
+        else:
+            start_token_id = tokenizer.pad_token_id
 
         device = model.module.device if hasattr(model, 'module') else model.device
-
+        
         # Initialize decoder input IDs with the start token ID for all sentences in the batch
         decoder_input_ids = torch.full(
             (batch_size, 1), tokenizer.pad_token_id, dtype=torch.long, device=device
@@ -182,9 +193,9 @@ class Translator(Injectable):
             # Get the token IDs for the current timestep (take argmax over the vocabulary dimension)
             token_ids = torch.argmax(outputs.logits[:, -1, :], dim=-1)  # Shape: [batch_size]
 
-            # Check if all sentences in the batch have generated the end-of-sequence token
-            if (token_ids == tokenizer.eos_token_id).all():
-                break
+            # # Check if all sentences in the batch have generated the end-of-sequence token
+            # if (token_ids == tokenizer.eos_token_id).all():
+            #     break
 
             # Update the decoder input IDs with the newly generated tokens (append new tokens to decoder_input_ids)
             new_token_tensor = token_ids.unsqueeze(-1)  # Shape: [batch_size, 1]
@@ -193,8 +204,12 @@ class Translator(Injectable):
 
             counter += 1
 
+        # print(f"input_ids.shape: {input_ids.shape}")
+        # print(f"decoder_input_ids.shape: {decoder_input_ids.shape}")
+        # print(f"outputs.logits.shape: {outputs.logits.shape}")
+        
         return outputs
-
+    
     @staticmethod
     def decode_logits(tokenizer, logits: torch.Tensor) -> str:
         """
@@ -252,8 +267,16 @@ class Translator(Injectable):
             "attention_mask": attention_mask
         }
 
+        print(f"t1_input_ids.shape = {input_ids.shape}")
+        # print(f"t1_input_ids: {input_ids}")
+        # print(input_ids[0,:,:][0])
+        # print(tokenizer.convert_ids_to_tokens(input_ids[0,:,:][0]))
+        
+        # Number of input tokens per batch
+        max_len = input_ids.shape[2]
+        
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer)
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, max_len=max_len)
 
         # Return the hidden states of the specified layer
         if from_encoder:

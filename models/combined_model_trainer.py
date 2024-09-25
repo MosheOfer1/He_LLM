@@ -49,16 +49,38 @@ class CombinedTrainer(Trainer):
         """
         Overrides the Trainer lib default loss computation
         """
-        outputs = model(**inputs)
+        
+        shape = inputs["input_ids"].shape # Shape: [batch, window]
+        # print(f"inputs[\"input_ids\"].shape = {shape}")
+        
+        outputs = model(**inputs, return_reshaped=True)
 
-        logits = outputs.get("logits").to(self.device)
-        labels = inputs.get("labels").to(self.device)
+        logits = outputs.to(self.device)
+        
+        # print(f"before change - logits.shape = {logits.shape}")
+        labels = inputs.get("labels")
+        print(f"labels.shape = {labels.shape}")
+        
+        labels = labels.view(-1).to(self.device)
+        
+        print(f"labels.shape = {labels.shape}")
+        print(f"logits.shape = {logits.shape}")
+        
+        # print(f"Full batch labels: {labels}")
 
-        loss_func = nn.CrossEntropyLoss()
-        loss = loss_func(logits[:, 0, :], labels)
-
+        # raise("Please stop here")
+    
+        # Cross Entropy
+        loss = self.cross_entropy_loss(logits=logits,
+                                       labels=labels)
+        
         return (loss, outputs) if return_outputs else loss
 
+    def cross_entropy_loss(self, logits, labels):
+        logits = logits[:, 0, :].to(self.device)  # Shape: [batch_size, num_classes]
+        loss_func = nn.CrossEntropyLoss()
+        return loss_func(logits, labels)
+    
     def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
         """
            This method runs a short training loop where the learning rate is gradually increased from `start_lr` to `end_lr` over a specified number of iterations (`num_iter`). The method records the learning rate and the corresponding loss at each step, allowing the user to analyze how the loss changes with different learning rates.

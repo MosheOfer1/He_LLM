@@ -5,7 +5,7 @@ import torch
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from custom_datasets.create_datasets import read_file_to_string
-from custom_datasets.combo_model_dataset import ComboModelDataset
+from custom_datasets.combo_model_dataset_window import ComboModelDataset
 from models.combined_model import MyCustomModel
 
 

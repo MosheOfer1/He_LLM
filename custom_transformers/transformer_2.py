@@ -55,7 +55,7 @@ class Transformer2(BaseTransformer):
         Define the forward pass for Transformer2.
         """
         hidden_states = hidden_states.to(self.device)
-        
+                
         x = self.layer1(hidden_states)
         x = self.activation(x)
         x = self.dropout(x)
