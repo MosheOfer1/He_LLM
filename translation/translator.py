@@ -156,16 +156,16 @@ class Translator(Injectable):
         return generated_sentence
 
     @staticmethod
-    def process_outputs(inputs, model, tokenizer, max_len=20):
+    def process_outputs(inputs, model, tokenizer, max_len=40):
         """
         Processes the model to generate outputs, including logits and hidden states.
         Handles a batch of inputs, such as (batch_size, seq_len).
         """
         input_ids = inputs["input_ids"]
         input_shape = input_ids.shape
-        
+
         batch_size = input_shape[0]
-        
+
         # Get the start token ID (<bos> or <cls>)
         if tokenizer.bos_token_id is not None:
             start_token_id = tokenizer.bos_token_id
@@ -175,11 +175,14 @@ class Translator(Injectable):
             start_token_id = tokenizer.pad_token_id
 
         device = model.module.device if hasattr(model, 'module') else model.device
-        
+
         # Initialize decoder input IDs with the start token ID for all sentences in the batch
         decoder_input_ids = torch.full(
             (batch_size, 1), tokenizer.pad_token_id, dtype=torch.long, device=device
         )
+
+        # Initialize the attention mask with ones (attending to all tokens initially)
+        attention_mask = torch.ones((batch_size, 1), device=device)
 
         counter = 0
         while counter < max_len:
@@ -193,9 +196,13 @@ class Translator(Injectable):
             # Get the token IDs for the current timestep (take argmax over the vocabulary dimension)
             token_ids = torch.argmax(outputs.logits[:, -1, :], dim=-1)  # Shape: [batch_size]
 
-            # # Check if all sentences in the batch have generated the end-of-sequence token
-            # if (token_ids == tokenizer.eos_token_id).all():
-            #     break
+            # Check if all sentences in the batch have generated the end-of-sequence token
+            if (token_ids == tokenizer.eos_token_id).all():
+                break
+
+            # Update the attention mask: append 0 if eos_token_id is encountered, otherwise append 1
+            new_attention_mask_values = (token_ids != tokenizer.eos_token_id).unsqueeze(-1)  # Shape: [batch_size, 1]
+            attention_mask = torch.cat([attention_mask, new_attention_mask_values], dim=-1)
 
             # Update the decoder input IDs with the newly generated tokens (append new tokens to decoder_input_ids)
             new_token_tensor = token_ids.unsqueeze(-1)  # Shape: [batch_size, 1]
@@ -204,12 +211,11 @@ class Translator(Injectable):
 
             counter += 1
 
-        # print(f"input_ids.shape: {input_ids.shape}")
-        # print(f"decoder_input_ids.shape: {decoder_input_ids.shape}")
-        # print(f"outputs.logits.shape: {outputs.logits.shape}")
-        
+        # Add the attention mask to the inputs for future passes
+        inputs['attention_mask'] = attention_mask
+
         return outputs
-    
+
     @staticmethod
     def decode_logits(tokenizer, logits: torch.Tensor) -> str:
         """
@@ -267,22 +273,15 @@ class Translator(Injectable):
             "attention_mask": attention_mask
         }
 
-        print(f"t1_input_ids.shape = {input_ids.shape}")
-        # print(f"t1_input_ids: {input_ids}")
-        # print(input_ids[0,:,:][0])
-        # print(tokenizer.convert_ids_to_tokens(input_ids[0,:,:][0]))
-        
-        # Number of input tokens per batch
-        max_len = input_ids.shape[2]
-        
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, max_len=max_len)
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer)
+        attention_mask = inputs.get('attention_mask')
 
         # Return the hidden states of the specified layer
         if from_encoder:
-            return outputs.encoder_hidden_states[layer_num]
+            return outputs.encoder_hidden_states[layer_num], attention_mask
         else:
-            return outputs.decoder_hidden_states[layer_num]
+            return outputs.decoder_hidden_states[layer_num], attention_mask
 
     @contextmanager
     def injection_state(self):

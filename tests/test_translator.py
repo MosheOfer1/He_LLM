@@ -63,7 +63,7 @@ class TestTranslator(unittest.TestCase):
         input_ids = inputs["input_ids"]
 
         # Step 2: Get the hidden states from the first layer of the second translator model using input_ids
-        translator_first_hs = translator2.input_ids_to_hidden_states(
+        translator_first_hs, _ = translator2.input_ids_to_hidden_states(
             input_ids,
             layer_num=0,  # The layer number to extract the hidden states from
             tokenizer=tokenizer,
@@ -189,7 +189,7 @@ class TestTranslator(unittest.TestCase):
         attention_mask = inputs["attention_mask"]
         with self.translator.injection_state():
             # Step 2: Get the hidden states from the first layer of the first translator model using input_ids
-            translator_first_hs = self.translator.input_ids_to_hidden_states(
+            translator_first_hs, _ = self.translator.input_ids_to_hidden_states(
                 input_ids=input_ids,
                 layer_num=0,  # Extract hidden states from the first layer
                 tokenizer=tokenizer,

@@ -23,6 +23,7 @@ class CombinedTrainer(Trainer):
                  optimizer,
                  scheduler,
                  total_steps,
+                 data_collator,
                  device='cpu'):
         
         print(f"CombinedTrainer.__init__ - uses: {device}")
@@ -43,44 +44,26 @@ class CombinedTrainer(Trainer):
                          args=args,
                          train_dataset=train_dataset,
                          eval_dataset=eval_dataset,
-                         optimizers=(optimizer, scheduler))
+                         optimizers=(optimizer, scheduler),
+                         data_collator=data_collator
+                         )
 
     def compute_loss(self, model, inputs, return_outputs=False):
         """
         Overrides the Trainer lib default loss computation
         """
-        
-        shape = inputs["input_ids"].shape # Shape: [batch, window]
-        # print(f"inputs[\"input_ids\"].shape = {shape}")
-        
-        outputs = model(**inputs, return_reshaped=True)
+        input_ids = inputs.get("input_ids").to(self.device)
+        attention_mask = inputs.get("input_mask").to(self.device)
+        outputs = model(input_ids=input_ids, attention_mask=attention_mask)
 
-        logits = outputs.to(self.device)
-        
-        # print(f"before change - logits.shape = {logits.shape}")
-        labels = inputs.get("labels")
-        print(f"labels.shape = {labels.shape}")
-        
-        labels = labels.view(-1).to(self.device)
-        
-        print(f"labels.shape = {labels.shape}")
-        print(f"logits.shape = {logits.shape}")
-        
-        # print(f"Full batch labels: {labels}")
+        logits = outputs.get("logits").to(self.device)
+        labels = inputs.get("labels").to(self.device)
 
-        # raise("Please stop here")
-    
-        # Cross Entropy
-        loss = self.cross_entropy_loss(logits=logits,
-                                       labels=labels)
-        
+        loss_func = nn.CrossEntropyLoss()
+        loss = loss_func(logits[:, 0, :], labels)
+
         return (loss, outputs) if return_outputs else loss
 
-    def cross_entropy_loss(self, logits, labels):
-        logits = logits[:, 0, :].to(self.device)  # Shape: [batch_size, num_classes]
-        loss_func = nn.CrossEntropyLoss()
-        return loss_func(logits, labels)
-    
     def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
         """
            This method runs a short training loop where the learning rate is gradually increased from `start_lr` to `end_lr` over a specified number of iterations (`num_iter`). The method records the learning rate and the corresponding loss at each step, allowing the user to analyze how the loss changes with different learning rates.

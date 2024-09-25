@@ -50,14 +50,28 @@ class Transformer2(BaseTransformer):
         self.activation = nn.ReLU()
         self.dropout = nn.Dropout(0.1)
 
-    def forward(self, hidden_states):
+    def forward(self, hidden_states, attention_mask=None):
         """
         Define the forward pass for Transformer2.
+        :param hidden_states: Input hidden states (batch_size, seq_len, hidden_dim).
+        :param attention_mask: Attention mask (batch_size, seq_len), where 1 indicates valid positions and 0 indicates padded positions.
         """
         hidden_states = hidden_states.to(self.device)
-                
+
+        if attention_mask is not None:
+            # Expand attention_mask to match the hidden_states shape if needed
+            attention_mask = attention_mask.unsqueeze(-1).to(self.device)  # Shape: (batch_size, seq_len, 1)
+
+        # Layer 1 processing
         x = self.layer1(hidden_states)
         x = self.activation(x)
         x = self.dropout(x)
+
+        # Layer 2 processing
         x = self.layer2(x)
+
+        # Apply attention mask if provided
+        if attention_mask is not None:
+            x = x * attention_mask  # Mask out the padded positions
+
         return x

@@ -62,12 +62,12 @@ class LLMWrapper(nn.Module, Injectable):
         injected_hidden_state = injected_hidden_state
         self.get_layers()[self.injected_layer_num].injected_hidden_state = injected_hidden_state
 
-    def get_output_by_using_dummy(self, token_num, batch_size=1):
+    def get_output_by_using_dummy(self, token_num, attention_mask=None, batch_size=1):
         # Generate a dummy input for letting the model output the desired result of the injected layer
         dummy_input = torch.zeros((batch_size, token_num), dtype=torch.long).to(
             self.device)
 
-        self.outputs = self.model(input_ids=dummy_input, output_hidden_states=True)
+        self.outputs = self.model(input_ids=dummy_input, attention_mask=attention_mask, output_hidden_states=True)
 
         return self.outputs
 

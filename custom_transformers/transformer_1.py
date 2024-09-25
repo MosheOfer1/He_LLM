@@ -168,7 +168,7 @@ class Transformer1(BaseTransformer):
             train_dataset=train_dataset,
             eval_dataset=test_dataset,
             tokenizer=None,  # No tokenizer since we're working with raw vectors
-            data_collator=lambda x: collate_fn(x, max_seq_len=128, device=self.device)
+            data_collator=lambda x: collate_fn(x, padding_func=pad_hidden_states, max_seq_len=128, device=self.device)
         )
 
         self.printTrainableParams()

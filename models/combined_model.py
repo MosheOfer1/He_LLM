@@ -3,6 +3,8 @@ import torch.nn as nn
 import os
 import sys
 
+from custom_transformers.custom_trainer_trans1 import collate_fn, pad_1d_tensors
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from llm.opt_llm import OptLLM
@@ -60,33 +62,37 @@ class MyCustomModel(nn.Module, BestHyper):
         self.llm.set_requires_grad(False)
 
     def forward(self, input_ids, attention_mask=None, labels=None, return_reshaped=False) -> torch.Tensor:
-        
+
         batch_size = input_ids.shape[0]
-        token_num = input_ids.shape[2]
-        
+        token_num = input_ids.shape[1]
+
         # Step 1: Get hidden states from the translator for input_ids
-        translator_last_hs = self.get_translator_hidden_states(input_ids, attention_mask)
+        translator_last_hs, attention_mask = self.get_translator_hidden_states(input_ids, attention_mask)
 
         print(f"translator_last_hs.shape = {translator_last_hs.shape}")
 
         # Step 2: Transform to LLM hidden states
-        transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs)
+        transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs, input_mask=attention_mask)
 
         print(f"transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}")
 
-        # Step 3: Get LLM output using dummy input        
-        llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs) # shape: [batch * tokens, 1, dim]
-        
+        # Step 3: Get LLM output using dummy input
+        llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs, attention_mask)  # shape: [batch * tokens, 1, dim]
+
         print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
 
         # Step 4: Transform LLM hidden states to translator's hidden states and inject
-        transformed_to_translator_hs = self.get_reshaped_translator2_hidden_states(llm_last_hidden_state, reshape=True) # [batch * tokens, 2, trans_dim]
-        
+        transformed_to_translator_hs = self.get_reshaped_translator2_hidden_states(
+            llm_last_hidden_state,
+            reshape=True,
+            attention_mask=attention_mask
+        )  # [batch * tokens, 2, trans_dim]
+
         print(f"final - reshaped_transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
-        
+
         # Step 5: Get translator output using dummy input
-        outputs = self.get_translator_outputs(transformed_to_translator_hs)
-       
+        outputs = self.get_translator_outputs(transformed_to_translator_hs, attention_mask)
+
         if return_reshaped:
             return outputs.logits
 
@@ -94,49 +100,42 @@ class MyCustomModel(nn.Module, BestHyper):
         print(f"reshaped_outputs.shape = {outputs.shape}")
         return outputs.logits
 
-
     @staticmethod
     def reverse_reshaping_translator2_outputs(outputs, batch_size, token_num):
         dim = outputs.logits.shape[2]
         return outputs.logits.view(batch_size, token_num, dim)
-    
-    
+
     def get_translator_hidden_states(self, input_ids, attention_mask):
-        return self.translator.input_ids_to_hidden_states(
+        (translator_last_hs, attention_mask) = self.translator.input_ids_to_hidden_states(
             input_ids,
             -1,
             self.translator.src_to_target_tokenizer,
             self.translator.src_to_target_model,
             False,
             attention_mask=attention_mask
-        ).to(self.device)
+        )
+        return translator_last_hs.to(self.device), attention_mask
 
-    def get_llm_last_hidden_state(self, transformed_to_llm_hs):
-        llm_hs = self.get_llm_hidden_states(transformed_to_llm_hs)
-        
-        # print(f"llm_hs.shape: {llm_hs.shape}")
-        
-        return llm_hs[:, -1, :].unsqueeze(1)  # Shape: [batch_size, 1, dim]
+    def get_translator_outputs(self, transformed_to_translator_hs, attention_mask):
+        self.translator.inject_hidden_states(transformed_to_translator_hs)
+        outputs = self.translator.get_output_by_using_dummy(
+            token_num=transformed_to_translator_hs.shape[1],
+            batch_size=transformed_to_translator_hs.shape[0],
+            attention_mask=attention_mask
+        )
+        return outputs
 
-    def get_llm_hidden_states(self, transformed_to_llm_hs):
+    def get_llm_hidden_states(self, transformed_to_llm_hs, attention_mask):
         self.llm.inject_hidden_states(transformed_to_llm_hs)
 
         batch_size = transformed_to_llm_hs.shape[0]
         token_num = transformed_to_llm_hs.shape[1]
 
-        llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size)
-        
-        return llm_outputs.hidden_states[-1] # shape: [batch_size, token_num, dim]
-    
-    def get_translator_outputs(self, transformed_to_translator_hs):
-        self.translator.inject_hidden_states(transformed_to_translator_hs)
-        outputs = self.translator.get_output_by_using_dummy(
-            token_num=transformed_to_translator_hs.shape[1],
-            batch_size=transformed_to_translator_hs.shape[0]
-        )
-        return outputs
+        llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size, attention_mask=attention_mask)
 
-    def get_reshaped_translator2_hidden_states(self, llm_last_hidden_state, reshape = False):
+        return llm_outputs.hidden_states[-1]  # shape: [batch_size, token_num, dim]
+
+    def get_reshaped_translator2_hidden_states(self, llm_last_hidden_state, attention_mask, reshape=False):
         """
         Transforms the LLM's last hidden state to the translator's hidden state and
         concatenates it with the EOS token embedding.
@@ -147,15 +146,18 @@ class MyCustomModel(nn.Module, BestHyper):
         Returns:
         - transformed_to_translator_hs: Tensor after transforming and concatenating the EOS embedding.
         """
-        
+
         # Transform to translator's first hidden states
-        transformed_to_translator_hs = self.get_transformer2_output(llm_last_hidden_state=llm_last_hidden_state,
-                                                                    reshape=reshape)
-        
+        transformed_to_translator_hs = self.get_transformer2_output(
+            llm_last_hidden_state=llm_last_hidden_state,
+            reshape=reshape,
+            attention_mask=attention_mask
+        )
+
         print(f"transformed_to_translator_hs - {transformed_to_translator_hs.shape}")
-        
+
         batch_size = transformed_to_translator_hs.shape[0]
-         
+
         # Get hidden states of the EOS token
         with torch.no_grad():
             # Use the context manager without specifying the layer number or state
@@ -177,18 +179,19 @@ class MyCustomModel(nn.Module, BestHyper):
                                                  dim=1)  # Shape: [batch_size, 2, dim]
 
         return transformed_to_translator_hs
-    
-    def get_transformer2_output(self, llm_last_hidden_state, reshape = False):
-        
+
+    def get_transformer2_output(self, llm_last_hidden_state, attention_mask, reshape=False):
+
         # [batch, tokens, dim]
-        transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state).to(self.device)
-        
+        transformed_to_translator_hs = self.transformer.transformer2.forward(llm_last_hidden_state, attention_mask=attention_mask).to(self.device)
+
         # Reshaped: [batch * tokens, 1, dim]
         if (reshape):
-            transformed_to_translator_hs = transformed_to_translator_hs.reshape(-1, 1, transformed_to_translator_hs.shape[-1])
-        
+            transformed_to_translator_hs = transformed_to_translator_hs.reshape(-1, 1,
+                                                                                transformed_to_translator_hs.shape[-1])
+
         return transformed_to_translator_hs
-    
+
     def create_trainer(
             self, train_dataset: ComboModelDataset, eval_dataset: ComboModelDataset,
             output_dir: str, logging_dir: str, epochs: int,
@@ -237,7 +240,8 @@ class MyCustomModel(nn.Module, BestHyper):
             optimizer=optimizer,
             scheduler=scheduler,
             total_steps=total_steps,
-            device=device
+            device=device,
+            data_collator=lambda x: collate_fn(x, padding_func=pad_1d_tensors, padding_value=self.translator.src_to_target_tokenizer.eos_token_id, max_seq_len=128, device=self.device, offset=0)
         )
 
         return trainer

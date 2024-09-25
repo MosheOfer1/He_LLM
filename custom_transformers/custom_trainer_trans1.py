@@ -92,7 +92,21 @@ class CustomTrainer(Seq2SeqTrainer):
         return (loss, outputs) if return_outputs else loss
 
 
-def pad_hidden_states(hidden_states, max_len, device='cpu'):
+def pad_1d_tensors(tensor, max_len, padding_value=0, device='cpu'):
+    """Pad 1D tensors (e.g., input_ids, labels) to a fixed length with the given padding value."""
+    seq_len = tensor.size(0)
+    pad_size = max_len - seq_len
+    padding = torch.full((pad_size,), padding_value).to(device)  # Pad with the specified padding_value
+
+    # Create attention mask: 1s for non-padded tokens, 0s for padded tokens
+    mask = torch.cat([torch.ones(seq_len), torch.zeros(pad_size)]).to(device)
+
+    padded_tensor = torch.cat([tensor, padding], dim=0).to(device)
+
+    return padded_tensor, mask
+
+
+def pad_hidden_states(hidden_states, max_len, device='cpu', padding_value=0):
     """Pad hidden states to a fixed length with ones and create a mask."""
     seq_len, hidden_dim = hidden_states.shape
     pad_size = max_len - seq_len
@@ -106,21 +120,21 @@ def pad_hidden_states(hidden_states, max_len, device='cpu'):
     return padded_hidden_states, mask
 
 
-def collate_fn(batch, max_seq_len=None, device='cpu'):
+def collate_fn(batch, padding_func, max_seq_len=None, device='cpu', offset=1, padding_value=0):
     input_ids = [item['input_ids'] for item in batch]
     labels = [item['labels'] for item in batch]
 
     # Determine the maximum sequence length in the batch
-    max_input_len = max([x.size(0) for x in input_ids]) + 1
-    max_label_len = max([x.size(0) for x in labels]) + 1
+    max_input_len = max([x.size(0) for x in input_ids]) + offset
+    max_label_len = max([x.size(0) for x in labels]) + offset
 
     # Set the max sequence length to pad if provided, otherwise use the batch max
     max_input_len = min(max_seq_len, max_input_len) if max_seq_len is not None else max_input_len
     max_label_len = min(max_seq_len, max_label_len) if max_seq_len is not None else max_label_len
 
     # Pad input_ids and labels using your custom pad_hidden_states function, and get masks
-    padded_input_ids, input_mask = zip(*[pad_hidden_states(x, max_input_len, device=device) for x in input_ids])
-    padded_labels, label_mask = zip(*[pad_hidden_states(x, max_label_len, device=device) for x in labels])
+    padded_input_ids, input_mask = zip(*[padding_func(x, max_input_len, device=device, padding_value=padding_value) for x in input_ids])
+    padded_labels, label_mask = zip(*[padding_func(x, max_label_len, device=device, padding_value=padding_value) for x in labels])
 
     # Stack tensors
     padded_input_ids = torch.stack(padded_input_ids).to('cpu')
