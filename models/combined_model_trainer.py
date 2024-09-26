@@ -54,13 +54,18 @@ class CombinedTrainer(Trainer):
         """
         input_ids = inputs.get("input_ids").to(self.device)
         attention_mask = inputs.get("input_mask").to(self.device)
-        outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+        outputs = model(input_ids=input_ids, input_attention_mask=attention_mask)
 
         logits = outputs.get("logits").to(self.device)
         labels = inputs.get("labels").to(self.device)
 
+        # Reshape logits and labels for CrossEntropyLoss
+        batch_size, seq_len, vocab_size = logits.shape
+        logits = logits.view(-1, vocab_size)  # Flatten logits to [batch_size * seq_len, vocab_size]
+        labels = labels.view(-1)  # Flatten labels to [batch_size * seq_len]
+
         loss_func = nn.CrossEntropyLoss()
-        loss = loss_func(logits[:, 0, :], labels)
+        loss = loss_func(logits, labels)
 
         return (loss, outputs) if return_outputs else loss
 

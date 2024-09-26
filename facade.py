@@ -11,7 +11,7 @@ from custom_datasets.combo_model_dataset import ComboModelDataset
 from translation.translator import Translator
 
 
-def create_datasets_from_txt_file(translator: Translator, text_file_path: str, window_size=30, train_percentage = 0.8, device='cpu'):
+def create_datasets_from_txt_file(translator: Translator, text_file_path: str, train_percentage=0.8, device='cpu'):
     text_list = read_file_lines(text_file_path)
 
     print(f"First 10 sentences: {text_list[:10]}")
