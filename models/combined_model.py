@@ -294,23 +294,49 @@ class MyCustomModel(nn.Module, BestHyper):
 
     def load_transformers_state_dict(self, path: str, to_transformer1=True, to_transformer2=True):
         # Load the state dictionary from the file
-        loaded_state_dict = torch.load(path, weights_only=True)
-
+        loaded_state_dict = torch.load(path, map_location=torch.device(self.device))
+        
         # Get the current state dictionary of the model
         current_state_dict = self.state_dict()
+        curr_keys = current_state_dict.keys()
+        
+        is_from_prev_combined_model = False
+        
+        for k, v in loaded_state_dict.items():
+            # if v.device.type != self.device:
+            #     raise RuntimeError(f"Error: Tensor '{k}' is on {v.device}, expected {self.device}")
+            if "transformer.transformer1." + k not in curr_keys and k not in curr_keys:
+                raise RuntimeError(f"Error: This model doesn't have this state_dict key: {k}")
+            if k.startswith('transformer.transformer'):
+                is_from_prev_combined_model = True
 
         # Create a filtered dictionary depending on the flags
         filtered_state_dict = {}
 
         if to_transformer1:
             # Add keys that belong to transformer1
+            if not is_from_prev_combined_model:
+                new_state = {"transformer.transformer1." + k: v for k, v in loaded_state_dict.items()}
+            else:
+                new_state = {k: v for k, v in loaded_state_dict.items() if k.startswith('transformer.transformer1')}
+                
             filtered_state_dict.update(
-                {k: v for k, v in loaded_state_dict.items() if k.startswith('transformer.transformer1')})
+                new_state
+                )
 
         if to_transformer2:
             # Add keys that belong to transformer2
+            if not is_from_prev_combined_model:
+                new_state = {"transformer.transformer2." + k: v for k, v in loaded_state_dict.items()}
+            else:
+                new_state = {k: v for k, v in loaded_state_dict.items() if k.startswith('transformer.transformer2')}
+                
+            for k in new_state.keys():
+                print(k)
+                
             filtered_state_dict.update(
-                {k: v for k, v in loaded_state_dict.items() if k.startswith('transformer.transformer2')})
+                new_state
+                )
 
         # Update the model's current state dictionary with the filtered weights
         current_state_dict.update(filtered_state_dict)

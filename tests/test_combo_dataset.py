@@ -14,6 +14,9 @@ from llm.opt_llm import OptLLM
 from models.combined_model import MyCustomModel
 
 
+def check_alignment(s1, s2) -> bool:
+    return s1.startswith(s2) or s2.startswith(s1)
+
 class TestComboModelDataset(unittest.TestCase):
 
     def setUp(self):
@@ -107,7 +110,7 @@ class TestComboModelDataset(unittest.TestCase):
                 # Loop over token ids (without the last one - new prediction)
                 for i in range(input_ids.shape[2] - 1):
                     # Check that the tokens are aligned with each other
-                    self.assertTrue(input_tokens[i].startswith(labels_tokens[i]) or labels_tokens[i].startswith(input_tokens[i]),
+                    self.assertTrue(check_alignment(input_tokens[i], labels_tokens[i]),
                     msg=f"Test Error - test_combo_dataset - test_batches - In batch {batch_idx}, sentence: {sentence_idx}, input_ids & labels are not aligned with each other")
 
     def test_get_item(self):
@@ -126,9 +129,7 @@ class TestComboModelDataset(unittest.TestCase):
         
         for idx, sentence in enumerate(self.train_dataset.sentences_pair_tokens):
             for pair in sentence:
-                input_token = pair[0]
-                target_token = pair[1]
-                self.assertTrue(input_token.startswith(target_token) or target_token.startswith(input_token),
+                self.assertTrue(check_alignment(pair[0], pair[1]),
                                 msg=f"In sentence {idx} pair: {pair} are not aligned with each other")
     
     def test_different_tokenization_case(self):
