@@ -90,9 +90,9 @@ class MyCustomModel(nn.Module, BestHyper):
         if return_reshaped:
             return outputs.logits
 
-        outputs = MyCustomModel.reverse_reshaping_translator2_outputs(outputs, batch_size, token_num)
+        logits = MyCustomModel.reverse_reshaping_translator2_outputs(outputs, batch_size, token_num)
         print(f"reshaped_outputs.shape = {outputs.shape}")
-        return outputs.logits
+        return logits
 
 
     @staticmethod
@@ -303,8 +303,6 @@ class MyCustomModel(nn.Module, BestHyper):
         is_from_prev_combined_model = False
         
         for k, v in loaded_state_dict.items():
-            # if v.device.type != self.device:
-            #     raise RuntimeError(f"Error: Tensor '{k}' is on {v.device}, expected {self.device}")
             if "transformer.transformer1." + k not in curr_keys and k not in curr_keys:
                 raise RuntimeError(f"Error: This model doesn't have this state_dict key: {k}")
             if k.startswith('transformer.transformer'):

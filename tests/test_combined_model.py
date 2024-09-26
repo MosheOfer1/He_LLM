@@ -44,9 +44,6 @@ class TestCombinedModel(unittest.TestCase):
                                 add_special_tokens=True, # Adds EOS token
                                 return_tensors='pt'
                                 ).unsqueeze(1)
-
-    # def test_return_reshaped(self):
-    #     pass
     
     def test_saving_loading_both_transformers_from_pretrained_combined_model(self):
                 
