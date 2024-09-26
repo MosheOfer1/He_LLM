@@ -274,7 +274,7 @@ class Translator(Injectable):
         }
 
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer)
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, max_len=(input_ids.shape[1] + 2))
         attention_mask = inputs.get('attention_mask')
 
         # Return the hidden states of the specified layer

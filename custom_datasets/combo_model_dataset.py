@@ -33,10 +33,11 @@ class ComboModelDataset(Dataset):
         # Get input tokens (last token is the expected generated token)
         tokens = [pair[0] for pair in sentence_pairs[:-1]]
 
-        input_ids = self.input_tokenizer.encode(tokens,
-                                                add_special_tokens=True,  # Adds EOS token
-                                                return_tensors='pt'
-                                                )
+        input_ids = self.input_tokenizer.encode(
+            tokens,
+            add_special_tokens=True,  # Adds EOS token
+            return_tensors='pt'
+        )
 
         # Get Labels tokens
         next_token = [pair[1] for pair in sentence_pairs]
@@ -57,12 +58,6 @@ class ComboModelDataset(Dataset):
             sentence_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
             pairs.append(sentence_pairs)
 
-        # print(f"After align:")
-        # for idx, sen in enumerate(pairs):
-        #     print(f"\nsentence: {idx}\n")
-        #     for pair in sen:
-        #         print(pair)
-
         return make_matching_pairs(sentences_pairs=pairs,
                                    output_tokenizer=output_tokenizer)
 
@@ -72,7 +67,6 @@ def make_matching_pairs(sentences_pairs: list[tuple], output_tokenizer):
         Use check_pair func in order to ignore unwanted windows.
     """
     ans = []
-    temp = []
 
     for sentence_idx, sentence_pairs in enumerate(sentences_pairs):
 
@@ -88,7 +82,7 @@ def make_matching_pairs(sentences_pairs: list[tuple], output_tokenizer):
                     new_pair = (input[0], target[0])
                     temp.append(new_pair)
 
-                # More then 1 input token
+                # More than 1 input token
                 else:
                     flag = True
                     for idx in range(len(input)):
@@ -128,8 +122,6 @@ def get_new_target_token(idx, input, output_tokenizer):
 
     tokens = output_tokenizer.encode(target_sentence, add_special_tokens=True)
     tokenized_sentence = output_tokenizer.convert_ids_to_tokens(tokens)
-
-    # print('new token: ', tokenized_sentence)
 
     # return the first token
     return tokenized_sentence[1] if len(tokenized_sentence) > 1 else tokenized_sentence[0]
