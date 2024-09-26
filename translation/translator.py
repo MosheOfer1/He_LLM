@@ -265,7 +265,7 @@ class Translator(Injectable):
             return outputs.decoder_hidden_states[layer_num]
 
     @staticmethod
-    def input_ids_to_hidden_states(input_ids, layer_num, tokenizer, model, from_encoder=True, attention_mask=None):
+    def input_ids_to_hidden_states(input_ids, layer_num, tokenizer, model, from_encoder=True, attention_mask=None, max_len=40):
         device = model.module.device if hasattr(model, 'module') else model.device
 
         inputs = {
@@ -274,7 +274,7 @@ class Translator(Injectable):
         }
 
         # Forward pass through the model, providing decoder input ids
-        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, max_len=(input_ids.shape[1] + 2))
+        outputs = Translator.process_outputs(inputs=inputs, model=model, tokenizer=tokenizer, max_len=max_len)
         attention_mask = inputs.get('attention_mask')
 
         # Return the hidden states of the specified layer

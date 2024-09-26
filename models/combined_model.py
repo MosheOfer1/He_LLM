@@ -99,7 +99,8 @@ class MyCustomModel(nn.Module, BestHyper):
             self.translator.src_to_target_tokenizer,
             self.translator.src_to_target_model,
             False,
-            attention_mask=attention_mask
+            attention_mask=attention_mask,
+            max_len=attention_mask.shape[1]
         )
         return translator_last_hs.to(self.device), attention_mask
 
