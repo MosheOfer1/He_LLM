@@ -94,6 +94,7 @@ class CustomTrainer(Seq2SeqTrainer):
 
 def pad_1d_tensors(tensor, max_len, padding_value=0, device='cpu'):
     """Pad 1D tensors (e.g., input_ids, labels) to a fixed length with the given padding value."""
+    tensor = tensor.to(device)
     seq_len = tensor.size(0)
     pad_size = max_len - seq_len
     padding = torch.full((pad_size,), padding_value).to(device)  # Pad with the specified padding_value
