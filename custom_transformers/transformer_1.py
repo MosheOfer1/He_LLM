@@ -20,7 +20,7 @@ class Transformer1(BaseTransformer):
                  model_name=None,
                  nhead=2,
                  num_layers=2,
-                 max_seq_len=150,
+                 max_seq_len=400,
                  device='cpu'):
         """
         Initialize the Transformer1 model.

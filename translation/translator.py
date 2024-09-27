@@ -156,7 +156,7 @@ class Translator(Injectable):
         return generated_sentence
 
     @staticmethod
-    def process_outputs(inputs, model, tokenizer, max_len=150):
+    def process_outputs(inputs, model, tokenizer, max_len=400):
         """
         Processes the model to generate outputs, including logits and hidden states.
         Handles a batch of inputs, such as (batch_size, seq_len).
