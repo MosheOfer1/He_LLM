@@ -61,6 +61,8 @@ class MyCustomModel(nn.Module, BestHyper):
         # Freeze LLM parameters
         self.llm.set_requires_grad(False)
 
+        self.eso_vector = self.create_eos_vector()
+
     def forward(self, input_ids, input_attention_mask=None, labels=None) -> torch.Tensor:
         # Step 1: Get hidden states from the translator for input_ids
         translator_last_hs, output_attention_mask = self.get_translator_hidden_states(input_ids, input_attention_mask)
@@ -175,6 +177,30 @@ class MyCustomModel(nn.Module, BestHyper):
 
         batch_size = transformed_to_translator_hs.shape[0]
 
+        # Reshape eos_embedding and repeat for the batch size
+        eos_embedding = self.eso_vector[:, -1, :].unsqueeze(0)  # Shape: [1, 2, dim] -> [1, dim]
+        eos_embedding = eos_embedding.repeat(batch_size, 1, 1)  # Shape: [batch_size, 1, dim]
+
+        # Concatenate llm_last_hidden_state with eos_embedding along the token dimension
+        transformed_to_translator_hs = torch.cat((transformed_to_translator_hs, eos_embedding), dim=1)  # Shape: [batch_size, 2, dim]
+
+        return transformed_to_translator_hs
+
+    def get_transformer2_output(self, llm_last_hidden_state, input_attention_mask, output_attention_mask):
+        # [batch, tokens, dim]
+        transformed_to_translator_hs = \
+            self.transformer.transformer2.forward(
+                llm_last_hidden_state,
+                input_attention_mask=output_attention_mask,  # On purpose switching between the input and output
+                output_attention_mask=input_attention_mask
+            ).to(self.device)
+
+        # Reshaped: [batch * tokens, 1, dim]
+        transformed_to_translator_hs = transformed_to_translator_hs.reshape(-1, 1, transformed_to_translator_hs.shape[-1])
+
+        return transformed_to_translator_hs
+
+    def create_eos_vector(self):
         # Get hidden states of the EOS token
         with torch.no_grad():
             # Use the context manager without specifying the layer number or state
@@ -187,29 +213,7 @@ class MyCustomModel(nn.Module, BestHyper):
                     True
                 )  # Shape: [1, 2, dim]
 
-            # Reshape eos_embedding and repeat for the batch size
-            eos_embedding = eos_embedding[:, -1, :].unsqueeze(0)  # Shape: [1, 2, dim] -> [1, dim]
-            eos_embedding = eos_embedding.repeat(batch_size, 1, 1)  # Shape: [batch_size, 1, dim]
-
-        # Concatenate llm_last_hidden_state with eos_embedding along the token dimension
-        transformed_to_translator_hs = torch.cat((transformed_to_translator_hs, eos_embedding),
-                                                 dim=1)  # Shape: [batch_size, 2, dim]
-
-        return transformed_to_translator_hs
-
-    def get_transformer2_output(self, llm_last_hidden_state, input_attention_mask, output_attention_mask):
-        # [batch, tokens, dim]
-        transformed_to_translator_hs = \
-            self.transformer.transformer2.forward(
-                llm_last_hidden_state,
-                input_attention_mask=output_attention_mask,  # In porpoise switch between the input and output
-                output_attention_mask=input_attention_mask
-            ).to(self.device)
-
-        # Reshaped: [batch * tokens, 1, dim]
-        transformed_to_translator_hs = transformed_to_translator_hs.reshape(-1, 1, transformed_to_translator_hs.shape[-1])
-
-        return transformed_to_translator_hs
+        return eos_embedding
 
     def create_trainer(
             self, train_dataset: ComboModelDataset, eval_dataset: ComboModelDataset,
