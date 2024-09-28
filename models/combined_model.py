@@ -277,8 +277,8 @@ class MyCustomModel(nn.Module, BestHyper):
             batch_size: int = 32, weight_decay: float = 0.01,
             logging_steps: int = 500, evaluation_strategy: str = "steps",
             lr=0.006334926670051613, max_grad_norm: float = 1.0,
-            optimizer=None, scheduler=None, device='cpu', save_strategy="steps",
-            save_steps=1000, save_total_limit=1
+            optimizer=None, scheduler=None, device='cpu', save_strategy="no",
+            save_steps=0, save_total_limit=0
     ):
 
         trainer = self.create_trainer(

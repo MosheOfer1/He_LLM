@@ -197,7 +197,7 @@ class Translator(Injectable):
             token_ids = torch.argmax(outputs.logits[:, -1, :], dim=-1)  # Shape: [batch_size]
 
             # Check if all sentences in the batch have generated the end-of-sequence token
-            if (token_ids == tokenizer.eos_token_id).all() or counter < max_len:
+            if (token_ids == tokenizer.eos_token_id).all() or counter == max_len:
                 break
 
             # Update the attention mask: append 0 if eos_token_id is encountered, otherwise append 1
