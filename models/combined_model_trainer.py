@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 from transformers import Trainer, get_linear_schedule_with_warmup
 from torch.optim import Adam
@@ -29,7 +30,7 @@ class CombinedTrainer(Trainer):
         print(f"CombinedTrainer.__init__ - uses: {device}")
 
         self.device = device
-        
+
         model = model.to(device)
         
         if not optimizer or not scheduler:
@@ -66,6 +67,14 @@ class CombinedTrainer(Trainer):
 
         loss_func = nn.CrossEntropyLoss()
         loss = loss_func(logits, labels)
+
+        # Compute accuracy
+        predictions = torch.argmax(logits, dim=-1)
+        correct = (predictions == labels).float()
+        accuracy = correct.sum() / len(correct)
+
+        # Log the accuracy
+        self.log({"accuracy": accuracy.item()})
 
         return (loss, outputs) if return_outputs else loss
 

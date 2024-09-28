@@ -156,7 +156,7 @@ class Translator(Injectable):
         return generated_sentence
 
     @staticmethod
-    def process_outputs(inputs, model, tokenizer, max_len=400):
+    def process_outputs(inputs, model, tokenizer, max_len=50):
         """
         Processes the model to generate outputs, including logits and hidden states.
         Handles a batch of inputs, such as (batch_size, seq_len).
@@ -185,7 +185,7 @@ class Translator(Injectable):
         attention_mask = torch.ones((batch_size, 1), device=device)
 
         counter = 0
-        while counter < max_len:
+        while True:
             # Run the model with the current decoder input IDs to get the outputs
             outputs = model(
                 **inputs,
@@ -197,7 +197,7 @@ class Translator(Injectable):
             token_ids = torch.argmax(outputs.logits[:, -1, :], dim=-1)  # Shape: [batch_size]
 
             # Check if all sentences in the batch have generated the end-of-sequence token
-            if (token_ids == tokenizer.eos_token_id).all():
+            if (token_ids == tokenizer.eos_token_id).all() or counter < max_len:
                 break
 
             # Update the attention mask: append 0 if eos_token_id is encountered, otherwise append 1

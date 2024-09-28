@@ -52,7 +52,7 @@ def train(model, train_dataset, eval_dataset, batches=32, device='cpu'):
                       epochs=5,
                       batch_size=batches,
                       weight_decay=0.01,
-                      logging_steps=1000,
+                      logging_steps=500,
                       evaluation_strategy="steps",
                       lr=0.006334926670051613,
                       device=device)
