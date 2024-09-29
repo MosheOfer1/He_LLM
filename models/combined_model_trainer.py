@@ -99,7 +99,9 @@ class CombinedTrainer(Trainer):
         predictions = torch.argmax(logits, dim=-1)
         correct = (predictions == labels).float()
         accuracy = correct.sum() / len(correct)
-        loss = loss.to(self.device)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        loss = loss.to(device)
         # Log the accuracy
         self.log({"accuracy": accuracy.item()})
 
