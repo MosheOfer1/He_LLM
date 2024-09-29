@@ -15,6 +15,17 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    # Compute accuracy
+    predictions = torch.argmax(logits, dim=-1)
+    correct = (predictions == labels).float()
+    accuracy = correct.sum() / len(correct)
+
+    # Return accuracy in a dictionary format
+    return {"accuracy": accuracy.item()}
+
+
 class CombinedTrainer(Trainer):
     def __init__(self,
                  model,
@@ -46,7 +57,8 @@ class CombinedTrainer(Trainer):
                          train_dataset=train_dataset,
                          eval_dataset=eval_dataset,
                          optimizers=(optimizer, scheduler),
-                         data_collator=data_collator
+                         data_collator=data_collator,
+                         compute_metrics=compute_metrics
                          )
 
     def compute_loss(self, model, inputs, return_outputs=False):
