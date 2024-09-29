@@ -11,7 +11,7 @@ from llm.opt_llm import OptLLM
 from custom_datasets.combo_model_dataset_window import ComboModelDataset
 
 from transformers import TrainingArguments
-from models.combined_model_trainer import CombinedTrainer
+from models.combined_model_trainer import CombinedTrainer, compute_metrics_fun
 
 # Transformers
 from custom_transformers.transformer import Transformer
@@ -266,7 +266,9 @@ class MyCustomModel(nn.Module, BestHyper):
             device=device,
             data_collator=lambda x: collate_fn(x, padding_func=pad_1d_tensors,
                                                padding_value=self.translator.src_to_target_tokenizer.eos_token_id,
-                                               max_seq_len=128, device=self.device, offset=0)
+                                               max_seq_len=128, device=self.device, offset=0),
+            compute_metrics_fun=compute_metrics_fun
+
         )
 
         return trainer

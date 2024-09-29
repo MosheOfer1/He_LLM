@@ -15,15 +15,28 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-def compute_metrics(eval_pred):
+def compute_metrics_fun(eval_pred):
     logits, labels = eval_pred
-    # Compute accuracy
+
+    # Reshape logits and labels for CrossEntropyLoss
+    batch_size, seq_len, vocab_size = logits.shape
+    logits = logits.view(-1, vocab_size)  # Flatten logits to [batch_size * seq_len, vocab_size]
+    labels = labels.view(-1)  # Flatten labels to [batch_size * seq_len]
+
+    loss_func = nn.CrossEntropyLoss()
+    loss = loss_func(logits, labels)
+
+    # Compute accuracy and perplexity
     predictions = torch.argmax(logits, dim=-1)
     correct = (predictions == labels).float()
     accuracy = correct.sum() / len(correct)
+    perplexity = torch.exp(loss)
 
-    # Return accuracy in a dictionary format
-    return {"accuracy": accuracy.item()}
+    # Return both accuracy and perplexity in a dictionary format
+    return {
+        "accuracy": accuracy.item(),
+        "perplexity": perplexity.item()
+    }
 
 
 class CombinedTrainer(Trainer):
@@ -36,6 +49,7 @@ class CombinedTrainer(Trainer):
                  scheduler,
                  total_steps,
                  data_collator,
+                 compute_metrics_fun,
                  device='cpu'):
         
         print(f"CombinedTrainer.__init__ - uses: {device}")
@@ -58,7 +72,7 @@ class CombinedTrainer(Trainer):
                          eval_dataset=eval_dataset,
                          optimizers=(optimizer, scheduler),
                          data_collator=data_collator,
-                         compute_metrics=compute_metrics
+                         compute_metrics=compute_metrics_fun
                          )
 
     def compute_loss(self, model, inputs, return_outputs=False):

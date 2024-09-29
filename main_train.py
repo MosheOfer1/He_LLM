@@ -12,7 +12,7 @@ from facade import create_datasets_from_txt_file, save_model, train
 
 
 def main(args):
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = args.device
     print(f"I'm working with: {device}")
 
     # Create the custom LLM model
@@ -83,6 +83,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--model_dir', type=str, default="my_models",
                         help="Directory where the model will be saved")
-
+    parser.add_argument('--device', type=str, default='cpu',
+                        help="The device cuda/cpu")
     args = parser.parse_args()
     main(args)
