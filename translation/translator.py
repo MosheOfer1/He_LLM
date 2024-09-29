@@ -163,19 +163,10 @@ class Translator(Injectable):
         """
         input_ids = inputs["input_ids"]
         input_shape = input_ids.shape
-
         batch_size = input_shape[0]
 
-        # Get the start token ID (<bos> or <cls>)
-        if tokenizer.bos_token_id is not None:
-            start_token_id = tokenizer.bos_token_id
-        elif tokenizer.cls_token_id is not None:
-            start_token_id = tokenizer.cls_token_id
-        else:
-            start_token_id = tokenizer.pad_token_id
-
         device = model.module.device if hasattr(model, 'module') else model.device
-
+        print(f"process_outputs: {device}")
         # Initialize decoder input IDs with the start token ID for all sentences in the batch
         decoder_input_ids = torch.full(
             (batch_size, 1), tokenizer.pad_token_id, dtype=torch.long, device=device
