@@ -19,13 +19,17 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 def compute_metrics_fun(eval_pred):
     logits, labels = eval_pred
 
+    # If `logits` is a tuple, extract the first element (actual logits)
+    if isinstance(logits, tuple):
+        logits = logits[0]
+    print(type(logits))
+    print(logits)
     # Compute accuracy
     predictions = torch.argmax(logits, dim=-1)
     correct = (predictions == labels).float()
     accuracy = correct.sum() / len(correct)
 
     # Compute perplexity using cross-entropy loss
-    # Flatten the logits and labels for computing cross-entropy
     loss = F.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1), reduction='mean')
     perplexity = torch.exp(loss)
 
