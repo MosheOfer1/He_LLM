@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import nn
 from transformers import Trainer, get_linear_schedule_with_warmup
@@ -22,8 +23,15 @@ def compute_metrics_fun(eval_pred):
     # If `logits` is a tuple, extract the first element (actual logits)
     if isinstance(logits, tuple):
         logits = logits[0]
-    print(type(logits))
-    print(logits)
+
+    # Convert logits to a tensor if it's a numpy array
+    if isinstance(logits, np.ndarray):
+        logits = torch.from_numpy(logits)
+
+    # Convert labels to a tensor if it's a numpy array
+    if isinstance(labels, np.ndarray):
+        labels = torch.from_numpy(labels)
+
     # Compute accuracy
     predictions = torch.argmax(logits, dim=-1)
     correct = (predictions == labels).float()
