@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use('Agg')  # Use 'Agg' for non-GUI environments
 
 import matplotlib.pyplot as plt
+import torch.nn.functional as F
 
 import os
 import sys
@@ -18,18 +19,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 def compute_metrics_fun(eval_pred):
     logits, labels = eval_pred
 
-    # Reshape logits and labels for CrossEntropyLoss
-    batch_size, seq_len, vocab_size = logits.shape
-    logits = logits.view(-1, vocab_size)  # Flatten logits to [batch_size * seq_len, vocab_size]
-    labels = labels.view(-1)  # Flatten labels to [batch_size * seq_len]
-
-    loss_func = nn.CrossEntropyLoss()
-    loss = loss_func(logits, labels)
-
-    # Compute accuracy and perplexity
+    # Compute accuracy
     predictions = torch.argmax(logits, dim=-1)
     correct = (predictions == labels).float()
     accuracy = correct.sum() / len(correct)
+
+    # Compute perplexity using cross-entropy loss
+    # Flatten the logits and labels for computing cross-entropy
+    loss = F.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1), reduction='mean')
     perplexity = torch.exp(loss)
 
     # Return both accuracy and perplexity in a dictionary format
