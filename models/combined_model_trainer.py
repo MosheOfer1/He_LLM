@@ -79,6 +79,7 @@ class CombinedTrainer(Trainer):
         """
         Overrides the Trainer lib default loss computation
         """
+        model = model.to(self.device)
         input_ids = inputs.get("input_ids").to(self.device)
         attention_mask = inputs.get("input_mask").to(self.device)
         outputs = model(input_ids=input_ids, input_attention_mask=attention_mask)
