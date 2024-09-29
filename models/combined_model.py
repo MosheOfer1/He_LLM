@@ -61,7 +61,7 @@ class MyCustomModel(nn.Module, BestHyper):
         # Freeze LLM parameters
         self.llm.set_requires_grad(False)
 
-        self.eso_vector = self.create_eos_vector()
+        self.eos_vector = self.create_eos_vector()
 
     def forward(self, input_ids, input_attention_mask=None, labels=None) -> torch.Tensor:
         # Step 1: Get hidden states from the translator for input_ids
@@ -178,7 +178,7 @@ class MyCustomModel(nn.Module, BestHyper):
         batch_size = transformed_to_translator_hs.shape[0]
 
         # Reshape eos_embedding and repeat for the batch size
-        eos_embedding = self.eso_vector[:, -1, :].unsqueeze(0)  # Shape: [1, 2, dim] -> [1, dim]
+        eos_embedding = self.eos_vector[:, -1, :].unsqueeze(0)  # Shape: [1, 2, dim] -> [1, dim]
         eos_embedding = eos_embedding.repeat(batch_size, 1, 1)  # Shape: [batch_size, 1, dim]
 
         # Concatenate llm_last_hidden_state with eos_embedding along the token dimension
