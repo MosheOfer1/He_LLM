@@ -1,7 +1,9 @@
+import random
 import unittest
 import sys
 import os
 
+import torch
 from transformers import MarianMTModel, MarianTokenizer
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -63,7 +65,7 @@ class TestTranslator(unittest.TestCase):
         input_ids = inputs["input_ids"]
 
         # Step 2: Get the hidden states from the first layer of the second translator model using input_ids
-        translator_first_hs = translator2.input_ids_to_hidden_states(
+        translator_first_hs, _ = translator2.input_ids_to_hidden_states(
             input_ids,
             layer_num=0,  # The layer number to extract the hidden states from
             tokenizer=tokenizer,
@@ -189,7 +191,7 @@ class TestTranslator(unittest.TestCase):
         attention_mask = inputs["attention_mask"]
         with self.translator.injection_state():
             # Step 2: Get the hidden states from the first layer of the first translator model using input_ids
-            translator_first_hs = self.translator.input_ids_to_hidden_states(
+            translator_first_hs, _ = self.translator.input_ids_to_hidden_states(
                 input_ids=input_ids,
                 layer_num=0,  # Extract hidden states from the first layer
                 tokenizer=tokenizer,
@@ -201,6 +203,51 @@ class TestTranslator(unittest.TestCase):
         # Ensure the hidden states are generated and not None
         self.assertIsNotNone(translator_first_hs)
         self.assertEqual(translator_first_hs.shape[0], input_ids.shape[0])  # Check batch size consistency
+
+
+class TestEOSEmbedding(unittest.TestCase):
+    def setUp(self):
+        # Initialize the translator
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.translator = HelsinkiTranslator(
+            "Helsinki-NLP/opus-mt-tc-big-he-en",
+            "Helsinki-NLP/opus-mt-en-he",
+            device=self.device
+        )
+
+    def test_eos_embedding_consistency(self):
+        token1 = torch.tensor([random.randint(1, 60_000), 0]).unsqueeze(0)
+        token2 = torch.tensor([random.randint(1, 60_000), 0]).unsqueeze(0)
+
+        with torch.no_grad():
+            # Get EOS embedding for token1
+            with self.translator.injection_state():
+                eos_embedding1, _ = self.translator.input_ids_to_hidden_states(
+                    token1,
+                    0,
+                    self.translator.target_to_src_tokenizer,
+                    self.translator.target_to_src_model,
+                    True
+                )
+            eos_embedding1 = eos_embedding1[:, -1, :].unsqueeze(0)  # Shape: [1, dim]
+
+            # Get EOS embedding for token2
+            with self.translator.injection_state():
+                eos_embedding2, _ = self.translator.input_ids_to_hidden_states(
+                    token2,
+                    0,
+                    self.translator.target_to_src_tokenizer,
+                    self.translator.target_to_src_model,
+                    True
+                )
+            eos_embedding2 = eos_embedding2[:, -1, :].unsqueeze(0)  # Shape: [1, dim]
+
+        # Assert that the EOS embeddings are equal
+        self.assertTrue(torch.allclose(eos_embedding1, eos_embedding2, atol=1e-6))
+
+        # Optional: Print the embeddings for visual inspection
+        print(f"EOS Embedding for '{token1}': {eos_embedding1}")
+        print(f"EOS Embedding for '{token2}': {eos_embedding2}")
 
 
 if __name__ == '__main__':
