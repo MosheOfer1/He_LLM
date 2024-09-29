@@ -99,7 +99,7 @@ class CombinedTrainer(Trainer):
         predictions = torch.argmax(logits, dim=-1)
         correct = (predictions == labels).float()
         accuracy = correct.sum() / len(correct)
-
+        loss = loss.to(self.device)
         # Log the accuracy
         self.log({"accuracy": accuracy.item()})
 
