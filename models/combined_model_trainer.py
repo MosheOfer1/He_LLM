@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 matplotlib.use('Agg')  # Use 'Agg' for non-GUI environments
 import os
 import sys
+from typing import List
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -121,11 +122,14 @@ class CombinedTrainer(Trainer):
                  total_steps,
                  data_collator,
                  compute_metrics_fun,
+                 output_tokenizer,
                  device='cpu'):
         
         print(f"CombinedTrainer.__init__ - uses: {device}")
 
         self.device = device
+
+        self.output_tokenizer = output_tokenizer  # This should be the tokenizer for your output vocabulary
 
         model = model.to(device)
         
@@ -151,6 +155,7 @@ class CombinedTrainer(Trainer):
         Overrides the Trainer lib default loss computation
         Returns loss, and optionally the model outputs
         Also computes and logs accuracy and perplexity
+        Logs predictions and labels to a file
         """
         model = model.to(self.device)
         input_ids = inputs.get("input_ids").to(self.device)
@@ -159,49 +164,53 @@ class CombinedTrainer(Trainer):
         logits = outputs.get("logits").to(self.device)  # Shape: [batch_size, 1, vocab_size]
         labels = inputs.get("labels").to(self.device)
 
+        # Initialize lists to store predictions and labels
+        predictions_list: List[str] = []
+        labels_list: List[str] = []
+
         if only_last_token:
-            # Since logits are already for a single token, we can just squeeze out the middle dimension
             batch_size = input_ids.size(0)
             single_token_logits = logits.squeeze(1)  # Shape: [batch_size, vocab_size]
 
-            # Get the last token labels
             last_token_indices = (attention_mask.sum(dim=1) - 1).to(torch.long)
             last_token_labels = labels[torch.arange(batch_size), last_token_indices]  # Shape: [batch_size]
 
-            # Compute loss
             loss_func = nn.CrossEntropyLoss()
             loss = loss_func(single_token_logits, last_token_labels)
 
-            # Compute accuracy
             predictions = torch.argmax(single_token_logits, dim=-1)
             correct = (predictions == last_token_labels).float()
             accuracy = correct.sum() / len(correct)
 
-            # Compute perplexity for last token
             perplexity = torch.exp(loss)
 
+            # Convert predictions and labels to tokens
+            predictions_list = self.output_tokenizer.convert_ids_to_tokens(predictions.tolist())
+            labels_list = self.output_tokenizer.convert_ids_to_tokens(last_token_labels.tolist())
+
         else:
-            # For the all-tokens case (although this might not be needed if we always get single-token logits)
             batch_size, seq_len, vocab_size = logits.shape
             logits = logits.view(-1, vocab_size)  # Shape: [batch_size * seq_len, vocab_size]
             labels = labels.view(-1)  # Shape: [batch_size * seq_len]
 
-            # Create mask for padding tokens
             valid_mask = (labels != 0).float()  # Assuming 0 is the padding token
 
-            # Compute loss
             loss_func = nn.CrossEntropyLoss(ignore_index=0)  # Ignore padding tokens
             loss = loss_func(logits, labels)
 
-            # Compute accuracy for non-padding tokens
             predictions = torch.argmax(logits, dim=-1)
             correct = (predictions == labels).float() * valid_mask
             total_valid = valid_mask.sum()
             accuracy = correct.sum() / total_valid if total_valid > 0 else torch.tensor(0.0).to(self.device)
 
-            # Compute perplexity for all valid tokens
             per_token_loss = torch.nn.functional.cross_entropy(logits, labels, ignore_index=0, reduction='none')
             perplexity = torch.exp(per_token_loss[valid_mask.bool()].mean())
+
+            # Convert predictions and labels to tokens (only for non-padding tokens)
+            valid_predictions = predictions[valid_mask.bool()]
+            valid_labels = labels[valid_mask.bool()]
+            predictions_list = self.output_tokenizer.convert_ids_to_tokens(valid_predictions.tolist())
+            labels_list = self.output_tokenizer.convert_ids_to_tokens(valid_labels.tolist())
 
         # Ensure everything is on the correct device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -214,7 +223,26 @@ class CombinedTrainer(Trainer):
             "perplexity": perplexity.item()
         })
 
+        # Log predictions and labels to file
+        self._log_predictions_and_labels(predictions_list, labels_list)
+
         return (loss, outputs) if return_outputs else loss
+
+    def _log_predictions_and_labels(self, predictions: List[str], labels: List[str]):
+        """
+        Log predictions and labels to a file in a human-readable format
+        """
+        log_dir = "prediction_logs"
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "predictions_and_labels.txt")
+
+        with open(log_file, "a") as f:
+            f.write(f"Batch: {self.state.global_step}\n")
+            f.write("Predictions | Labels\n")
+            f.write("-" * 30 + "\n")
+            for pred, label in zip(predictions, labels):
+                f.write(f"{pred:15} | {label}\n")
+            f.write("\n")
 
     def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
         """

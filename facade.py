@@ -43,12 +43,13 @@ def create_datasets_from_txt_file(translator: Translator, text_file_path: str, t
     return train_dataset, eval_dataset
 
 
-def train(model, train_dataset, eval_dataset, batches=32, device='cpu'):
+def train(model, train_dataset, eval_dataset, output_tokenizer, batches=32, device='cpu'):
     # Train the model
     model.train_model(train_dataset=train_dataset,
                       eval_dataset=eval_dataset,
                       output_dir="results",
                       logging_dir="loggings",
+                      output_tokenizer=output_tokenizer,
                       epochs=5,
                       batch_size=batches,
                       weight_decay=0.01,
