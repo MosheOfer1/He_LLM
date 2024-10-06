@@ -138,26 +138,24 @@ class CombinedTrainer(Trainer):
         input_ids = inputs.get("input_ids").to(self.device)
         attention_mask = inputs.get("input_mask").to(self.device)
         outputs = model(input_ids=input_ids, input_attention_mask=attention_mask)
-        logits = outputs.get("logits").to(self.device)
+        logits = outputs.get("logits").to(self.device)  # Shape: [batch_size, 1, vocab_size]
         labels = inputs.get("labels").to(self.device)
 
         if only_last_token:
-            # Find the index of the last valid token for each sequence
+            # Since logits are already for a single token, we can just squeeze out the middle dimension
             batch_size = input_ids.size(0)
-            last_token_indices = (attention_mask.sum(dim=1) - 1).to(torch.long)
+            single_token_logits = logits.squeeze(1)  # Shape: [batch_size, vocab_size]
 
-            # Get the logits and labels for the last token
-            # Gather the logits for the last token of each sequence
-            last_token_logits = logits[torch.arange(batch_size), last_token_indices,
-                                :]  # Shape: [batch_size, vocab_size]
+            # Get the last token labels
+            last_token_indices = (attention_mask.sum(dim=1) - 1).to(torch.long)
             last_token_labels = labels[torch.arange(batch_size), last_token_indices]  # Shape: [batch_size]
 
             # Compute loss
             loss_func = nn.CrossEntropyLoss()
-            loss = loss_func(last_token_logits, last_token_labels)
+            loss = loss_func(single_token_logits, last_token_labels)
 
             # Compute accuracy
-            predictions = torch.argmax(last_token_logits, dim=-1)
+            predictions = torch.argmax(single_token_logits, dim=-1)
             correct = (predictions == last_token_labels).float()
             accuracy = correct.sum() / len(correct)
 
@@ -165,7 +163,7 @@ class CombinedTrainer(Trainer):
             perplexity = torch.exp(loss)
 
         else:
-            # Reshape logits and labels for all tokens
+            # For the all-tokens case (although this might not be needed if we always get single-token logits)
             batch_size, seq_len, vocab_size = logits.shape
             logits = logits.view(-1, vocab_size)  # Shape: [batch_size * seq_len, vocab_size]
             labels = labels.view(-1)  # Shape: [batch_size * seq_len]
@@ -199,6 +197,7 @@ class CombinedTrainer(Trainer):
         })
 
         return (loss, outputs) if return_outputs else loss
+    
     def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
         """
            This method runs a short training loop where the learning rate is gradually increased from `start_lr` to `end_lr` over a specified number of iterations (`num_iter`). The method records the learning rate and the corresponding loss at each step, allowing the user to analyze how the loss changes with different learning rates.
