@@ -1,50 +1,94 @@
 import numpy as np
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from typing import Dict
 import torch
 from torch import nn
 from transformers import Trainer, get_linear_schedule_with_warmup
 from torch.optim import Adam
-
 import matplotlib
-
-matplotlib.use('Agg')  # Use 'Agg' for non-GUI environments
-
 import matplotlib.pyplot as plt
-import torch.nn.functional as F
-
+matplotlib.use('Agg')  # Use 'Agg' for non-GUI environments
 import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-def compute_metrics_fun(eval_pred):
-    logits, labels = eval_pred
+def compute_metrics_fun(eval_pred) -> Dict[str, float]:
+    """
+    Compute evaluation metrics focusing on the last token prediction.
 
-    # If `logits` is a tuple, extract the first element (actual logits)
-    if isinstance(logits, tuple):
-        logits = logits[0]
+    Args:
+        eval_pred: tuple containing:
+            - predictions: numpy array of shape (batch_size, seq_len, vocab_size)
+            - labels: numpy array of shape (batch_size, seq_len)
 
-    # Convert logits to a tensor if it's a numpy array
-    if isinstance(logits, np.ndarray):
-        logits = torch.from_numpy(logits)
+    Returns:
+        dict containing metrics:
+            - accuracy: accuracy score for last token
+            - precision: precision score for last token
+            - recall: recall score for last token
+            - f1: f1 score for last token
+            - perplexity: perplexity score for last token
+    """
+    predictions, labels = eval_pred
 
-    # Convert labels to a tensor if it's a numpy array
-    if isinstance(labels, np.ndarray):
-        labels = torch.from_numpy(labels)
+    # Get the last valid token for each sequence
+    # Padding value is 0
+    batch_size = labels.shape[0]
+    last_token_indices = []
 
-    # Compute accuracy
-    predictions = torch.argmax(logits, dim=-1)
-    correct = (predictions == labels).float()
-    accuracy = correct.sum() / len(correct)
+    for i in range(batch_size):
+        # Find the last non-padding token index
+        valid_indices = np.where(labels[i] != 0)[0]
+        if len(valid_indices) > 0:
+            last_token_indices.append(valid_indices[-1])
+        else:
+            last_token_indices.append(0)  # Fallback to first position if no valid tokens
 
-    # Compute perplexity using cross-entropy loss
-    loss = F.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1), reduction='mean')
-    perplexity = torch.exp(loss)
+    # Extract the last token predictions and labels
+    last_token_preds = predictions[np.arange(batch_size), last_token_indices]
+    last_token_labels = labels[np.arange(batch_size), last_token_indices]
 
-    # Return both accuracy and perplexity in a dictionary format
+    # Filter out any remaining padding tokens
+    valid_mask = last_token_labels != 0
+    last_token_preds = last_token_preds[valid_mask]
+    last_token_labels = last_token_labels[valid_mask]
+
+    # Convert logits to predictions
+    pred_classes = np.argmax(last_token_preds, axis=-1)
+
+    # Calculate metrics
+    accuracy = accuracy_score(last_token_labels, pred_classes)
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        last_token_labels,
+        pred_classes,
+        average='weighted',
+        zero_division=0
+    )
+
+    # Calculate perplexity
+    # First apply softmax to get probabilities
+    exp_preds = np.exp(last_token_preds - np.max(last_token_preds, axis=-1, keepdims=True))
+    probs = exp_preds / exp_preds.sum(axis=-1, keepdims=True)
+
+    # Get the probability of the correct class for each sample
+    correct_probs = probs[np.arange(len(last_token_labels)), last_token_labels]
+
+    # Calculate cross entropy loss
+    eps = 1e-10  # Small constant to prevent log(0)
+    log_probs = np.log(correct_probs + eps)
+    cross_entropy = -np.mean(log_probs)
+
+    # Calculate perplexity
+    perplexity = np.exp(cross_entropy)
+
     return {
-        "accuracy": accuracy.item(),
-        "perplexity": perplexity.item()
+        "accuracy": float(accuracy),
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+        "perplexity": float(perplexity)
     }
 
 
@@ -84,35 +128,72 @@ class CombinedTrainer(Trainer):
                          compute_metrics=compute_metrics_fun
                          )
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, only_last_token=True):
         """
         Overrides the Trainer lib default loss computation
+        Returns loss, and optionally the model outputs
+        Also computes and logs accuracy and perplexity
         """
         model = model.to(self.device)
         input_ids = inputs.get("input_ids").to(self.device)
         attention_mask = inputs.get("input_mask").to(self.device)
         outputs = model(input_ids=input_ids, input_attention_mask=attention_mask)
-
         logits = outputs.get("logits").to(self.device)
         labels = inputs.get("labels").to(self.device)
 
-        # Reshape logits and labels for CrossEntropyLoss
-        batch_size, seq_len, vocab_size = logits.shape
-        logits = logits.view(-1, vocab_size)  # Flatten logits to [batch_size * seq_len, vocab_size]
-        labels = labels.view(-1)  # Flatten labels to [batch_size * seq_len]
+        if only_last_token:
+            # Find the index of the last valid token for each sequence
+            batch_size = input_ids.size(0)
+            last_token_indices = (attention_mask.sum(dim=1) - 1).to(torch.long)
 
-        loss_func = nn.CrossEntropyLoss()
-        loss = loss_func(logits, labels)
+            # Get the labels for the last token
+            last_token_labels = labels[torch.arange(batch_size), last_token_indices]  # Shape: [batch_size]
 
-        # Compute accuracy
-        predictions = torch.argmax(logits, dim=-1)
-        correct = (predictions == labels).float()
-        accuracy = correct.sum() / len(correct)
+            # Compute loss
+            loss_func = nn.CrossEntropyLoss()
+            loss = loss_func(logits, last_token_labels)
+
+            # Compute accuracy
+            predictions = torch.argmax(logits, dim=-1)
+            correct = (predictions == last_token_labels).float()
+            accuracy = correct.sum() / len(correct)
+
+            # Compute perplexity for last token
+            perplexity = torch.exp(loss)
+
+        else:
+            # Reshape logits and labels for all tokens
+            batch_size, seq_len, vocab_size = logits.shape
+            logits = logits.view(-1, vocab_size)  # Shape: [batch_size * seq_len, vocab_size]
+            labels = labels.view(-1)  # Shape: [batch_size * seq_len]
+
+            # Create mask for padding tokens
+            valid_mask = (labels != 0).float()  # Assuming 0 is the padding token
+
+            # Compute loss
+            loss_func = nn.CrossEntropyLoss(ignore_index=0)  # Ignore padding tokens
+            loss = loss_func(logits, labels)
+
+            # Compute accuracy for non-padding tokens
+            predictions = torch.argmax(logits, dim=-1)
+            correct = (predictions == labels).float() * valid_mask
+            total_valid = valid_mask.sum()
+            accuracy = correct.sum() / total_valid if total_valid > 0 else torch.tensor(0.0).to(self.device)
+
+            # Compute perplexity for all valid tokens
+            per_token_loss = torch.nn.functional.cross_entropy(logits, labels, ignore_index=0, reduction='none')
+            perplexity = torch.exp(per_token_loss[valid_mask.bool()].mean())
+
+        # Ensure everything is on the correct device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         loss = loss.to(device)
-        # Log the accuracy
-        self.log({"accuracy": accuracy.item()})
+
+        # Log the metrics
+        self.log({
+            "loss": loss.item(),
+            "accuracy": accuracy.item(),
+            "perplexity": perplexity.item()
+        })
 
         return (loss, outputs) if return_outputs else loss
 

@@ -51,7 +51,7 @@ class Transformer2(BaseTransformer):
         self.activation = nn.ReLU()
         self.dropout = nn.Dropout(0.1)
 
-    def forward(self, hidden_states, input_attention_mask, output_attention_mask):
+    def forward(self, hidden_states, input_attention_mask, output_attention_mask, only_last_token):
         """
         Define the forward pass for Transformer2.
         :param hidden_states: Input hidden states (batch_size, input_seq_len, input_dim).
@@ -61,56 +61,58 @@ class Transformer2(BaseTransformer):
          positions and 0 indicates padded positions.
         """
         hidden_states = hidden_states.to(self.device)
-        input_mask = input_attention_mask.to(self.device)
-        output_mask = output_attention_mask.to(self.device)
+        if not only_last_token:
+            input_mask = input_attention_mask.to(self.device)
+            output_mask = output_attention_mask.to(self.device)
 
-        batch_size, input_seq_len, input_dim = hidden_states.shape
-        output_seq_len = output_mask.shape[1]
+            hidden_states = hidden_states * input_mask
+            batch_size, input_seq_len, input_dim = hidden_states.shape
+            output_seq_len = output_mask.shape[1]
 
-        # Apply input mask
-        input_mask = input_mask.unsqueeze(-1)  # Shape: (batch_size, input_seq_len, 1)
-        hidden_states = hidden_states * input_mask
+            # Apply input mask
+            input_mask = input_mask.unsqueeze(-1)  # Shape: (batch_size, input_seq_len, 1)
 
         # Layer 1 processing
         x = self.layer1(hidden_states)
         x = self.activation(x)
         x = self.dropout(x)
 
-        # Prepare for projection
-        input_lengths = input_mask.sum(dim=1).squeeze(-1)  # Shape: (batch_size,)
-        output_lengths = output_mask.sum(dim=1)  # Shape: (batch_size,)
+        if not only_last_token:
+            # Prepare for projection
+            input_lengths = input_mask.sum(dim=1).squeeze(-1)  # Shape: (batch_size,)
+            output_lengths = output_mask.sum(dim=1)  # Shape: (batch_size,)
 
-        # Project from input sequence length to output sequence length
-        projected_x = []
-        for i in range(batch_size):
-            valid_input_len = int(input_lengths[i].item())  # Convert to integer
-            valid_output_len = int(output_lengths[i].item())  # Convert to integer
+            # Project from input sequence length to output sequence length
+            projected_x = []
+            for i in range(batch_size):
+                valid_input_len = int(input_lengths[i].item())  # Convert to integer
+                valid_output_len = int(output_lengths[i].item())  # Convert to integer
 
-            valid_input = x[i, :valid_input_len]
+                valid_input = x[i, :valid_input_len]
 
-            # Interpolate to match output length
-            if valid_input.shape[0] > 1:
-                interpolated = F.interpolate(valid_input.unsqueeze(0).transpose(1, 2),
-                                             size=valid_output_len,
-                                             mode='linear',
-                                             align_corners=False)
-                interpolated = interpolated.transpose(1, 2).squeeze(0)
-            else:
-                # If there's only one valid input, repeat it
-                interpolated = valid_input.repeat(valid_output_len, 1)
+                # Interpolate to match output length
+                if valid_input.shape[0] > 1:
+                    interpolated = F.interpolate(valid_input.unsqueeze(0).transpose(1, 2),
+                                                 size=valid_output_len,
+                                                 mode='linear',
+                                                 align_corners=False)
+                    interpolated = interpolated.transpose(1, 2).squeeze(0)
+                else:
+                    # If there's only one valid input, repeat it
+                    interpolated = valid_input.repeat(valid_output_len, 1)
 
-            # Pad to full output length if necessary
-            if valid_output_len < output_seq_len:
-                padding = torch.zeros(output_seq_len - valid_output_len, interpolated.shape[1], device=self.device)
-                interpolated = torch.cat([interpolated, padding], dim=0)
+                # Pad to full output length if necessary
+                if valid_output_len < output_seq_len:
+                    padding = torch.zeros(output_seq_len - valid_output_len, interpolated.shape[1], device=self.device)
+                    interpolated = torch.cat([interpolated, padding], dim=0)
 
-            projected_x.append(interpolated)
+                projected_x.append(interpolated)
 
-        x = torch.stack(projected_x)
+            x = torch.stack(projected_x)
 
-        # Apply output mask
-        output_mask = output_mask.unsqueeze(-1)  # Shape: (batch_size, output_seq_len, 1)
-        x = x * output_mask
+            # Apply output mask
+            output_mask = output_mask.unsqueeze(-1)  # Shape: (batch_size, output_seq_len, 1)
+            x = x * output_mask
 
         # Layer 2 processing
         x = self.layer2(x)

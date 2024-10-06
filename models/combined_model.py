@@ -8,7 +8,7 @@ from custom_transformers.custom_trainer_trans1 import collate_fn, pad_1d_tensors
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from llm.opt_llm import OptLLM
-from custom_datasets.combo_model_dataset_window import ComboModelDataset
+from custom_datasets.combo_model_dataset import ComboModelDataset
 
 from transformers import TrainingArguments
 from models.combined_model_trainer import CombinedTrainer, compute_metrics_fun
@@ -63,7 +63,7 @@ class MyCustomModel(nn.Module, BestHyper):
 
         self.eos_vector = self.create_eos_vector()
 
-    def forward(self, input_ids, input_attention_mask=None, labels=None) -> torch.Tensor:
+    def forward(self, input_ids, input_attention_mask=None, labels=None, only_last_token=True) -> torch.Tensor:
         # Step 1: Get hidden states from the translator for input_ids
         translator_last_hs, output_attention_mask = self.get_translator_hidden_states(input_ids, input_attention_mask)
 
@@ -76,7 +76,7 @@ class MyCustomModel(nn.Module, BestHyper):
 
         # Step 3: Get LLM output using dummy input
         llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs,
-                                                           output_attention_mask)  # shape: [batch * tokens, 1, dim]
+                                                           output_attention_mask, only_last_token)  # shape: [batch * tokens, 1, dim]
 
         print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
 
@@ -84,13 +84,14 @@ class MyCustomModel(nn.Module, BestHyper):
         transformed_to_translator_hs = self.get_reshaped_translator2_hidden_states(
             llm_last_hidden_state,
             input_attention_mask=input_attention_mask,
-            output_attention_mask=output_attention_mask
+            output_attention_mask=output_attention_mask,
+            only_last_token=only_last_token
         )  # [batch * tokens, 2, trans_dim]
 
         print(f"transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
 
         # Step 5: Get translator output using dummy input
-        outputs = self.get_translator_outputs(transformed_to_translator_hs, input_attention_mask)
+        outputs = self.get_translator_outputs(transformed_to_translator_hs, input_attention_mask, only_last_token)
 
         return outputs
 
@@ -105,45 +106,48 @@ class MyCustomModel(nn.Module, BestHyper):
         )
         return translator_last_hs.to(self.device), attention_mask
 
-    def get_translator_outputs(self, transformed_to_translator_hs, attention_mask):
-        batch_size, number_of_tokens = attention_mask.shape
-        # Flatten the attention mask to match the batch_size * tokens dimension in transformed_to_translator_hs
-        flattened_attention_mask = attention_mask.view(-1)  # Shape: (batch_size * tokens)
+    def get_translator_outputs(self, transformed_to_translator_hs, attention_mask, only_last_token):
+        if not only_last_token:
+            batch_size, number_of_tokens = attention_mask.shape
+            # Flatten the attention mask to match the batch_size * tokens dimension in transformed_to_translator_hs
+            flattened_attention_mask = attention_mask.view(-1)  # Shape: (batch_size * tokens)
 
-        # Get indices of non-zero values in the attention mask
-        non_zero_indices = flattened_attention_mask.nonzero(as_tuple=True)[0]
+            # Get indices of non-zero values in the attention mask
+            non_zero_indices = flattened_attention_mask.nonzero(as_tuple=True)[0]
 
-        # Select only the corresponding non-zero elements from transformed_to_translator_hs
-        filtered_transformed_hs = transformed_to_translator_hs[non_zero_indices]
-        print(f"filtered_transformed_hs = {filtered_transformed_hs.shape}")
+            # Select only the corresponding non-zero elements from transformed_to_translator_hs
+            transformed_to_translator_hs = transformed_to_translator_hs[non_zero_indices]
+            print(f"filtered_transformed_hs = {transformed_to_translator_hs.shape}")
+
         # Inject filtered hidden states into the translator
-        self.translator.inject_hidden_states(filtered_transformed_hs)
+        self.translator.inject_hidden_states(transformed_to_translator_hs)
 
         # Get the output from the translator using the filtered hidden states
         outputs = self.translator.get_output_by_using_dummy(
-            token_num=filtered_transformed_hs.shape[1],
-            batch_size=filtered_transformed_hs.shape[0],
+            token_num=transformed_to_translator_hs.shape[1],
+            batch_size=transformed_to_translator_hs.shape[0],
         )
 
         logits = outputs.logits
         print(f"logits.shape = {logits.shape}")
 
-        # Create an empty tensor of zeros with the desired final shape
-        vocab_size = logits.shape[-1]
-        padded_logits = torch.zeros((batch_size, number_of_tokens, vocab_size), device=self.device)
+        if not only_last_token:
+            # Create an empty tensor of zeros with the desired final shape
+            vocab_size = logits.shape[-1]
+            padded_logits = torch.zeros((batch_size, number_of_tokens, vocab_size), device=self.device)
 
-        # Reshape logits to remove the second dimension
-        logits = logits.view(-1, vocab_size)
+            # Reshape logits to remove the second dimension
+            logits = logits.view(-1, vocab_size)
 
-        # Place the logits into the correct positions based on the non-zero indices
-        padded_logits.view(-1, vocab_size)[non_zero_indices] = logits
+            # Place the logits into the correct positions based on the non-zero indices
+            padded_logits.view(-1, vocab_size)[non_zero_indices] = logits
 
-        print(f"padded_logits.shape = {padded_logits.shape}")
-        outputs.logits = padded_logits
+            print(f"padded_logits.shape = {padded_logits.shape}")
+            outputs.logits = padded_logits
 
         return outputs
 
-    def get_llm_hidden_states(self, transformed_to_llm_hs, attention_mask):
+    def get_llm_hidden_states(self, transformed_to_llm_hs, attention_mask, only_last_token):
         self.llm.inject_hidden_states(transformed_to_llm_hs)
 
         batch_size = transformed_to_llm_hs.shape[0]
@@ -152,9 +156,9 @@ class MyCustomModel(nn.Module, BestHyper):
         llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size,
                                                          attention_mask=attention_mask)
 
-        return llm_outputs.hidden_states[-1]  # shape: [batch_size, token_num, dim]
+        return llm_outputs.hidden_states[-1][:, -1, :].unsqueeze(1) if only_last_token else llm_outputs.hidden_states[-1]  # shape: [batch_size, token_num, dim]
 
-    def get_reshaped_translator2_hidden_states(self, llm_last_hidden_state, input_attention_mask, output_attention_mask):
+    def get_reshaped_translator2_hidden_states(self, llm_last_hidden_state, input_attention_mask, output_attention_mask, only_last_token):
         """
         Transforms the LLM's last hidden state to the translator's hidden state and
         concatenates it with the EOS token embedding.
@@ -170,7 +174,8 @@ class MyCustomModel(nn.Module, BestHyper):
         transformed_to_translator_hs = self.get_transformer2_output(
             llm_last_hidden_state=llm_last_hidden_state,
             input_attention_mask=input_attention_mask,
-            output_attention_mask=output_attention_mask
+            output_attention_mask=output_attention_mask,
+            only_last_token=only_last_token
         )
 
         print(f"transformed_to_translator_hs - {transformed_to_translator_hs.shape}")
@@ -186,19 +191,20 @@ class MyCustomModel(nn.Module, BestHyper):
 
         return transformed_to_translator_hs
 
-    def get_transformer2_output(self, llm_last_hidden_state, input_attention_mask, output_attention_mask):
+    def get_transformer2_output(self, llm_last_hidden_state, input_attention_mask, output_attention_mask, only_last_token):
         # [batch, tokens, dim]
         transformed_to_translator_hs = \
             self.transformer.transformer2.forward(
                 llm_last_hidden_state,
                 input_attention_mask=output_attention_mask,  # On purpose switching between the input and output
-                output_attention_mask=input_attention_mask
+                output_attention_mask=input_attention_mask,
+                only_last_token=only_last_token
             ).to(self.device)
 
         # Reshaped: [batch * tokens, 1, dim]
-        transformed_to_translator_hs = transformed_to_translator_hs.reshape(-1, 1, transformed_to_translator_hs.shape[-1])
+        reshaped = transformed_to_translator_hs.reshape(-1, 1, transformed_to_translator_hs.shape[-1])
 
-        return transformed_to_translator_hs
+        return transformed_to_translator_hs if only_last_token else reshaped
 
     def create_eos_vector(self):
         # Get hidden states of the EOS token
@@ -225,13 +231,13 @@ class MyCustomModel(nn.Module, BestHyper):
             save_steps, save_total_limit
     ) -> CombinedTrainer:
 
-        epoch = len(train_dataset)
-        total_steps = int(epoch // batch_size * epochs)
+        number_of_sentences = len(train_dataset)
+        total_steps = int(number_of_sentences // batch_size * epochs)
         eval_steps = int(total_steps // epochs)
         warmup_steps = int(0.1 * total_steps)
         warmup_steps = warmup_steps if warmup_steps > 1 else 0
 
-        print(f"\n\n epoch = {epoch}, total = {total_steps}, warmup = {warmup_steps} \n\n")
+        print(f"\n\n number_of_sentences = {number_of_sentences}, total = {total_steps}, warmup = {warmup_steps} \n\n")
 
         # Set up training arguments
         training_args = TrainingArguments(
