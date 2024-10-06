@@ -19,9 +19,9 @@ def compute_metrics_fun(eval_pred) -> Dict[str, float]:
     Compute evaluation metrics focusing on the last token prediction.
 
     Args:
-        eval_pred: tuple containing:
-            - predictions: numpy array of shape (batch_size, 1, vocab_size)
-            - labels: numpy array of shape (batch_size, seq_len)
+        eval_pred: EvalPrediction object containing:
+            - predictions: tuple of arrays, where the first element contains logits
+            - label_ids: numpy array of shape (batch_size, seq_len)
 
     Returns:
         dict containing metrics:
@@ -33,8 +33,15 @@ def compute_metrics_fun(eval_pred) -> Dict[str, float]:
     """
     predictions, labels = eval_pred
 
-    # Since we're getting single token predictions, squeeze out the middle dimension
-    logits = predictions.squeeze(1)  # Shape: [batch_size, vocab_size]
+    # Unpack predictions tuple and get the logits
+    if isinstance(predictions, tuple):
+        logits = predictions[0]  # Get the first element which should be the logits
+    else:
+        logits = predictions
+
+    # Remove the middle dimension (seq_len=1)
+    if logits.ndim == 3 and logits.shape[1] == 1:
+        logits = logits.squeeze(1)  # Shape: [batch_size, vocab_size]
 
     # Get the last valid token for each sequence
     batch_size = labels.shape[0]
