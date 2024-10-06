@@ -20,7 +20,7 @@ def compute_metrics_fun(eval_pred) -> Dict[str, float]:
 
     Args:
         eval_pred: tuple containing:
-            - predictions: numpy array of shape (batch_size, seq_len, vocab_size)
+            - predictions: numpy array of shape (batch_size, 1, vocab_size)
             - labels: numpy array of shape (batch_size, seq_len)
 
     Returns:
@@ -33,8 +33,10 @@ def compute_metrics_fun(eval_pred) -> Dict[str, float]:
     """
     predictions, labels = eval_pred
 
+    # Since we're getting single token predictions, squeeze out the middle dimension
+    logits = predictions.squeeze(1)  # Shape: [batch_size, vocab_size]
+
     # Get the last valid token for each sequence
-    # Padding value is 0
     batch_size = labels.shape[0]
     last_token_indices = []
 
@@ -46,22 +48,31 @@ def compute_metrics_fun(eval_pred) -> Dict[str, float]:
         else:
             last_token_indices.append(0)  # Fallback to first position if no valid tokens
 
-    # Extract the last token predictions and labels
-    last_token_preds = predictions[np.arange(batch_size), last_token_indices]
+    # Get the labels for the last tokens
     last_token_labels = labels[np.arange(batch_size), last_token_indices]
 
     # Filter out any remaining padding tokens
     valid_mask = last_token_labels != 0
-    last_token_preds = last_token_preds[valid_mask]
-    last_token_labels = last_token_labels[valid_mask]
+    filtered_logits = logits[valid_mask]
+    filtered_labels = last_token_labels[valid_mask]
+
+    if len(filtered_labels) == 0:
+        # Return zero metrics if no valid tokens
+        return {
+            "accuracy": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "perplexity": float('inf')
+        }
 
     # Convert logits to predictions
-    pred_classes = np.argmax(last_token_preds, axis=-1)
+    pred_classes = np.argmax(filtered_logits, axis=-1)
 
     # Calculate metrics
-    accuracy = accuracy_score(last_token_labels, pred_classes)
+    accuracy = accuracy_score(filtered_labels, pred_classes)
     precision, recall, f1, _ = precision_recall_fscore_support(
-        last_token_labels,
+        filtered_labels,
         pred_classes,
         average='weighted',
         zero_division=0
@@ -69,11 +80,11 @@ def compute_metrics_fun(eval_pred) -> Dict[str, float]:
 
     # Calculate perplexity
     # First apply softmax to get probabilities
-    exp_preds = np.exp(last_token_preds - np.max(last_token_preds, axis=-1, keepdims=True))
+    exp_preds = np.exp(filtered_logits - np.max(filtered_logits, axis=-1, keepdims=True))
     probs = exp_preds / exp_preds.sum(axis=-1, keepdims=True)
 
     # Get the probability of the correct class for each sample
-    correct_probs = probs[np.arange(len(last_token_labels)), last_token_labels]
+    correct_probs = probs[np.arange(len(filtered_labels)), filtered_labels]
 
     # Calculate cross entropy loss
     eps = 1e-10  # Small constant to prevent log(0)
@@ -197,7 +208,7 @@ class CombinedTrainer(Trainer):
         })
 
         return (loss, outputs) if return_outputs else loss
-    
+
     def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
         """
            This method runs a short training loop where the learning rate is gradually increased from `start_lr` to `end_lr` over a specified number of iterations (`num_iter`). The method records the learning rate and the corresponding loss at each step, allowing the user to analyze how the loss changes with different learning rates.
