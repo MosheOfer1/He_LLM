@@ -191,10 +191,6 @@ class CombinedTrainer(Trainer):
         logits = outputs.get("logits").to(self.device)  # Shape: [batch_size, 1, vocab_size]
         labels = inputs.get("labels").to(self.device)
 
-        # Initialize PredictionLogger (do this once, perhaps in __init__)
-        if not hasattr(self, 'pred_logger'):
-            self.pred_logger = PredictionLogger(model.config.name_or_path)
-
         if only_last_token:
             # Since logits are already for a single token, we can just squeeze out the middle dimension
             batch_size = input_ids.size(0)

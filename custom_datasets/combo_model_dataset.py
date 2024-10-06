@@ -4,31 +4,23 @@ from torch.utils.data import Dataset
 
 class ComboModelDataset(Dataset):
     def __init__(self, text_list: list[str], input_tokenizer, output_tokenizer, device='cpu'):
-
         self.device = device
-
-        self.sentences_pair_tokens = self.create_pair_tokens_data(input_tokenizer, output_tokenizer, text_list)
-
+        self.text_list = text_list
         self.input_tokenizer = input_tokenizer
         self.output_tokenizer = output_tokenizer
 
     def __len__(self):
-        length = len(self.sentences_pair_tokens)
+        length = len(self.text_list)
         if length <= 0:
-            raise ValueError(
-                f"Your ComboModelDataset.__len__ <= 0")
+            raise ValueError("Your ComboModelDataset.__len__ <= 0")
         return length
 
     def __getitem__(self, idx):
-        """
-        Returns:
-            dict: A dictionary with 'input_ids' containing the tokenized Hebrew sentence and
-                  'labels' containing the associated label.
-        """
-        if idx > self.__len__():
-            raise ValueError(f"Your ComboModelDataset len is: {self.__len__()} and you are trying to get idx: {idx}")
+        if idx >= len(self.text_list):
+            raise ValueError(f"Your ComboModelDataset len is: {len(self.text_list)} and you are trying to get idx: {idx}")
 
-        sentence_pairs = self.sentences_pair_tokens[idx]
+        text = self.text_list[idx]
+        sentence_pairs = create_pair_tokens_data(self.input_tokenizer, self.output_tokenizer, [text])[0]
 
         # Get input tokens (last token is the expected generated token)
         tokens = [pair[0] for pair in sentence_pairs[:-1]]
@@ -51,15 +43,15 @@ class ComboModelDataset(Dataset):
             'labels': labels,
         }
 
-    def create_pair_tokens_data(self, input_tokenizer, output_tokenizer, list_text):
 
-        pairs = []
-        for text in list_text:
-            sentence_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
-            pairs.append(sentence_pairs)
+def create_pair_tokens_data(input_tokenizer, output_tokenizer, list_text):
+    pairs = []
+    for text in list_text:
+        sentence_pairs = align_tokens(input_tokenizer, output_tokenizer, text)
+        pairs.append(sentence_pairs)
 
-        return make_matching_pairs(sentences_pairs=pairs,
-                                   output_tokenizer=output_tokenizer)
+    return make_matching_pairs(sentences_pairs=pairs,
+                               output_tokenizer=output_tokenizer)
 
 
 def make_matching_pairs(sentences_pairs: list[tuple], output_tokenizer):
