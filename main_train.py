@@ -1,5 +1,6 @@
 import sys
 import os
+import torch
 import argparse
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -29,14 +30,13 @@ def main(args):
         text_file_path=args.text_file_path,
         device=device
     )
-    output_tokenizer = customLLM.translator.target_to_src_tokenizer
+
     # Train the model
     train(
         model=customLLM,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         batches=args.batch_size,
-        output_tokenizer=output_tokenizer,
         device=device
     )
 

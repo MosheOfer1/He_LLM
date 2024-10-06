@@ -224,7 +224,7 @@ class MyCustomModel(nn.Module, BestHyper):
 
     def create_trainer(
             self, train_dataset: ComboModelDataset, eval_dataset: ComboModelDataset,
-            output_tokenizer, output_dir: str, logging_dir: str, epochs: int,
+            output_dir: str, logging_dir: str, epochs: int,
             batch_size: int, weight_decay: float,
             logging_steps: int, evaluation_strategy: str,
             lr, max_grad_norm: float,
@@ -274,20 +274,20 @@ class MyCustomModel(nn.Module, BestHyper):
             data_collator=lambda x: collate_fn(x, padding_func=pad_1d_tensors,
                                                padding_value=self.translator.src_to_target_tokenizer.eos_token_id,
                                                max_seq_len=128, device=self.device, offset=0),
-            compute_metrics_fun=compute_metrics_fun,
-            output_tokenizer=output_tokenizer
+            compute_metrics_fun=compute_metrics_fun
+
         )
 
         return trainer
 
     def train_model(
             self, train_dataset: ComboModelDataset, eval_dataset: ComboModelDataset,
-            output_dir: str, logging_dir: str, output_tokenizer, epochs: int = 5,
+            output_dir: str, logging_dir: str, epochs: int = 5,
             batch_size: int = 32, weight_decay: float = 0.01,
             logging_steps: int = 500, evaluation_strategy: str = "steps",
             lr=0.006334926670051613, max_grad_norm: float = 1.0,
             optimizer=None, scheduler=None, device='cpu', save_strategy="no",
-            save_steps=0, save_total_limit=0,
+            save_steps=0, save_total_limit=0
     ):
 
         trainer = self.create_trainer(
@@ -307,8 +307,7 @@ class MyCustomModel(nn.Module, BestHyper):
             device=device,
             save_strategy=save_strategy,
             save_steps=save_steps,
-            save_total_limit=save_total_limit,
-            output_tokenizer=output_tokenizer
+            save_total_limit=save_total_limit
         )
 
         self.printTrainableParams()
