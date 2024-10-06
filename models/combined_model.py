@@ -21,6 +21,7 @@ from translation.helsinki_translator import HelsinkiTranslator
 
 # Optuna best hypers finder
 from utilty.BestHyper import BestHyper
+DEBUG = False
 
 
 class MyCustomModel(nn.Module, BestHyper):
@@ -67,18 +68,18 @@ class MyCustomModel(nn.Module, BestHyper):
         # Step 1: Get hidden states from the translator for input_ids
         translator_last_hs, output_attention_mask = self.get_translator_hidden_states(input_ids, input_attention_mask)
 
-        print(f"translator_last_hs.shape = {translator_last_hs.shape}")
+        if DEBUG: print(f"translator_last_hs.shape = {translator_last_hs.shape}")
 
         # Step 2: Transform to LLM hidden states
         transformed_to_llm_hs = self.transformer.transformer1.forward(translator_last_hs, input_mask=output_attention_mask)
 
-        print(f"transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}")
+        if DEBUG: print(f"transformed_to_llm_hs.shape = {transformed_to_llm_hs.shape}")
 
         # Step 3: Get LLM output using dummy input
         llm_last_hidden_state = self.get_llm_hidden_states(transformed_to_llm_hs,
                                                            output_attention_mask, only_last_token)  # shape: [batch * tokens, 1, dim]
 
-        print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
+        if DEBUG: print(f"llm_last_hidden_state.shape = {llm_last_hidden_state.shape}")
 
         # Step 4: Transform LLM hidden states to translator's hidden states and inject
         transformed_to_translator_hs = self.get_reshaped_translator2_hidden_states(
@@ -88,7 +89,7 @@ class MyCustomModel(nn.Module, BestHyper):
             only_last_token=only_last_token
         )  # [batch * tokens, 2, trans_dim]
 
-        print(f"transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
+        if DEBUG: print(f"transformed_to_translator_hs.shape = {transformed_to_translator_hs.shape}")
 
         # Step 5: Get translator output using dummy input
         outputs = self.get_translator_outputs(transformed_to_translator_hs, input_attention_mask, only_last_token)
@@ -117,7 +118,7 @@ class MyCustomModel(nn.Module, BestHyper):
 
             # Select only the corresponding non-zero elements from transformed_to_translator_hs
             transformed_to_translator_hs = transformed_to_translator_hs[non_zero_indices]
-            print(f"filtered_transformed_hs = {transformed_to_translator_hs.shape}")
+            if DEBUG: print(f"filtered_transformed_hs = {transformed_to_translator_hs.shape}")
 
         # Inject filtered hidden states into the translator
         self.translator.inject_hidden_states(transformed_to_translator_hs)
@@ -129,7 +130,7 @@ class MyCustomModel(nn.Module, BestHyper):
         )
 
         logits = outputs.logits
-        print(f"logits.shape = {logits.shape}")
+        if DEBUG: print(f"logits.shape = {logits.shape}")
 
         if not only_last_token:
             # Create an empty tensor of zeros with the desired final shape
@@ -142,7 +143,7 @@ class MyCustomModel(nn.Module, BestHyper):
             # Place the logits into the correct positions based on the non-zero indices
             padded_logits.view(-1, vocab_size)[non_zero_indices] = logits
 
-            print(f"padded_logits.shape = {padded_logits.shape}")
+            if DEBUG: print(f"padded_logits.shape = {padded_logits.shape}")
             outputs.logits = padded_logits
 
         return outputs
@@ -178,7 +179,7 @@ class MyCustomModel(nn.Module, BestHyper):
             only_last_token=only_last_token
         )
 
-        print(f"transformed_to_translator_hs - {transformed_to_translator_hs.shape}")
+        if DEBUG: print(f"transformed_to_translator_hs - {transformed_to_translator_hs.shape}")
 
         batch_size = transformed_to_translator_hs.shape[0]
 

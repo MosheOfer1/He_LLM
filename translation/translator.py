@@ -166,7 +166,7 @@ class Translator(Injectable):
         batch_size = input_shape[0]
 
         device = model.module.device if hasattr(model, 'module') else model.device
-        print(f"process_outputs: {device}")
+
         # Initialize decoder input IDs with the start token ID for all sentences in the batch
         decoder_input_ids = torch.full(
             (batch_size, 1), tokenizer.pad_token_id, dtype=torch.long, device=device
