@@ -146,15 +146,18 @@ class CombinedTrainer(Trainer):
             batch_size = input_ids.size(0)
             last_token_indices = (attention_mask.sum(dim=1) - 1).to(torch.long)
 
-            # Get the labels for the last token
+            # Get the logits and labels for the last token
+            # Gather the logits for the last token of each sequence
+            last_token_logits = logits[torch.arange(batch_size), last_token_indices,
+                                :]  # Shape: [batch_size, vocab_size]
             last_token_labels = labels[torch.arange(batch_size), last_token_indices]  # Shape: [batch_size]
 
             # Compute loss
             loss_func = nn.CrossEntropyLoss()
-            loss = loss_func(logits, last_token_labels)
+            loss = loss_func(last_token_logits, last_token_labels)
 
             # Compute accuracy
-            predictions = torch.argmax(logits, dim=-1)
+            predictions = torch.argmax(last_token_logits, dim=-1)
             correct = (predictions == last_token_labels).float()
             accuracy = correct.sum() / len(correct)
 
@@ -196,7 +199,6 @@ class CombinedTrainer(Trainer):
         })
 
         return (loss, outputs) if return_outputs else loss
-
     def lr_finder(self, start_lr=1e-7, end_lr=10, num_iter: int = None):
         """
            This method runs a short training loop where the learning rate is gradually increased from `start_lr` to `end_lr` over a specified number of iterations (`num_iter`). The method records the learning rate and the corresponding loss at each step, allowing the user to analyze how the loss changes with different learning rates.
