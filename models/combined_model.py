@@ -234,11 +234,13 @@ class MyCustomModel(nn.Module, BestHyper):
 
         number_of_sentences = len(train_dataset)
         total_steps = int(number_of_sentences // batch_size * epochs)
-        eval_steps = int(total_steps // epochs)
+        steps_per_epoch = number_of_sentences // batch_size
+        eval_steps = steps_per_epoch // 2  # Evaluate every half epoch
         warmup_steps = int(0.1 * total_steps)
         warmup_steps = warmup_steps if warmup_steps > 1 else 0
 
-        print(f"\n\n number_of_sentences = {number_of_sentences}, total = {total_steps}, warmup = {warmup_steps} \n\n")
+        print(f"\n\n number_of_sentences = {number_of_sentences}, total_steps = {total_steps}, "
+              f"steps_per_epoch = {steps_per_epoch}, eval_steps = {eval_steps}, warmup_steps = {warmup_steps} \n\n")
 
         # Set up training arguments
         training_args = TrainingArguments(
@@ -275,7 +277,6 @@ class MyCustomModel(nn.Module, BestHyper):
                                                padding_value=self.translator.src_to_target_tokenizer.eos_token_id,
                                                max_seq_len=128, device=self.device, offset=0),
             compute_metrics_fun=compute_metrics_fun
-
         )
 
         return trainer

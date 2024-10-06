@@ -3,15 +3,42 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from typing import Dict
 import torch
 from torch import nn
+import logging
+
 from transformers import Trainer, get_linear_schedule_with_warmup
 from torch.optim import Adam
 import matplotlib
 import matplotlib.pyplot as plt
+
+
 matplotlib.use('Agg')  # Use 'Agg' for non-GUI environments
 import os
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
+class PredictionLogger:
+    def __init__(self, tokenizer, log_file='predictions.log'):
+        self.tokenizer = tokenizer
+        self.logger = logging.getLogger('PredictionLogger')
+        self.logger.setLevel(logging.INFO)
+        handler = logging.FileHandler(log_file)
+        self.logger.addHandler(handler)
+
+    def decode(self, token_ids):
+        return self.tokenizer.decode(token_ids)
+
+    def log_predictions(self, input_ids, labels, predictions):
+        for i, (input_seq, label, pred) in enumerate(zip(input_ids, labels, predictions)):
+            input_text = self.decode(input_seq)
+            label_text = self.decode([label])
+            pred_text = self.decode([pred])
+            self.logger.info(f"Sample {i}:")
+            self.logger.info(f"  Input: {input_text}")
+            self.logger.info(f"  Label: {label_text}")
+            self.logger.info(f"  Prediction: {pred_text}")
+            self.logger.info("------------------------")
 
 
 def compute_metrics_fun(eval_pred) -> Dict[str, float]:
@@ -123,6 +150,7 @@ class CombinedTrainer(Trainer):
                  compute_metrics_fun,
                  device='cpu'):
         
+        self.pred_logger = PredictionLogger(model.translator.target_to_src_tokenizer)
         print(f"CombinedTrainer.__init__ - uses: {device}")
 
         self.device = device
@@ -159,6 +187,10 @@ class CombinedTrainer(Trainer):
         logits = outputs.get("logits").to(self.device)  # Shape: [batch_size, 1, vocab_size]
         labels = inputs.get("labels").to(self.device)
 
+        # Initialize PredictionLogger (do this once, perhaps in __init__)
+        if not hasattr(self, 'pred_logger'):
+            self.pred_logger = PredictionLogger(model.config.name_or_path)
+
         if only_last_token:
             # Since logits are already for a single token, we can just squeeze out the middle dimension
             batch_size = input_ids.size(0)
@@ -179,6 +211,9 @@ class CombinedTrainer(Trainer):
 
             # Compute perplexity for last token
             perplexity = torch.exp(loss)
+
+            # Log predictions
+            self.pred_logger.log_predictions(input_ids, last_token_labels, predictions)
 
         else:
             # For the all-tokens case (although this might not be needed if we always get single-token logits)
@@ -203,8 +238,16 @@ class CombinedTrainer(Trainer):
             per_token_loss = torch.nn.functional.cross_entropy(logits, labels, ignore_index=0, reduction='none')
             perplexity = torch.exp(per_token_loss[valid_mask.bool()].mean())
 
+            # Log predictions (for non-padding tokens)
+            valid_indices = valid_mask.bool()
+            self.pred_logger.log_predictions(
+                input_ids.view(-1)[valid_indices],
+                labels[valid_indices],
+                predictions[valid_indices]
+            )
+
         # Ensure everything is on the correct device
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = self.device
         loss = loss.to(device)
 
         # Log the metrics
