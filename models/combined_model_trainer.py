@@ -19,21 +19,25 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 class PredictionLogger:
-    def __init__(self, tokenizer, log_file='predictions.log'):
-        self.tokenizer = tokenizer
+    def __init__(self, input_tokenizer, output_tokenizer, log_file='predictions.log'):
+        self.input_tokenizer = input_tokenizer
+        self.output_tokenizer = output_tokenizer
         self.logger = logging.getLogger('PredictionLogger')
         self.logger.setLevel(logging.INFO)
         handler = logging.FileHandler(log_file)
         self.logger.addHandler(handler)
 
-    def decode(self, token_ids):
-        return self.tokenizer.decode(token_ids)
+    def _output_decode(self, token_ids):
+        return self.output_tokenizer.decode(token_ids)
+
+    def _input_decode(self, token_ids):
+        return self.input_tokenizer.convert_ids_to_tokens(token_ids)
 
     def log_predictions(self, input_ids, labels, predictions):
         for i, (input_seq, label, pred) in enumerate(zip(input_ids, labels, predictions)):
-            input_text = self.decode(input_seq)
-            label_text = self.decode([label])
-            pred_text = self.decode([pred])
+            input_text = self._input_decode(input_seq)
+            label_text = self._output_decode([label])
+            pred_text = self._output_decode([pred])
             self.logger.info(f"Sample {i}:")
             self.logger.info(f"  Input: {input_text}")
             self.logger.info(f"  Label: {label_text}")
@@ -150,7 +154,7 @@ class CombinedTrainer(Trainer):
                  compute_metrics_fun,
                  device='cpu'):
         
-        self.pred_logger = PredictionLogger(model.translator.target_to_src_tokenizer)
+        self.pred_logger = PredictionLogger(input_tokenizer=model.translator.src_to_target_tokenizer, output_tokenizer=model.translator.target_to_src_tokenizer)
         print(f"CombinedTrainer.__init__ - uses: {device}")
 
         self.device = device

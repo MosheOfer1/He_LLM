@@ -48,7 +48,7 @@ def predict_and_plot():
     top_probs, top_indices = torch.topk(probs, 5)
     rest_prob = probs.sum() - top_probs.sum()
     print(top_indices)
-    top_tokens = [llm.tokenizer.decode([idx.item()], clean_up_tokenization_spaces=True, skip_special_tokens=True) for
+    top_tokens = [llm.tokenizer._output_decode([idx.item()], clean_up_tokenization_spaces=True, skip_special_tokens=True) for
                   idx in top_indices]
     print(top_tokens)
     labels = top_tokens + ["Rest"]

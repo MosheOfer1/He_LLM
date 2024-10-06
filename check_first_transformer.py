@@ -33,11 +33,11 @@ def plot_top_k_predictions(output_logits, target_hidden_logits, k, llm, sentence
 
     # Get the top k predictions from the output logits
     top_output_probs, top_output_indices = torch.topk(torch.softmax(output_last_logits, dim=-1), k, dim=-1)
-    top_output_tokens = [llm.tokenizer.decode([idx.item()]) for idx in top_output_indices[0]]
+    top_output_tokens = [llm.tokenizer._output_decode([idx.item()]) for idx in top_output_indices[0]]
 
     # Get the top k predictions from the target hidden logits
     top_target_probs, top_target_indices = torch.topk(torch.softmax(target_last_logits, dim=-1), k, dim=-1)
-    top_target_tokens = [llm.tokenizer.decode([idx.item()]) for idx in top_target_indices[0]]
+    top_target_tokens = [llm.tokenizer._output_decode([idx.item()]) for idx in top_target_indices[0]]
 
     print(f"Top {k} Predictions from Output Logits for Sentence {sentence_idx + 1}:")
     for i, (prob, token) in enumerate(zip(top_output_probs[0], top_output_tokens)):

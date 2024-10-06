@@ -96,7 +96,7 @@ class LLMWrapper(nn.Module, Injectable):
         token_ids = torch.argmax(logits, dim=-1)
 
         # Decode the token IDs to text
-        generated_text = self.tokenizer.decode(token_ids[0], skip_special_tokens=True)
+        generated_text = self.tokenizer._output_decode(token_ids[0], skip_special_tokens=True)
 
         return generated_text
 

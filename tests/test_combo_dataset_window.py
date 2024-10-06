@@ -62,7 +62,7 @@ class TestComboModelDataset(unittest.TestCase):
                 print(input_ids.shape)
                 
                 # Step 1: Convert input_ids back to Hebrew text using input_tokenizer
-                hebrew_text = self.input_tokenizer.decode(input_ids[0], skip_special_tokens=True)
+                hebrew_text = self.input_tokenizer._output_decode(input_ids[0], skip_special_tokens=True)
                 print(f"Original Hebrew sentence: {hebrew_text}")
 
                 # Step 2: Tokenize the Hebrew text for the second translation process
@@ -75,7 +75,7 @@ class TestComboModelDataset(unittest.TestCase):
                                                         max_length=50)  # Increase max_length
 
                 # Step 4: Decode the translated output (in English)
-                translated_sentence1 = self.input_tokenizer.decode(outputs[0], skip_special_tokens=True)
+                translated_sentence1 = self.input_tokenizer._output_decode(outputs[0], skip_special_tokens=True)
                 print(f"Translated sentence (to English): {translated_sentence1}")
 
                 # Simulate the batch structure
@@ -88,7 +88,7 @@ class TestComboModelDataset(unittest.TestCase):
                                                         max_length=50)  # Increase max_length
 
                 # Step 4: Decode the translated output (in English)
-                translated_sentence2 = self.input_tokenizer.decode(outputs[0], skip_special_tokens=True)
+                translated_sentence2 = self.input_tokenizer._output_decode(outputs[0], skip_special_tokens=True)
                 print(f"Translated sentence (to English) with batch_artificial: {translated_sentence2}")
                 self.assertEqual(translated_sentence1, translated_sentence2)
 
