@@ -157,7 +157,15 @@ class MyCustomModel(nn.Module, BestHyper):
         llm_outputs = self.llm.get_output_by_using_dummy(token_num=token_num, batch_size=batch_size,
                                                          attention_mask=attention_mask)
 
-        return llm_outputs.hidden_states[-1][:, -1, :].unsqueeze(1) if only_last_token else llm_outputs.hidden_states[-1]  # shape: [batch_size, token_num, dim]
+        if only_last_token:
+            # Get the last non-padding token for each sentence in the batch
+            last_token_indices = (attention_mask.sum(dim=1) - 1).to(torch.long)  # Shape: [batch_size]
+            batch_indices = torch.arange(batch_size, device=last_token_indices.device)
+
+            last_tokens = llm_outputs.hidden_states[-1][batch_indices, last_token_indices, :]
+            return last_tokens.unsqueeze(1)  # Shape: [batch_size, 1, dim]
+        else:
+            return llm_outputs.hidden_states[-1]  # Shape: [batch_size, token_num, dim]
 
     def get_reshaped_translator2_hidden_states(self, llm_last_hidden_state, input_attention_mask, output_attention_mask, only_last_token):
         """
@@ -235,7 +243,7 @@ class MyCustomModel(nn.Module, BestHyper):
         number_of_sentences = len(train_dataset)
         total_steps = int(number_of_sentences // batch_size * epochs)
         steps_per_epoch = number_of_sentences // batch_size
-        eval_steps = steps_per_epoch // 8  # Evaluate every 1/8 epoch
+        eval_steps = steps_per_epoch // 20  # Evaluate every 1/8 epoch
         warmup_steps = int(0.1 * total_steps)
         warmup_steps = warmup_steps if warmup_steps > 1 else 0
 
