@@ -235,7 +235,7 @@ class MyCustomModel(nn.Module, BestHyper):
         number_of_sentences = len(train_dataset)
         total_steps = int(number_of_sentences // batch_size * epochs)
         steps_per_epoch = number_of_sentences // batch_size
-        eval_steps = steps_per_epoch // 2  # Evaluate every half epoch
+        eval_steps = steps_per_epoch // 8  # Evaluate every 1/8 epoch
         warmup_steps = int(0.1 * total_steps)
         warmup_steps = warmup_steps if warmup_steps > 1 else 0
 
