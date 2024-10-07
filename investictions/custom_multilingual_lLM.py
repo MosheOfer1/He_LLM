@@ -3,8 +3,6 @@ import math
 from datetime import datetime
 import logging
 import os
-import sys
-
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -257,8 +255,8 @@ def evaluate_full(model, dataloader, device, dataset_name):
     }
 
 
-def train_llm(model, dataset, num_epochs=5, batch_size=8, learning_rate=5e-5, device='cuda',
-              log_dir='logs', save_dir='model_checkpoints'):
+def train_llm(model, dataset, tokenizer, num_epochs=5, batch_size=8, learning_rate=5e-5, device='cuda',
+              log_dir='logs', save_dir='model_checkpoints', display_interval=100):
     logger = setup_logger(log_dir)
     logger.info(f"Using device: {device}")
     model.to(device)
@@ -268,8 +266,6 @@ def train_llm(model, dataset, num_epochs=5, batch_size=8, learning_rate=5e-5, de
         os.makedirs(save_dir)
 
     logger.info("Model Architecture:")
-    logger.info(model)
-    print(model)
     print_model_info(model, logger)
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -318,6 +314,26 @@ def train_llm(model, dataset, num_epochs=5, batch_size=8, learning_rate=5e-5, de
                 logger.info(f"  Accuracy: {batch_accuracy:.4f}")
                 logger.info(f"  Perplexity: {batch_perplexity:.4f}")
 
+            # Display prediction vs actual label every display_interval steps
+            if global_step % display_interval == 0:
+                with torch.no_grad():
+                    # Get the last sequence in the batch for display
+                    input_sequence = batch_x[-1]
+                    target_sequence = batch_y[-1]
+
+                    # Get the predicted token ids
+                    predicted_ids = torch.argmax(logits[-1], dim=-1)
+
+                    # Decode the sequences
+                    input_text = tokenizer.decode(input_sequence, skip_special_tokens=True)
+                    predicted_text = tokenizer.decode(predicted_ids, skip_special_tokens=True)
+                    target_text = tokenizer.decode(target_sequence, skip_special_tokens=True)
+
+                    logger.info(f"\nStep {global_step}, Prediction vs Actual:")
+                    logger.info(f"Input: {input_text}")
+                    logger.info(f"Predicted next: {predicted_text}")
+                    logger.info(f"Actual next: {target_text}")
+
             # Update progress bar
             print_progress_bar(i + 1, len(train_dataloader), epoch + 1, num_epochs,
                                prefix='Training:', suffix=f'Loss: {loss.item():.4f}', length=30)
@@ -325,15 +341,13 @@ def train_llm(model, dataset, num_epochs=5, batch_size=8, learning_rate=5e-5, de
             # Evaluate on full datasets every half epoch
             if (i + 1) % (len(train_dataloader) // 2) == 0:
                 model.eval()
-                train_metrics = evaluate_full(model, train_dataloader, device, "Training")
                 eval_metrics = evaluate_full(model, eval_dataloader, device, "Evaluation")
 
                 logger.info(f"Full dataset metrics at epoch {epoch + 1}, step {i + 1}:")
-                for metrics in [train_metrics, eval_metrics]:
-                    logger.info(f"  {metrics['dataset']} dataset:")
-                    logger.info(f"    Loss: {metrics['loss']:.4f}")
-                    logger.info(f"    Accuracy: {metrics['accuracy']:.4f}")
-                    logger.info(f"    Perplexity: {metrics['perplexity']:.4f}")
+                logger.info(f"  {eval_metrics['dataset']} dataset:")
+                logger.info(f"    Loss: {eval_metrics['loss']:.4f}")
+                logger.info(f"    Accuracy: {eval_metrics['accuracy']:.4f}")
+                logger.info(f"    Perplexity: {eval_metrics['perplexity']:.4f}")
 
                 model.train()  # Set the model back to training mode
 
