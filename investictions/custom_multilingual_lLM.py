@@ -1,3 +1,4 @@
+import argparse
 import sys
 
 import torch
@@ -19,7 +20,7 @@ class FactorizedEmbedding(nn.Module):
 
 
 class CustomLLM(nn.Module):
-    def __init__(self, he_en_model, en_he_model, llm_model, vocab_size, bottleneck_size=1024):
+    def __init__(self, he_en_model, en_he_model, llm_model, vocab_size, bottleneck_size):
         super().__init__()
 
         # Hebrew-English encoder components
@@ -156,8 +157,7 @@ def print_model_info(model):
         print(f"{name}: Total params = {param_count:,}, Trainable params = {trainable_param_count:,}")
 
 
-def train_llm(model, file_path, tokenizer, num_epochs=5, batch_size=8, learning_rate=5e-5):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+def train_llm(model, file_path, tokenizer, num_epochs=5, batch_size=8, learning_rate=5e-5, device='cuda'):
     print(f"\nUsing device: {device}")
     model.to(device)
 
@@ -209,15 +209,47 @@ def train_llm(model, file_path, tokenizer, num_epochs=5, batch_size=8, learning_
     print("Training completed!")
 
 
-# Setup and usage example:
-he_en_model = AutoModel.from_pretrained("Helsinki-NLP/opus-mt-tc-big-he-en")
-en_he_model = AutoModel.from_pretrained("Helsinki-NLP/opus-mt-en-he")
-llm_model = OPTForCausalLM.from_pretrained("facebook/opt-350m")
+def main():
+    parser = argparse.ArgumentParser(description="Train a custom LLM model")
+    parser.add_argument("--he-en-model", type=str, default="Helsinki-NLP/opus-mt-tc-big-he-en",
+                        help="Name or path of the Hebrew-English model")
+    parser.add_argument("--en-he-model", type=str, default="Helsinki-NLP/opus-mt-en-he",
+                        help="Name or path of the English-Hebrew model")
+    parser.add_argument("--llm-model", type=str, default="facebook/opt-350m",
+                        help="Name or path of the LLM model")
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu",
+                        help="Device to use for training (cuda or cpu)")
+    parser.add_argument("--train-file", type=str, required=True,
+                        help="Path to the training data file")
+    parser.add_argument("--bottleneck-size", type=int, default=1024,
+                        help="Bottleneck size for the factorized embedding")
+    parser.add_argument("--num-epochs", type=int, default=5,
+                        help="Number of training epochs")
+    parser.add_argument("--batch-size", type=int, default=8,
+                        help="Batch size for training")
+    parser.add_argument("--learning-rate", type=float, default=5e-5,
+                        help="Learning rate for training")
 
-# Use the tokenizer from the Hebrew-English model
-tokenizer = AutoTokenizer.from_pretrained("Helsinki-NLP/opus-mt-tc-big-he-en")
+    args = parser.parse_args()
 
-custom_llm = CustomLLM(he_en_model, en_he_model, llm_model, len(tokenizer))
+    # Load models
+    he_en_model = AutoModel.from_pretrained(args.he_en_model)
+    en_he_model = AutoModel.from_pretrained(args.en_he_model)
+    llm_model = OPTForCausalLM.from_pretrained(args.llm_model)
 
-# Assuming 'train_data.txt' is your file with training text
-train_llm(custom_llm, '../my_datasets/unique_150k_lines.txt', tokenizer)
+    # Use the tokenizer from the Hebrew-English model
+    tokenizer = AutoTokenizer.from_pretrained(args.he_en_model)
+
+    # Create custom LLM
+    custom_llm = CustomLLM(he_en_model, en_he_model, llm_model, len(tokenizer), args.bottleneck_size)
+
+    # Train the model
+    train_llm(custom_llm, args.train_file, tokenizer,
+              num_epochs=args.num_epochs,
+              batch_size=args.batch_size,
+              learning_rate=args.learning_rate,
+              device=args.device)
+
+
+if __name__ == "__main__":
+    main()
