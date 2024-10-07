@@ -45,7 +45,7 @@ class CustomLLM(nn.Module):
         self._freeze_layers()
 
     def _freeze_layers(self):
-        # Freeze all parameters in he_en_encoder except the first layer
+        # Freeze all parameters in he_en_encoder
         for param in self.he_en_encoder.parameters():
             param.requires_grad = False
 
@@ -60,10 +60,12 @@ class CustomLLM(nn.Module):
                 param.requires_grad = False
 
     def forward(self, input_ids, attention_mask=None):
+        # Ensure input_ids is of type Long
+        input_ids = input_ids.long()
+
         # Initial encoding
         embeddings = self.he_en_embeddings(input_ids)
-        encoder_output = self.he_en_encoder(embeddings, attention_mask=attention_mask).last_hidden_state
-
+        encoder_output = self.he_en_encoder(inputs_embeds=embeddings, attention_mask=attention_mask).last_hidden_state
         # First custom layer
         x = self.custom_layer1(encoder_output)
 
