@@ -247,7 +247,7 @@ class MyCustomModel(nn.Module, BestHyper):
             output_dir=f"./{output_dir}",
             num_train_epochs=epochs,
             per_device_train_batch_size=batch_size,
-            per_device_eval_batch_size=batch_size,
+            per_device_eval_batch_size=batch_size // 2,
             warmup_steps=warmup_steps,
             weight_decay=weight_decay,
             logging_dir=f"./{logging_dir}",
