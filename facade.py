@@ -1,3 +1,4 @@
+import random
 import sys
 import os
 from custom_datasets.create_datasets import read_file_lines
@@ -11,19 +12,26 @@ from custom_datasets.combo_model_dataset import ComboModelDataset
 from translation.translator import Translator
 
 
-def create_datasets_from_txt_file(translator: Translator, text_file_path: str, train_percentage=0.8, device='cpu'):
+def create_datasets_from_txt_file(translator: Translator, text_file_path: str, train_percentage=0.9, device='cpu'):
     text_list = read_file_lines(text_file_path)
-
-    print(f"First 10 sentences: {text_list[:10]}")
 
     print(f"len(text) = {len(text_list)}")
 
-    split_index = int(len(text_list) * 0.9)
-    train_data, eval_data = text_list[:split_index], text_list[split_index:]
-    print(f"Train number of sentences = {len(train_data)}")
-    print(f"Eval number of sentences = {len(eval_data)}")
+    # Shuffle the text_list
+    random.shuffle(text_list)
+
+    # Split the shuffled list
     split_index = int(len(text_list) * train_percentage)
     train_data, eval_data = text_list[:split_index], text_list[split_index:]
+
+    # Sort train_data by the number of letters
+    train_data.sort(key=lambda x: len(x))
+
+    # Sort eval_data by the number of letters
+    eval_data.sort(key=lambda x: len(x))
+
+    print(f"Train number of sentences = {len(train_data)}")
+    print(f"Eval number of sentences = {len(eval_data)}")
 
     # Create datasets
     train_dataset = ComboModelDataset(
