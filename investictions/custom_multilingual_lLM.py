@@ -430,7 +430,7 @@ def main():
     custom_llm = CustomLLM(he_en_model, en_he_model, llm_model, len(tokenizer), args.bottleneck_size)
 
     # Train the model
-    train_llm(custom_llm, dataset,
+    train_llm(custom_llm, dataset, tokenizer,
               num_epochs=args.num_epochs,
               batch_size=args.batch_size,
               learning_rate=args.learning_rate,
