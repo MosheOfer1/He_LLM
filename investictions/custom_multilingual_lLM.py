@@ -166,11 +166,13 @@ class TextDataset(Dataset):
         return eval_dataset
 
 
-def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, length=50, fill='█'):
+def print_progress_bar(iteration, total, epoch, num_epochs, prefix='', suffix='', decimals=1, length=50, fill='█'):
     """
-    Call in a loop to create a terminal progress bar.
+    Call in a loop to create a terminal progress bar with step and epoch information.
     :param iteration: current iteration (int)
     :param total: total iterations (int)
+    :param epoch: current epoch (int)
+    :param num_epochs: total number of epochs (int)
     :param prefix: prefix string (str)
     :param suffix: suffix string (str)
     :param decimals: positive number of decimals in percent complete (int)
@@ -180,10 +182,12 @@ def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, lengt
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filled_length = int(length * iteration // total)
     bar = fill * filled_length + '-' * (length - filled_length)
-    sys.stdout.write(f'\r{prefix} |{bar}| {percent}% {suffix}')
-    sys.stdout.flush()
+    step_info = f"Step {iteration}/{total}"
+    epoch_info = f"Epoch {epoch}/{num_epochs}"
+    print(f'\r{prefix} |{bar}| {percent}% {step_info} {epoch_info} {suffix}', end='')
+    # Print New Line on Complete
     if iteration == total:
-        print()  # New line on completion
+        print()
 
 
 def print_model_info(model):
@@ -310,8 +314,8 @@ def train_llm(model, dataset, num_epochs=5, batch_size=8, learning_rate=5e-5, de
                 logger.info(f"  Perplexity: {batch_perplexity:.4f}")
 
             # Update progress bar
-            print_progress_bar(i + 1, len(train_dataloader), prefix=f'Epoch {epoch + 1}/{num_epochs}',
-                               suffix=f'Loss: {loss.item():.4f}', length=30)
+            print_progress_bar(i + 1, len(train_dataloader), epoch + 1, num_epochs,
+                               prefix='Training:', suffix=f'Loss: {loss.item():.4f}', length=30)
 
             # Evaluate on full datasets every half epoch
             if (i + 1) % (len(train_dataloader) // 2) == 0:
