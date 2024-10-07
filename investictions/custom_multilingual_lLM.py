@@ -54,9 +54,10 @@ class CustomLLM(nn.Module):
     def __init__(self, he_en_model, en_he_model, llm_model, vocab_size, bottleneck_size):
         super().__init__()
 
-        # Hebrew-English encoder components
+        # Hebrew-English components
         self.he_en_embeddings = he_en_model.shared
         self.he_en_encoder = he_en_model.encoder
+        self.he_en_decoder = he_en_model.decoder
 
         # First custom layer
         self.custom_layer1 = nn.Sequential(
@@ -75,7 +76,8 @@ class CustomLLM(nn.Module):
             nn.LayerNorm(en_he_model.config.hidden_size)
         )
 
-        # English-Hebrew decoder layers
+        # English-Hebrew components
+        self.en_he_encoder = en_he_model.encoder
         self.en_he_decoder_layers = en_he_model.decoder.layers
 
         # Factorized output projection
@@ -85,33 +87,53 @@ class CustomLLM(nn.Module):
             bottleneck_size
         )
 
-        # Freeze most pre-trained layers
+        # Freeze layers
         self._freeze_layers()
 
     def _freeze_layers(self):
-        # Freeze all parameters in he_en_encoder
-        for param in self.he_en_encoder.parameters():
-            param.requires_grad = False
-
-        # Freeze all main LLM layers except the first and last
-        for layer in self.main_layers[1:-1]:
-            for param in layer.parameters():
+        # Helper function to freeze all parameters in a module
+        def freeze_module(module):
+            for param in module.parameters():
                 param.requires_grad = False
 
-        # Freeze all EN-HE decoder layers except the first and last
-        for layer in self.en_he_decoder_layers[1:-1]:
-            for param in layer.parameters():
-                param.requires_grad = False
+        # Freeze Hebrew-English components
+        freeze_module(self.he_en_embeddings)
+        freeze_module(self.he_en_encoder)
+        freeze_module(self.he_en_decoder)
+
+        # Freeze LLM layers
+        for layer in self.main_layers:
+            freeze_module(layer)
+
+        # Freeze English-Hebrew components
+        freeze_module(self.en_he_encoder)
+        for layer in self.en_he_decoder_layers:
+            freeze_module(layer)
+
+        # Ensure custom layers are trainable
+        for param in self.custom_layer1.parameters():
+            param.requires_grad = True
+        for param in self.custom_layer2.parameters():
+            param.requires_grad = True
+
+        # Ensure output projection is trainable
+        for param in self.output_projection.parameters():
+            param.requires_grad = True
 
     def forward(self, input_ids, attention_mask=None):
         # Ensure input_ids is of type Long
         input_ids = input_ids.long()
 
-        # Initial encoding
+        # Hebrew-English encoding
         embeddings = self.he_en_embeddings(input_ids)
         encoder_output = self.he_en_encoder(inputs_embeds=embeddings, attention_mask=attention_mask).last_hidden_state
+
+        # Hebrew-English decoding (using encoder output as context)
+        he_en_decoder_output = self.he_en_decoder(input_ids=input_ids, encoder_hidden_states=encoder_output,
+                                                  attention_mask=attention_mask).last_hidden_state
+
         # First custom layer
-        x = self.custom_layer1(encoder_output)
+        x = self.custom_layer1(he_en_decoder_output)
 
         # Main LLM processing
         for layer in self.main_layers:
@@ -120,9 +142,12 @@ class CustomLLM(nn.Module):
         # Second custom layer
         x = self.custom_layer2(x)
 
+        # English-Hebrew encoding
+        en_he_encoder_output = self.en_he_encoder(inputs_embeds=x, attention_mask=attention_mask).last_hidden_state
+
         # EN-HE decoder processing
         for layer in self.en_he_decoder_layers:
-            x = layer(x, attention_mask=attention_mask)[0]
+            x = layer(x, encoder_hidden_states=en_he_encoder_output, attention_mask=attention_mask)[0]
 
         # Final projection
         logits = self.output_projection(x)
