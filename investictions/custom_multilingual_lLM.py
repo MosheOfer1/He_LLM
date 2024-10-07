@@ -190,22 +190,27 @@ def print_progress_bar(iteration, total, epoch, num_epochs, prefix='', suffix=''
         print()
 
 
-def print_model_info(model):
-    print("\nModel Architecture:")
-    print(model)
+def print_model_info(model, logger):
+    logger.info("\nModel Architecture:")
+    logger.info(str(model))
 
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    print(f"\nTotal parameters: {total_params:,}")
-    print(f"Trainable parameters: {trainable_params:,}")
-    print(f"Percentage of trainable parameters: {trainable_params / total_params * 100:.2f}%")
+    logger.info(f"\nTotal parameters: {total_params:,}")
+    logger.info(f"Trainable parameters: {trainable_params:,}")
+    logger.info(f"Percentage of trainable parameters: {trainable_params / total_params * 100:.2f}%")
 
-    print("\nLayer-wise parameter count:")
+    logger.info("\nLayer-wise parameter count:")
     for name, module in model.named_children():
         param_count = sum(p.numel() for p in module.parameters())
         trainable_param_count = sum(p.numel() for p in module.parameters() if p.requires_grad)
-        print(f"{name}: Total params = {param_count:,}, Trainable params = {trainable_param_count:,}")
+        logger.info(f"{name}: Total params = {param_count:,}, Trainable params = {trainable_param_count:,}")
+
+    # Optional: If you want to log the model summary to a file
+    with open('model_summary.txt', 'w') as f:
+        f.write(str(model))
+    logger.info("Model summary has been saved to 'model_summary.txt'")
 
 
 def evaluate_batch(logits, targets):
@@ -265,7 +270,7 @@ def train_llm(model, dataset, num_epochs=5, batch_size=8, learning_rate=5e-5, de
     logger.info("Model Architecture:")
     logger.info(model)
     print(model)
-    print_model_info(model)
+    print_model_info(model, logger)
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     eval_dataset = dataset.get_eval_data()
