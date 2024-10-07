@@ -7,8 +7,19 @@ from transformers import AutoModel, AutoTokenizer, OPTForCausalLM
 from torch.utils.data import Dataset, DataLoader
 
 
+class FactorizedEmbedding(nn.Module):
+    def __init__(self, hidden_size, vocab_size, bottleneck_size):
+        super().__init__()
+        self.dense = nn.Linear(hidden_size, bottleneck_size, bias=False)
+        self.out_proj = nn.Linear(bottleneck_size, vocab_size, bias=False)
+
+    def forward(self, x):
+        x = self.dense(x)
+        return self.out_proj(x)
+
+
 class CustomLLM(nn.Module):
-    def __init__(self, he_en_model, en_he_model, llm_model, vocab_size):
+    def __init__(self, he_en_model, en_he_model, llm_model, vocab_size, bottleneck_size=1024):
         super().__init__()
 
         # Hebrew-English encoder components
@@ -35,10 +46,11 @@ class CustomLLM(nn.Module):
         # English-Hebrew decoder layers
         self.en_he_decoder_layers = en_he_model.decoder.layers
 
-        # Final layer for output projection
-        self.output_projection = nn.Linear(
+        # Factorized output projection
+        self.output_projection = FactorizedEmbedding(
             en_he_model.config.hidden_size,
-            vocab_size
+            vocab_size,
+            bottleneck_size
         )
 
         # Freeze most pre-trained layers
