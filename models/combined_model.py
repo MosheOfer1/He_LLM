@@ -294,7 +294,7 @@ class MyCustomModel(nn.Module, BestHyper):
             output_dir: str, logging_dir: str, epochs: int = 5,
             batch_size: int = 32, weight_decay: float = 0.01,
             logging_steps: int = 500, evaluation_strategy: str = "steps",
-            lr=0.006334926670051613, max_grad_norm: float = 1.0,
+            lr=0.006334926670051613, max_grad_norm: float = 0.5,
             optimizer=None, scheduler=None, device='cpu', save_strategy="no",
             save_steps=0, save_total_limit=0
     ):
