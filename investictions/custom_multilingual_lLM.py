@@ -221,7 +221,7 @@ def main():
                         help="Device to use for training (cuda or cpu)")
     parser.add_argument("--train-file", type=str, required=True,
                         help="Path to the training data file")
-    parser.add_argument("--bottleneck-size", type=int, default=1024,
+    parser.add_argument("--bottleneck-size", type=int, default=256,
                         help="Bottleneck size for the factorized embedding")
     parser.add_argument("--num-epochs", type=int, default=5,
                         help="Number of training epochs")
