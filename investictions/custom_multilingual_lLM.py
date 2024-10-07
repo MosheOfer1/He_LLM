@@ -11,11 +11,9 @@ class CustomLLM(nn.Module):
     def __init__(self, he_en_model, en_he_model, llm_model, vocab_size):
         super().__init__()
 
-        # Hebrew-English encoder (used as initial layers)
-        self.initial_layers = nn.Sequential(
-            he_en_model.shared,
-            he_en_model.encoder
-        )
+        # Hebrew-English encoder components
+        self.he_en_embeddings = he_en_model.shared
+        self.he_en_encoder = he_en_model.encoder
 
         # First custom layer
         self.custom_layer1 = nn.Sequential(
@@ -47,13 +45,9 @@ class CustomLLM(nn.Module):
         self._freeze_layers()
 
     def _freeze_layers(self):
-        # Freeze all parameters in initial_layers except the first layer
-        for param in self.initial_layers[1].parameters():
+        # Freeze all parameters in he_en_encoder except the first layer
+        for param in self.he_en_encoder.parameters():
             param.requires_grad = False
-
-        # Unfreeze the first layer of initial_layers
-        for param in list(self.initial_layers[1].parameters())[:2]:
-            param.requires_grad = True
 
         # Freeze all main LLM layers except the first and last
         for layer in self.main_layers[1:-1]:
@@ -67,10 +61,11 @@ class CustomLLM(nn.Module):
 
     def forward(self, input_ids, attention_mask=None):
         # Initial encoding
-        x = self.initial_layers(input_ids, attention_mask=attention_mask).last_hidden_state
+        embeddings = self.he_en_embeddings(input_ids)
+        encoder_output = self.he_en_encoder(embeddings, attention_mask=attention_mask).last_hidden_state
 
         # First custom layer
-        x = self.custom_layer1(x)
+        x = self.custom_layer1(encoder_output)
 
         # Main LLM processing
         for layer in self.main_layers:
